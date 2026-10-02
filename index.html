@@ -2051,7 +2051,7 @@ function umlPanel() {
       h += '<button class="btn danger block" data-act="del">Hapus garis</button>';
     }
   } else if (ids.length > 1) {
-    h += '<div class="sec"><h2>Pilihan</h2><p class="hint">' + ids.length + ' item dipilih.</p><div class="row">' + [['al', 'alL', 'kiri'], ['ac', 'alC', 'tengah'], ['ar', 'alR', 'kanan'], ['at', 'alT', 'atas'], ['am', 'alM', 'tengah'], ['ab', 'alB', 'bawah']].map(function (b2) { return '<button class="btn" data-act="' + b2[1] + '" title="Ratakan ' + b2[2] + '" aria-label="Ratakan ' + b2[2] + '">' + ico(b2[0]) + '</button>'; }).join('') + '</div><div class="row"><button class="btn" data-act="distH">Sebar horizontal</button><button class="btn" data-act="distV">Sebar vertikal</button></div><div class="row"><button class="btn" data-act="sameW">Samakan lebar</button><button class="btn" data-act="sameH">Samakan tinggi</button></div></div>';
+    h += '<div class="sec"><h2>Pilihan</h2><p class="hint">' + ids.length + ' item dipilih. Seret kotak kecil di tepi salah satunya untuk mengubah ukuran semuanya sekaligus.</p><div class="row">' + [['al', 'alL', 'kiri'], ['ac', 'alC', 'tengah'], ['ar', 'alR', 'kanan'], ['at', 'alT', 'atas'], ['am', 'alM', 'tengah'], ['ab', 'alB', 'bawah']].map(function (b2) { return '<button class="btn" data-act="' + b2[1] + '" title="Ratakan ' + b2[2] + '" aria-label="Ratakan ' + b2[2] + '">' + ico(b2[0]) + '</button>'; }).join('') + '</div><div class="row"><button class="btn" data-act="distH">Sebar horizontal</button><button class="btn" data-act="distV">Sebar vertikal</button></div><div class="row"><button class="btn" data-act="sameW">Samakan lebar</button><button class="btn" data-act="sameH">Samakan tinggi</button></div></div>';
     h += '<div class="row"><button class="btn" data-act="dup">Duplikat</button><button class="btn danger" data-act="del">Hapus</button></div>';
   } else {
     h += '<div class="sec"><h2>Diagram</h2><div class="field"><label for="p-dn">Nama diagram</label><input class="in" id="p-dn" data-f="dname" value="' + esc(D.name) + '"></div>';
@@ -2844,12 +2844,19 @@ function sceneMarkup(D, routes, selSet) {
   D.flows.forEach(function (f) { var r = routes.get(f.id); if (r) body += flowMarkup(f, r, selSet.has(f.id), mig.has(f.id), markers); });
   return { defs: defs(markers), body: body };
 }
+var COARSE = false; try { COARSE = matchMedia('(pointer: coarse)').matches; } catch (x) { COARSE = false; }
 function overlay(D, routes, v) {
-  var k = v.k, s = '', hs = 4.5 / k, sw = 1.3 / k;
+  var k = v.k, s = '', hs = (COARSE ? 8 : 4.5) / k, sw = 1.3 / k;
   if (drag && drag.guides) drag.guides.forEach(function (g) { s += '<path class="guide" style="stroke-width:' + 1.5 / k + 'px;stroke-dasharray:' + 5 / k + ' ' + 3 / k + '" d="M' + g[0] + ' ' + g[1] + 'L' + g[2] + ' ' + g[3] + '"/>'; });
   D.elements.forEach(function (e) {
     if (!sel.has(e.id)) return;
     s += '<rect class="selbox" style="stroke-width:' + sw + 'px;stroke-dasharray:' + 4 / k + ' ' + 3 / k + '" x="' + (e.x - 3 / k) + '" y="' + (e.y - 3 / k) + '" width="' + (e.w + 6 / k) + '" height="' + (e.h + 6 / k) + '"/>';
+  });
+  var selE = D.elements.filter(function (x) { return sel.has(x.id); });
+  if (selE.length > 1 && !(drag && drag.t === 'move')) selE.forEach(function (e) {
+    [['nw', e.x, e.y, 'nwse-resize'], ['ne', e.x + e.w, e.y, 'nesw-resize'], ['sw', e.x, e.y + e.h, 'nesw-resize'], ['se', e.x + e.w, e.y + e.h, 'nwse-resize'], ['n', e.x + e.w / 2, e.y, 'ns-resize'], ['s', e.x + e.w / 2, e.y + e.h, 'ns-resize'], ['w', e.x, e.y + e.h / 2, 'ew-resize'], ['e', e.x + e.w, e.y + e.h / 2, 'ew-resize']].forEach(function (h) {
+      s += '<rect class="handle" data-h="' + h[0] + '" data-e="' + e.id + '" style="stroke-width:' + sw + 'px;cursor:' + h[3] + '" x="' + (h[1] - hs) + '" y="' + (h[2] - hs) + '" width="' + hs * 2 + '" height="' + hs * 2 + '"><title>Seret untuk mengubah ukuran semua yang dipilih sekaligus</title></rect>';
+    });
   });
   if (sel.size === 1) {
     var id = Array.from(sel)[0], e = elOf(D, id);
@@ -3041,7 +3048,7 @@ function panel() {
       h += '<datalist id="dl-p">' + flowSuggest(D, f).map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>';
     }
   } else if (ids.length > 1) {
-    h += '<div class="sec"><h2>Pilihan</h2><p class="hint">' + ids.length + ' objek dipilih. Seret salah satu untuk memindah semuanya.</p></div>';
+    h += '<div class="sec"><h2>Pilihan</h2><p class="hint">' + ids.length + ' objek dipilih. Seret salah satu untuk memindah semuanya, atau seret kotak kecil di tepinya untuk mengubah ukuran semuanya sekaligus. Tahan Shift saat menggeser supaya lurus.</p></div>';
     h += '<div class="sec"><h2>Ratakan</h2><div class="row">' + [['al', 'alL', 'kiri'], ['ac', 'alC', 'tengah'], ['ar', 'alR', 'kanan'], ['at', 'alT', 'atas'], ['am', 'alM', 'tengah'], ['ab', 'alB', 'bawah']].map(function (b) { return '<button class="btn" data-act="' + b[1] + '" title="Ratakan ' + b[2] + '" aria-label="Ratakan ' + b[2] + '">' + ico(b[0]) + '</button>'; }).join('') + '</div>' +
       '<div class="row"><button class="btn" data-act="distH">Sebar horizontal</button><button class="btn" data-act="distV">Sebar vertikal</button></div></div>';
     h += '<div class="row"><button class="btn" data-act="dup">Duplikat</button><button class="btn danger" data-act="del">Hapus</button></div>';
@@ -3602,6 +3609,16 @@ $('#menubar').addEventListener('click', function (e) {
 $('#menubar').addEventListener('pointerover', function (e) { var b = e.target.closest('.mbtn'); if (b && menuEl && $('.mbtn[aria-expanded="true"]') && b.getAttribute('aria-expanded') !== 'true') openMenuBtn(b); });
 function contextMenu(e, id) {
   var D = cur(), o = id && (elOf(D, id) || flOf(D, id)), items = [];
+  var mE = selEls();
+  if (mE.length > 1 && id && sel.has(id)) {
+    /* beberapa objek dipilih: perintah untuk semuanya sekaligus */
+    items.push({ hd: mE.length + ' objek dipilih' }, item('Potong', 'cut', 'Ctrl+X'), item('Salin', 'copy', 'Ctrl+C'), item('Duplikat', 'dup', 'Ctrl+D'), item('Hapus', 'del', 'Del'), HR,
+      { hd: 'Ratakan' }, item('Kiri', 'alL'), item('Kanan', 'alR'), item('Atas', 'alT'), item('Bawah', 'alB'), item('Tengah (sumbu vertikal)', 'alC'), item('Tengah (sumbu horizontal)', 'alM'), HR,
+      item('Samakan lebar', 'sameW'), item('Samakan tinggi', 'sameH'), item('Sebar horizontal', 'distH', '', { dis: mE.length < 3 }), item('Sebar vertikal', 'distV', '', { dis: mE.length < 3 }));
+    if (!isDfd() && mE.every(function (x) { return x.type === mE[0].type && (x.type === 'partition' || x.type === 'lane'); })) items.push(HR, item('Rapatkan ' + (mE[0].type === 'lane' ? 'lane' : 'partition') + ' terpilih', 'dockall'));
+    items.push(HR, item('Warna garis…', 'pop:stroke'), item('Warna isi…', 'pop:fill'), item('Warna teks…', 'pop:text'), HR, item('Bawa ke depan', 'front'), item('Kirim ke belakang', 'back'));
+    renderMenu(items, e.clientX, e.clientY); return;
+  }
   if (!isDfd()) {
     if (o) {
       items.push(item('Ubah nama', 'rename', 'F2'), item('Potong', 'cut', 'Ctrl+X'), item('Salin', 'copy', 'Ctrl+C'), item('Duplikat', 'dup', 'Ctrl+D'), item('Hapus', 'del', 'Del'), HR);
@@ -3893,7 +3910,7 @@ function doPinch() {
 }
 cv.addEventListener('contextmenu', function (e) {
   e.preventDefault();
-  var g = e.target.closest('[data-id]'), id = g && g.dataset.id;
+  var g = e.target.closest('[data-id]'), he = e.target.closest('[data-e]'), id = (g && g.dataset.id) || (he && he.dataset.e) || (e.target.closest('.handle') && sel.size === 1 ? Array.from(sel)[0] : null);
   if (id && !sel.has(id)) { sel = new Set([id]); draw(); panel(); syncBar(); }
   contextMenu(e, id || (sel.size === 1 ? Array.from(sel)[0] : null));
 });
@@ -3943,6 +3960,11 @@ cv.addEventListener('pointerdown', function (e) {
   lastDown = { id: gid, t: dbl ? 0 : now, x: e.clientX, y: e.clientY };
   if (dbl && tool === 'select') { drag = null; startRename(gid); return; }
   if (tool === 'select') {
+    if (hd && hd.dataset.e && elOf(D, hd.dataset.e)) {
+      var lead = elOf(D, hd.dataset.e), grp = {};
+      D.elements.forEach(function (x) { if (sel.has(x.id)) grp[x.id] = { x: x.x, y: x.y, w: x.w, h: x.h }; });
+      drag = { t: 'resize', id: lead.id, h: hd.dataset.h, pushed: false, o: { x: lead.x, y: lead.y, w: lead.w, h: lead.h }, grp: grp }; return;
+    }
     if (hd && sel.size === 1) {
       var id = Array.from(sel)[0], hv = hd.dataset.h;
       if (hv.indexOf('bend:') === 0) { drag = { t: 'bend', fid: id, i: +hv.slice(5), pushed: false }; return; }
@@ -3998,6 +4020,7 @@ cv.addEventListener('pointermove', function (e) {
     if (!drag.moved) { if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 4) return; push(); drag.moved = true; var mvSet = new Set(Object.keys(drag.orig)); pinAround(D, mvSet, false); drag.bo2 = {};
       D.flows.forEach(function (f) { var a = mvSet.has(f.from), b = mvSet.has(f.to); if (a !== b && fs(f).route > 0 && f.bends && f.bends.length && f.sa && f.ta) drag.bo2[f.id] = { b: f.bends.map(function (q) { return { x: q.x, y: q.y }; }), mov: a ? 's' : 't' }; }); }
     var dx = p.x - drag.start.x, dy = p.y - drag.start.y, sdx = 0, sdy = 0, first = true;
+    if (e.shiftKey) { if (Math.abs(dx) >= Math.abs(dy)) dy = 0; else dx = 0; }
     D.elements.forEach(function (x) { var o = drag.orig[x.id]; if (!o || !first) return; sdx = snap(o.x + dx, e) - o.x; sdy = snap(o.y + dy, e) - o.y; first = false; });
     drag.guides = null;
     if (!isDfd() && drag.lead && !e.altKey) { var le = elOf(D, drag.lead), lo = le && drag.orig[le.id]; if (lo && DOCK_T[le.type]) { var sn = dockMove(D, le, { l: lo.x + sdx, t: lo.y + sdy, r: lo.x + sdx + le.w, b: lo.y + sdy + le.h }, drag.orig, 10 / v.k); sdx += sn.dx; sdy += sn.dy; drag.guides = sn.g; } }
@@ -4007,13 +4030,25 @@ cv.addEventListener('pointermove', function (e) {
     draw();
   } else if (drag.t === 'resize') {
     var el = elOf(D, drag.id), o = drag.o, hv = drag.h, l = o.x, t = o.y, r = o.x + o.w, b = o.y + o.h;
-    if (!drag.pushed) { push(); drag.pushed = true; pinAround(D, new Set([drag.id]), true); }
+    if (!drag.pushed) { push(); drag.pushed = true; pinAround(D, new Set(drag.grp ? Object.keys(drag.grp) : [drag.id]), true); }
     var mw = TT[el.type] ? 6 : MINW, mh = TT[el.type] ? 4 : MINH;
     if (hv.indexOf('w') >= 0) l = Math.min(snap(p.x, e), r - mw); if (hv.indexOf('e') >= 0) r = Math.max(snap(p.x, e), l + mw);
     if (hv.indexOf('n') >= 0) t = Math.min(snap(p.y, e), b - mh); if (hv.indexOf('s') >= 0) b = Math.max(snap(p.y, e), t + mh);
     drag.guides = null;
     if (!isDfd() && DOCK_T[el.type] && !e.altKey) { var rs = dockResize(D, el, { l: l, t: t, r: r, b: b }, hv, 10 / v.k); l = rs.l; t = rs.t; r = rs.r; b = rs.b; drag.guides = rs.g; }
-    el.x = l; el.y = t; el.w = r - l; el.h = b - t; draw();
+    el.x = l; el.y = t; el.w = r - l; el.h = b - t;
+    if (drag.grp) {
+      /* beberapa objek dipilih: tepi yang sama digeser sejauh yang sama di semua objek */
+      var dl = l - o.x, dt = t - o.y, dr = r - (o.x + o.w), db = b - (o.y + o.h);
+      Object.keys(drag.grp).forEach(function (gid2) {
+        if (gid2 === el.id) return; var x = elOf(D, gid2), g0 = drag.grp[gid2]; if (!x) return;
+        var m1 = TT[x.type] ? 6 : MINW, m2 = TT[x.type] ? 4 : MINH, L2 = g0.x + dl, R2 = g0.x + g0.w + dr, T2 = g0.y + dt, B2 = g0.y + g0.h + db;
+        if (R2 - L2 < m1) { if (hv.indexOf('w') >= 0) L2 = R2 - m1; else R2 = L2 + m1; }
+        if (B2 - T2 < m2) { if (hv.indexOf('n') >= 0) T2 = B2 - m2; else B2 = T2 + m2; }
+        x.x = L2; x.y = T2; x.w = R2 - L2; x.h = B2 - T2;
+      });
+    }
+    draw();
   } else if (drag.t === 'bend') {
     if (!drag.pushed) { push(); drag.pushed = true; var fb0 = flOf(D, drag.fid); if (fb0) fb0.manual = true; }
     var f = flOf(D, drag.fid); if (f && f.bends[drag.i]) f.bends[drag.i] = { x: snap(p.x, e), y: snap(p.y, e) }; draw();
@@ -4101,6 +4136,7 @@ window.addEventListener('keydown', function (e) {
   }
   if (e.key === ' ') { if (tg && tg.closest && tg.closest('button,[data-tab]')) return; if (!spaceDown) { spaceDown = true; draw(); } e.preventDefault(); return; }
   if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); delSel(); return; }
+  if (e.key === 'Escape' && drag && drag.t !== 'pan' && drag.t !== 'marquee') { var dg = drag; drag = null; if (dg.pushed || dg.moved) { undo(); redoS.pop(); } draw(); return; }
   if (e.key === 'Escape') { flowFrom = null; sel.clear(); setTool('select'); panel(); syncBar(); closeMenus(); closePop(); return; }
   if (e.key === 'F2') { e.preventDefault(); run('rename'); return; }
   if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) { e.preventDefault(); var r = cv.getBoundingClientRect(); contextMenu({ clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }, sel.size === 1 ? Array.from(sel)[0] : null); return; }
