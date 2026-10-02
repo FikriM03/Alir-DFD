@@ -1,7 +1,7 @@
 {
-  "name": "Alir DFD",
+  "name": "Alir - DFD & UML",
   "short_name": "Alir",
-  "description": "Editor Data Flow Diagram yang bisa membuka dan menyimpan berkas .pam PowerDesigner 6.",
+  "description": "Editor DFD (berkas .pam PowerDesigner 6) serta Activity, Use Case, dan BPMN yang bisa diekspor ke Enterprise Architect.",
   "lang": "id",
   "start_url": "./",
   "scope": "./",
