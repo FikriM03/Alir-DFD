@@ -3860,7 +3860,7 @@ function checkModal() {
 /* ---------- interaksi kanvas ---------- */
 var TOOLS = [['select', 'Pilih', 'V'], ['hand', 'Geser', 'H'], ['process', 'Proses', 'P'], ['store', 'Store', 'D'], ['entity', 'Entitas', 'E'], ['flow', 'Alur', 'F']];
 var HINT = {
-  select: 'Klik untuk memilih, seret untuk memindah. Klik kanan untuk menu. Roda mouse untuk zoom, Spasi + seret untuk menggeser.',
+  select: 'Klik untuk memilih, seret untuk memindah. Klik kanan untuk menu. Scroll untuk menggeser, Ctrl + scroll atau cubit touchpad untuk zoom.',
   hand: 'Seret untuk menggeser kanvas.', process: 'Klik di kanvas untuk menaruh proses. Tahan Shift untuk menaruh beberapa.',
   entity: 'Klik di kanvas untuk menaruh entitas eksternal.', store: 'Klik di kanvas untuk menaruh data store.',
   flow: 'Klik objek asal, lalu klik objek tujuan. Esc untuk berhenti.'
@@ -3897,12 +3897,35 @@ cv.addEventListener('contextmenu', function (e) {
   if (id && !sel.has(id)) { sel = new Set([id]); draw(); panel(); syncBar(); }
   contextMenu(e, id || (sel.size === 1 ? Array.from(sel)[0] : null));
 });
+/* Kontrol seperti Figma: scroll = geser (touchpad dua jari juga geser ke segala arah), Ctrl/Cmd + scroll atau cubit touchpad = zoom.
+   Event dikumpulkan per frame supaya touchpad yang mengirim banyak event tetap halus. */
+var wheelAcc = null;
+function flushWheel() {
+  var a = wheelAcc; wheelAcc = null; if (!a) return;
+  var v = view();
+  if (a.dx || a.dy) { v.x -= a.dx; v.y -= a.dy; v.fresh = false; }
+  if (a.z !== 1) zoomAt(a.cx, a.cy, a.z); else draw();
+}
+function queueWheel(dx, dy, z, cx, cy) {
+  if (!wheelAcc) { wheelAcc = { dx: 0, dy: 0, z: 1, cx: cx, cy: cy }; requestAnimationFrame(flushWheel); }
+  wheelAcc.dx += dx; wheelAcc.dy += dy; wheelAcc.z *= z; wheelAcc.cx = cx; wheelAcc.cy = cy;
+}
 cv.addEventListener('wheel', function (e) {
   e.preventDefault(); closeMenus();
-  var dy = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaY;
-  if (e.shiftKey && !e.ctrlKey) { var v = view(); v.x -= dy; v.fresh = false; draw(); return; }
-  zoomAt(e.clientX, e.clientY, Math.exp(-dy * (e.ctrlKey ? 0.012 : 0.0016)));
+  var m = e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1, dx = e.deltaX * m, dy = e.deltaY * m;
+  if (e.ctrlKey || e.metaKey) {
+    /* cubit touchpad datang sebagai ctrl+wheel dengan delta kecil; roda mouse dengan delta besar */
+    var step = Math.max(-60, Math.min(60, dy));
+    queueWheel(0, 0, Math.exp(-step * (Math.abs(dy) < 40 ? 0.012 : 0.004)), e.clientX, e.clientY); return;
+  }
+  if (e.shiftKey && !dx) { dx = dy; dy = 0; }
+  queueWheel(dx, dy, 1, e.clientX, e.clientY);
 }, { passive: false });
+/* Safari di Mac: cubit touchpad lewat gesture event */
+var gStart = null;
+cv.addEventListener('gesturestart', function (e) { e.preventDefault(); gStart = { k: view().k, s: 1 }; });
+cv.addEventListener('gesturechange', function (e) { e.preventDefault(); if (!gStart) return; var f = e.scale / gStart.s; gStart.s = e.scale; zoomAt(e.clientX, e.clientY, f); });
+cv.addEventListener('gestureend', function (e) { e.preventDefault(); gStart = null; });
 cv.addEventListener('pointerdown', function (e) {
   if (editing) endRename(true);
   closeMenus(); closePop();
@@ -4381,7 +4404,7 @@ var HELP = {
     '<tr><td><span class="sw3" style="background:var(--warn)"></span><b>Kuning: peringatan</b></td><td>Boleh, tapi perlu dicek. Contoh: alur belum diberi nama, data store hanya diisi tapi tidak pernah dibaca, entitas belum terhubung, nama proses dipakai dua kali.</td></tr>' +
     '<tr><td><span class="sw3" style="background:var(--ok)"></span><b>Hijau: aman</b></td><td>Contoh: "Seimbang dengan induk: 10 alur cocok".</td></tr></table>' +
     '<p><b>Seimbang (balancing)</b> artinya setiap alur yang masuk atau keluar dari proses di level induk harus muncul juga di level turunannya, dengan nama yang sama.</p>',
-  kunci: '<table>' + [['V / H / P / D / E / F', 'Alat Pilih / Geser / Proses / Store / Entitas / Alur'], ['Ctrl+A, Ctrl+C, Ctrl+X, Ctrl+V', 'Pilih semua, salin, potong, tempel'], ['Ctrl+D', 'Duplikat'], ['Ctrl+Z / Ctrl+Y', 'Urungkan / ulangi'], ['Delete', 'Hapus pilihan'], ['F2', 'Ganti nama'], ['Ctrl+L', 'Rapikan garis alur terpilih'], ['Ctrl+J', 'Sesuaikan ukuran dengan teks'], ['Panah / Shift+panah', 'Geser objek 5 / 20 px'], ['Alt+↓ / Alt+↑', 'Masuk dekomposisi / naik satu level'], ['Roda mouse', 'Zoom'], ['Shift+roda, Spasi+seret', 'Geser kanvas'], ['Alt saat menyeret', 'Tanpa snap ke grid'], ['F1', 'Bantuan ini'], ['F4', 'Periksa model'], ['F5 / F6 / F7', 'Skala 100% / perbesar / perkecil'], ['F8 / F9', 'Tampilan global / tampilan sebelumnya'], ['Ctrl+S', 'Simpan .pam'], ['Ctrl+O', 'Buka berkas']].map(function (r) { return '<tr><td><kbd>' + r[0] + '</kbd></td><td>' + r[1] + '</td></tr>'; }).join('') + '</table>',
+  kunci: '<table>' + [['V / H / P / D / E / F', 'Alat Pilih / Geser / Proses / Store / Entitas / Alur'], ['Ctrl+A, Ctrl+C, Ctrl+X, Ctrl+V', 'Pilih semua, salin, potong, tempel'], ['Ctrl+D', 'Duplikat'], ['Ctrl+Z / Ctrl+Y', 'Urungkan / ulangi'], ['Delete', 'Hapus pilihan'], ['F2', 'Ganti nama'], ['Ctrl+L', 'Rapikan garis alur terpilih'], ['Ctrl+J', 'Sesuaikan ukuran dengan teks'], ['Panah / Shift+panah', 'Geser objek 5 / 20 px'], ['Alt+↓ / Alt+↑', 'Masuk dekomposisi / naik satu level'], ['Ctrl + scroll, cubit touchpad', 'Zoom'], ['Scroll, geser dua jari di touchpad, Shift+scroll, Spasi+seret', 'Geser kanvas'], ['Alt saat menyeret', 'Tanpa snap ke grid'], ['F1', 'Bantuan ini'], ['F4', 'Periksa model'], ['F5 / F6 / F7', 'Skala 100% / perbesar / perkecil'], ['F8 / F9', 'Tampilan global / tampilan sebelumnya'], ['Ctrl+S', 'Simpan .pam'], ['Ctrl+O', 'Buka berkas']].map(function (r) { return '<tr><td><kbd>' + r[0] + '</kbd></td><td>' + r[1] + '</td></tr>'; }).join('') + '</table>',
   uml: '<h4>Memulai</h4><ul><li>Klik ikon <b>rumah</b> di kiri atas (Halaman mulai) untuk memilih <b>Activity</b>, <b>Use Case</b>, atau <b>BPMN</b>. Semua diagram UML disimpan dalam satu proyek, terpisah dari DFD.</li>' +
     '<li><b>Toolbox</b> di kiri berisi elemen dan jenis garis, sama seperti di Enterprise Architect. Klik elemen lalu klik di kanvas.</li>' +
     '<li><b>Project Browser</b> di kanan menampilkan paket, diagram, dan elemennya. Klik elemen di situ untuk langsung menuju ke elemennya.</li></ul>' +
