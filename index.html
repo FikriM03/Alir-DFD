@@ -129,6 +129,7 @@ svg.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-widt
 
 /* SVG */
 .hit { fill: none; stroke: transparent; stroke-width: 12; pointer-events: stroke; }
+@media (pointer: coarse) { .hit { stroke-width: 24; } }
 .selbox { fill: none; stroke: #e03e2d; }
 .handle { fill: #fff; stroke: #e03e2d; }
 .mid { fill: #e03e2d; opacity: .35; } .mid:hover { opacity: .9; }
@@ -148,6 +149,8 @@ svg.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-widt
 #findl .fmore { color: #6b7684; font-size: 12px; padding: 4px 8px; }
 .grpbox { fill: none; stroke: #7b5cd6; pointer-events: none; }
 .lockb { pointer-events: none; }
+#app.ea .fl .hit { cursor: move; }
+.handle.lnc { fill: #fff; stroke: #000; }
 .guide { fill: none; stroke: #1a73e8; pointer-events: none; }
 .pv { stroke: #e03e2d; fill: none; }
 .endh { fill: #1a73e8; stroke: #fff; }
@@ -807,7 +810,7 @@ var FONTS = ['Arial', 'Times New Roman', 'Courier New', 'Tahoma', 'Verdana', 'MS
 var FSIZES = [6, 7, 8, 9, 10, 11, 12, 14, 16, 18, 20, 24];
 var DASHES = { solid: 'Garis penuh', dash: 'Putus-putus', dot: 'Titik-titik', dashdot: 'Garis-titik', dashdotdot: 'Garis-titik-titik', none: 'Tak terlihat' };
 var DASHARR = { solid: '', dash: '6 4', dot: '1.5 3', dashdot: '7 3 1.5 3', dashdotdot: '7 3 1.5 3 1.5 3', none: '' };
-var ROUTES = ['Lurus (bawaan)', 'Horizontal/vertikal', 'Membulat'];
+function routeNames() { return isDfd() ? ['Lurus (bawaan)', 'Horizontal/vertikal', 'Membulat'] : ['Direct / Custom Line (lurus)', 'Orthogonal - Square (siku)', 'Orthogonal - Rounded (siku membulat)', 'Tree Style - Vertical', 'Tree Style - Horizontal', 'Lateral - Vertical', 'Lateral - Horizontal']; }
 var ARROWS = { t: 'Panah di tujuan', s: 'Panah di asal', st: 'Panah dua arah', c: 'Panah di tengah', '': 'Tanpa panah' };
 var PALETTE = ['#000000', '#808080', '#800000', '#808000', '#008000', '#008080', '#000080', '#800080',
   '#ffffff', '#c0c0c0', '#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff',
@@ -1020,8 +1023,21 @@ function cleanPts(pts) {
   return o;
 }
 var NRM = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] };
+function reversal(P) {
+  for (var i = 1; i < P.length - 1; i++) { var a = P[i - 1], b = P[i], c = P[i + 1]; if ((Math.abs(a.x - b.x) < .5 && Math.abs(b.x - c.x) < .5 && (b.y - a.y) * (c.y - b.y) < 0) || (Math.abs(a.y - b.y) < .5 && Math.abs(b.y - c.y) < .5 && (b.x - a.x) * (c.x - b.x) < 0)) return true; }
+  return false;
+}
 function orthoConnect(S, sS, T, sT) {
   var hs = horizS(sS), ht = horizS(sT), g = 14, E1 = { x: S.x + NRM[sS][0] * g, y: S.y + NRM[sS][1] * g }, E2 = { x: T.x + NRM[sT][0] * g, y: T.y + NRM[sT][1] * g }, mid;
+  if (hs && ht && sS === sT) {
+    /* dua ujung menghadap arah yang sama: garis memutar berbentuk U, tidak menembus objek */
+    var ux = sS === 'e' ? Math.max(E1.x, E2.x) : Math.min(E1.x, E2.x);
+    return [S, { x: ux, y: S.y }, { x: ux, y: T.y }, T];
+  }
+  if (!hs && !ht && sS === sT) {
+    var uy = sS === 's' ? Math.max(E1.y, E2.y) : Math.min(E1.y, E2.y);
+    return [S, { x: S.x, y: uy }, { x: T.x, y: uy }, T];
+  }
   if (hs && ht) {
     var fwd = (sS === 'e' && E2.x >= E1.x) || (sS === 'w' && E2.x <= E1.x);
     if (Math.abs(S.y - T.y) < .5 && fwd) return [S, T];
@@ -1036,6 +1052,13 @@ function orthoConnect(S, sS, T, sT) {
   } else {
     if ((sS === 's' ? T.y >= S.y : T.y <= S.y) && (sT === 'e' ? S.x >= T.x : S.x <= T.x)) return [S, { x: S.x, y: T.y }, T];
     mid = [{ x: E1.x, y: E2.y }];
+  }
+  if (hs !== ht) {
+    /* dua kemungkinan sudut; pilih yang tidak berbalik arah (garis yang balik menumpuk dirinya sendiri) */
+    var alt = [{ x: mid[0].x === E2.x ? E1.x : E2.x, y: mid[0].y === E1.y ? E2.y : E1.y }];
+    var c1 = [S, E1].concat(mid, [E2, T]), c2 = [S, E1].concat(alt, [E2, T]);
+    if (reversal(c1) && !reversal(c2)) return c2;
+    return c1;
   }
   return [S, E1].concat(mid, [E2, T]);
 }
@@ -1132,12 +1155,22 @@ function routeAll(D) {
       var g = groups.get(key(f)), i = g.indexOf(f); off = (i - (g.length - 1) / 2) * GAP;
       var ids = [f.from, f.to].sort(), r1 = rect(els.get(ids[0])), r2 = rect(els.get(ids[1])); e1 = { x: r1.cx, y: r1.cy, id: ids[0] }; e2 = { x: r2.cx, y: r2.cy, id: ids[1] };
     }
-    var ep = (!isDfd() && fs(f).route > 0) ? eaPathRoute(f, RA, RB) : null;
-    var pts = ep || ((!isDfd() && auto(f) && fs(f).route > 0) ? eaAutoRoute(D, A, B, off) : routeOne(f, RA, RB, off, e1, e2));
+    var tr = (!isDfd() && fs(f).route >= 3) ? treeRoute(f, RA, RB, fs(f).route) : null;
+    var ep = tr || ((!isDfd() && fs(f).route > 0) ? eaPathRoute(f, RA, RB) : null);
+    var eo = (!ep && !isDfd() && fs(f).route > 0 && f.bends && f.bends.length) ? eaOrthoRoute(f, RA, RB) : null;
+    var pts = ep || (eo && eo.pts) || ((!isDfd() && auto(f) && fs(f).route > 0) ? eaAutoRoute(D, A, B, off) : routeOne(f, RA, RB, off, e1, e2));
     if (!isDfd()) eaNoteSides(f, pts, RA, RB);
-    out.set(f.id, { pts: pts, raw: pts, lab: labelAt(pts) });
+    if (!isDfd() && !ep && !eo && fs(f).route > 0 && (f.sa || f.ta) && pts.length > 2) {
+      /* garis siku yang menembus objek asal/tujuannya sendiri dicarikan jalan memutar */
+      var hitOwn = false;
+      for (var hi = 1; hi < pts.length - 2 && !hitOwn; hi++) hitOwn = segHitsEl(pts[hi], pts[hi + 1], A, 1) || segHitsEl(pts[hi], pts[hi + 1], B, 1);
+      if (!hitOwn) hitOwn = segHitsEl(pts[0], pts[1], B, 1) || segHitsEl(pts[pts.length - 2], pts[pts.length - 1], A, 1);
+      if (hitOwn) { var np = astarRoute(A, pts[0], f.sa ? f.sa.s : sideOf(RA, pts[1]), B, pts[pts.length - 1], f.ta ? f.ta.s : sideOf(RB, pts[pts.length - 2]), [A, B], [], 14); if (np) pts = cleanPts(np); }
+    }
+    out.set(f.id, { pts: pts, raw: eo ? eo.raw : pts, lab: labelAt(pts) });
   });
   eaSideUse = null;
+  if (!isDfd()) lnJumps(D, out);
   if (!isDfd()) { diaUsed = {}; D.flows.forEach(function (f) { var r = out.get(f.id); if (!r) return; [[f.from, r.pts[0]], [f.to, r.pts[r.pts.length - 1]]].forEach(function (q) { var e = els.get(q[0]); if (!e || !LBL_OUT[e.type]) return; var R = rect(e), sd = sideOf(R, q[1]); (diaUsed[e.id] = diaUsed[e.id] || {})[sd] = 1; }); }); }
   placeLabels(D, out);
   return out;
@@ -1946,13 +1979,13 @@ function umlMarkers(set) {
   return s;
 }
 function umlFlowMarkup(f, r, on, markers) {
-  var st = fs(f), c = CT[f.kind], col = st.stroke, d = pathD(r.pts, st.route === 2), dash = DASHARR[st.dash] || '';
+  var st = fs(f), c = CT[f.kind], col = st.stroke, d = pathD(r.pts, st.route === 2), dash = DASHARR[st.dash] || '', dv = r.jumps && st.route !== 2 ? lnJumpPath(r.pts, r.jumps) : d;
   var attrs = ' stroke="' + col + '" stroke-width="' + (on ? 1.6 : 1) + '"' + (dash ? ' stroke-dasharray="' + dash + '"' : '');
   var head = f.rev ? c.tail : c.head, tail = f.rev ? c.head : c.tail;
   if (f.kind === 'assoc' && f.nav) head = 'open';
   if (head) { markers.add(head + '|' + col); attrs += ' marker-end="url(#' + mkId(head, col) + ')"'; }
   if (tail) { markers.add(tail + '|' + col); attrs += ' marker-start="url(#' + mkId(tail, col) + ')"'; }
-  var s = '<g class="fl" data-id="' + f.id + '"><path class="hit" d="' + d + '"/>' + (on ? '<path class="halo" d="' + d + '" fill="none" stroke="#1a73e8" stroke-opacity=".28" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>' : '') + '<path d="' + d + '" fill="none" stroke-linejoin="round"' + attrs + '/>';
+  var s = '<g class="fl" data-id="' + f.id + '"><path class="hit" d="' + d + '"/>' + (on ? '<path class="halo" d="' + d + '" fill="none" stroke="#1a73e8" stroke-opacity=".28" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>' : '') + '<path d="' + dv + '" fill="none" stroke-linejoin="round"' + attrs + '/>';
   if (r.text) s += '<text x="' + r.lab.tx.toFixed(1) + '" y="' + r.lab.ty.toFixed(1) + '" text-anchor="middle" dominant-baseline="central" ' + fontAttr(st.font, st.text).replace('style="', 'style="paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round;') + '>' + esc(r.text) + '</text>';
   return s + '</g>';
 }
@@ -2089,7 +2122,8 @@ function umlPanel() {
       if (f.kind === 'control' || f.kind === 'object' || f.kind === 'seq') h += '<div class="field"><label for="p-guard">Guard [ ]</label><input class="in" id="p-guard" data-f="guard" value="' + esc(f.guard || '') + '" placeholder="opsional"></div>';
       if (f.kind === 'assoc') h += '<label class="cbx"><input type="checkbox" data-f="nav"' + (f.nav ? ' checked' : '') + '> Tampilkan panah arah</label>';
       h += '<div class="kv"><span>Arah</span><b style="font-family:var(--f-body)">' + esc(a.name || TT[a.type] && TT[a.type].label) + ' → ' + esc(b.name || TT[b.type] && TT[b.type].label) + '</b></div></div>';
-      h += '<div class="sec"><h2>Gaya garis</h2><div class="field"><label for="p-route">Bentuk</label><select class="in" id="p-route" data-f="route">' + ROUTES.map(function (r, i) { return '<option value="' + i + '"' + (st.route === i ? ' selected' : '') + '>' + r + '</option>'; }).join('') + '</select></div>';
+      h += '<div class="sec"><h2>Gaya garis</h2><div class="field"><label for="p-route">Bentuk</label><select class="in" id="p-route" data-f="route">' + routeNames().map(function (r, i) { return '<option value="' + i + '"' + (st.route === i ? ' selected' : '') + '>' + r + '</option>'; }).join('') + '</select></div>';
+      h += '<p class="hint">Seperti di EA: <b>seret garisnya langsung</b> untuk menggeser ruas (tikungan dibuat sendiri kalau perlu). <b>Ctrl+klik</b> di garis untuk menambah titik, Ctrl+klik titiknya untuk menghapus. Kotak di ujung bisa digeser menyusuri tepi objek, atau ditarik menjauh untuk menyambung ke objek lain.</p>';
       h += '<div class="row"><button class="btn" data-act="flip">Balik arah</button><button class="btn" data-act="tidy">Rapikan garis</button></div></div>';
       h += '<button class="btn danger block" data-act="del">Hapus garis</button>';
     }
@@ -2325,7 +2359,7 @@ function buildEaDoc(M, name) {
       if (c.guard) f.guard = c.guard;
       var gs = styleKV(gl.style), pts = parsePath(styleKV(gl.geometry).Path);
       f.manual = true; f.bends = pts;
-      var gk2 = styleKV(gl.geometry); if (gk2.SX != null) f.eaSE = { g: 'SX=' + gk2.SX + ';SY=' + gk2.SY + ';EX=' + gk2.EX + ';EY=' + gk2.EY + ';' + (gk2.EDGE ? 'EDGE=' + gk2.EDGE + ';' : ''), b: JSON.stringify(pts), a: f.from, z: f.to }; f.style.route = /TREE=O[SR]/.test(gl.style || '') ? (/TREE=OR/.test(gl.style) ? 2 : 1) : 0;
+      var gk2 = styleKV(gl.geometry); if (gk2.SX != null) f.eaSE = { g: 'SX=' + gk2.SX + ';SY=' + gk2.SY + ';EX=' + gk2.EX + ';EY=' + gk2.EY + ';' + (gk2.EDGE ? 'EDGE=' + gk2.EDGE + ';' : ''), b: JSON.stringify(pts), a: f.from, z: f.to }; f.style.route = ({ OS: 1, OR: 2, V: 3, H: 4, LV: 5, LH: 6 })[(String(gl.style || '').match(/TREE=([A-Z]+)/) || [])[1]] || 0; if (f.style.route >= 3) f.bends = [];
       var col = colorFromRef(gs.Color != null ? gs.Color : c.color); if (col) f.style.stroke = col;
       if (kd === 'assoc' && c.nav) f.nav = true;
       D.flows.push(f);
@@ -2518,9 +2552,10 @@ function eaXmi(d, only) {
       var keep = f.eaSE && f.eaSE.b === JSON.stringify(f.bends || []) && f.eaSE.a === f.from && f.eaSE.z === f.to && !ox && !oy;
       if (keep) path = (f.bends || []).map(function (q) { return Math.round(q.x) + ':' + (-Math.round(q.y)) + '$'; }).join('');
       var path = mid.map(function (q) { return Math.round(q.x + ox) + ':' + (-Math.round(q.y + oy)) + '$'; }).join('');
-      var edge = Math.abs(T.x - S.x) >= Math.abs(T.y - S.y) ? (T.x > S.x ? 2 : 4) : (T.y > S.y ? 3 : 1);
+      /* EDGE = arah ruas pertama keluar dari sumber (1 atas, 2 kanan, 3 bawah, 4 kiri), seperti yang disimpan EA */
+      var e1x = P[1].x - S.x, e1y = P[1].y - S.y, edge = Math.abs(e1x) >= Math.abs(e1y) ? (e1x > 0 ? 2 : 4) : (e1y > 0 ? 3 : 1);
       var col = f.style.stroke ? colorToRef(f.style.stroke) : -1;
-      s += '\t\t\t\t<UML:DiagramElement geometry="' + (keep ? f.eaSE.g + (/EDGE=/.test(f.eaSE.g) ? '' : 'EDGE=' + edge + ';') : 'SX=' + sx + ';SY=' + sy + ';EX=' + ex + ';EY=' + ey + ';EDGE=' + edge + ';') + '$LLB=;LLT=;LMT=;LMB=;LRT=;LRB=;IRHS=;ILHS=;Path=' + path + ';" subject="' + xid(f.guid) + '" style="Mode=3;EOID=' + duid[B.id] + ';SOID=' + duid[A.id] + ';Color=' + col + ';LWidth=0;' + (ortho ? (fs(f).route === 2 ? 'TREE=OR;' : 'TREE=OS;') : '') + 'Hidden=0;"/>\n';
+      s += '\t\t\t\t<UML:DiagramElement geometry="' + (keep ? f.eaSE.g + (/EDGE=/.test(f.eaSE.g) ? '' : 'EDGE=' + edge + ';') : 'SX=' + sx + ';SY=' + sy + ';EX=' + ex + ';EY=' + ey + ';EDGE=' + edge + ';') + '$LLB=;LLT=;LMT=;LMB=;LRT=;LRB=;IRHS=;ILHS=;Path=' + path + ';" subject="' + xid(f.guid) + '" style="Mode=3;EOID=' + duid[B.id] + ';SOID=' + duid[A.id] + ';Color=' + col + ';LWidth=0;' + (ortho ? 'TREE=' + ({ 1: 'OS', 2: 'OR', 3: 'V', 4: 'H', 5: 'LV', 6: 'LH' })[fs(f).route] + ';' : '') + 'Hidden=0;"/>\n';
     });
     return s + '\t\t\t</UML:Diagram.element>\n\t\t</UML:Diagram>\n';
   }
@@ -2548,11 +2583,22 @@ function eaQuickNew(qp, type) {
   var nid = null, fid = null;
   mutate(function () {
     var o = umlAddEl(type, pt, null);
-    /* rapikan supaya sejajar dengan asalnya */
-    if (horizS(qp.side)) o.y = Math.round(R.cy - o.h / 2); else o.x = Math.round(R.cx - o.w / 2);
+    /* seperti EA: kalau panah dilepas di kanvas, elemen baru muncul tepat di titik lepas.
+       Kalau dibuat lewat klik (tanpa seret), baru disejajarkan dengan asalnya. */
+    if (!qp.pt || qp.click) {
+      if (horizS(qp.side)) o.y = Math.round(R.cy - o.h / 2); else o.x = Math.round(R.cx - o.w / 2);
+      /* dibuat lewat klik (tanpa seret): jangan menumpuk di atas elemen lain, geser terus ke arah panah sampai ada tempat kosong */
+      var dir = NRM[qp.side], step = horizS(qp.side) ? o.w + 40 : o.h + 40, guard = 0;
+      function clash() { return D.elements.some(function (x) { return !isContainer(x) && x.x < o.x + o.w + 10 && x.x + x.w > o.x - 10 && x.y < o.y + o.h + 10 && x.y + x.h > o.y - 10; }); }
+      while (clash() && guard++ < 12) { o.x += dir[0] * step; o.y += dir[1] * step; }
+    } else {
+      /* dilepas di dekat garis lurus dengan asal: luruskan sekalian supaya garisnya tidak patah */
+      if (Math.abs((o.y + o.h / 2) - R.cy) < 12) o.y = Math.round(R.cy - o.h / 2);
+      if (Math.abs((o.x + o.w / 2) - R.cx) < 12) o.x = Math.round(R.cx - o.w / 2);
+    }
     D.elements.push(o); nid = o.id;
     var k = linkKinds(A, o, D.kind)[0];
-    if (k) { var f = { id: uid('f'), kind: k, from: A.id, to: o.id, name: '', bends: [], style: {}, sa: { s: qp.side, p: .5 } }; D.flows.push(f); fid = f.id; }
+    if (k) { var f = { id: uid('f'), kind: k, from: A.id, to: o.id, name: '', bends: [], style: {} }; if (!qp.pt || qp.click) f.sa = { s: qp.side, p: .5 }; D.flows.push(f); fid = f.id; }
     sel = new Set([o.id]);
   });
   if (TT[type].name) startRename(nid);
@@ -2626,14 +2672,14 @@ function renameDiagramModal() {
 }
 function umlDisplayPrefs() {
   var P = doc.prefs;
-  modal('Preferensi tampilan', '<div class="sec"><label class="cbx"><input type="checkbox" id="up-sh"' + (P.shadow !== false ? ' checked' : '') + '> Bayangan pada elemen (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-gr"' + (P.gradient !== false ? ' checked' : '') + '> Warna gradasi krem (seperti EA)</label></div>' +
+  modal('Preferensi tampilan', '<div class="sec"><label class="cbx"><input type="checkbox" id="up-sh"' + (P.shadow !== false ? ' checked' : '') + '> Bayangan pada elemen (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-jp"' + (P.jumps !== false ? ' checked' : '') + '> Lompatan di persilangan garis (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-gr"' + (P.gradient !== false ? ' checked' : '') + '> Warna gradasi krem (seperti EA)</label></div>' +
     '<div class="sec"><h3>Warna semua elemen</h3><div class="row"><button class="btn" data-pre="ea">Bawaan EA (krem)</button><button class="btn" data-pre="mono">Hitam putih (laporan)</button></div><p class="hint">Warna yang diatur per elemen lewat bilah Format tetap dipakai, kecuali kamu memilih salah satu tombol di atas.</p></div>',
     '<button class="btn" data-close>Batal</button><button class="btn pri" data-ok>Terapkan</button>', function (s, close) {
       var pre = null;
       s.addEventListener('click', function (e) { var b = e.target.closest('[data-pre]'); if (b) { pre = b.dataset.pre; $$('[data-pre]', s).forEach(function (x) { x.classList.toggle('pri', x === b); }); } });
       $('[data-ok]', s).addEventListener('click', function () {
         mutate(function () {
-          P.shadow = $('#up-sh', s).checked; P.gradient = $('#up-gr', s).checked;
+          P.shadow = $('#up-sh', s).checked; P.gradient = $('#up-gr', s).checked; P.jumps = $('#up-jp', s).checked;
           if (pre) {
             doc.defaults = eaDefaults();
             if (pre === 'mono') Object.keys(TT).forEach(function (k) { var dd = doc.defaults[k]; if (dd.fill !== 'none' && dd.fill !== '#000000') dd.fill = '#ffffff'; dd.stroke = '#000000'; });
@@ -2745,6 +2791,351 @@ function eaAutoRoute(D, A, B, off) {
   var S = port(A, sA), T = port(B, sB);
   if (Math.abs(horizS(sA) ? S.y - T.y : S.x - T.x) < 14 || !off) { var q = alignFacing(A, sA, B, sB, S, T); S = q[0]; T = q[1]; }
   return cleanPts(orthoConnect(S, sA, T, sB));
+}
+
+/* =====================================================================
+   Garis gaya Enterprise Architect (Activity / Use Case / BPMN)
+   Dipelajari langsung dari EA 12:
+   - titik belok (Path) adalah sudut garis yang sebenarnya; ujung garis selalu
+     sejajar dengan sudut pertama/terakhir dan menempel di sisi objek
+   - ruas mana pun bisa diseret langsung; kalau ruas ujung keluar dari bentang
+     objek, ujungnya pindah ke sisi yang menghadap ruas dan dibuat tikungan kecil
+   - Ctrl+klik di garis menambah titik, Ctrl+klik di titik menghapusnya
+   - ujung garis menyusuri tepi objek; ditarik menjauh baru lepas dan bisa
+     disambung ke objek lain
+   ===================================================================== */
+function lnHz(a, b) { return Math.abs(a.y - b.y) < .5 && Math.abs(a.x - b.x) >= .5; }
+function lnVt(a, b) { return Math.abs(a.x - b.x) < .5 && Math.abs(a.y - b.y) >= .5; }
+function lnSideAt(R, P) {
+  if (geomOf(R.e) !== 'rect') return sideOf(R, P);
+  var d = [['w', Math.abs(P.x - R.l)], ['e', Math.abs(P.x - R.r)], ['n', Math.abs(P.y - R.t)], ['s', Math.abs(P.y - R.b)]];
+  d.sort(function (a, b) { return a[1] - b[1]; });
+  return d[0][0];
+}
+function lnAhead(R, s, q, m) { m = m || 0; return s === 'e' ? q.x > R.r + m : s === 'w' ? q.x < R.l - m : s === 'n' ? q.y < R.t - m : q.y > R.b + m; }
+function lnInSpan(R, s, c, m) { return horizS(s) ? c >= R.t + m && c <= R.b - m : c >= R.l + m && c <= R.r - m; }
+function lnPort(R, s, c) { return horizS(s) ? { x: edgeX(R, c, s === 'e'), y: c } : { x: c, y: edgeY(R, c, s === 's') }; }
+function lnClamp(R, s, c) { var m = Math.min(8, (horizS(s) ? R.b - R.t : R.r - R.l) / 4); return horizS(s) ? Math.min(R.b - m, Math.max(R.t + m, c)) : Math.min(R.r - m, Math.max(R.l + m, c)); }
+function lnP(R, s, pt) { var v = horizS(s) ? (pt.y - R.t) / ((R.b - R.t) || 1) : (pt.x - R.l) / ((R.r - R.l) || 1); return Math.round(Math.min(1, Math.max(0, v)) * 1000) / 1000; }
+function lnAnchor(R, E) {
+  var s = lnSideAt(R, E), p = horizS(s) ? (E.y - R.t) / ((R.b - R.t) || 1) : (E.x - R.l) / ((R.r - R.l) || 1);
+  return { s: s, p: Math.round(Math.min(1, Math.max(0, p)) * 1000) / 1000 };
+}
+/* buang titik ganda dan titik segaris (kecuali titik yang sengaja dibuat dengan Ctrl+klik) */
+function lnSimplify(P) {
+  var o = [];
+  P.forEach(function (q) { var l = o[o.length - 1]; if (l && Math.abs(l.x - q.x) < .5 && Math.abs(l.y - q.y) < .5) { if (q.pin) l.pin = 1; return; } o.push({ x: q.x, y: q.y, pin: q.pin }); });
+  for (var i = o.length - 2; i >= 1; i--) {
+    var a = o[i - 1], b = o[i], c = o[i + 1];
+    if (b.pin) continue;
+    if ((Math.abs(a.x - b.x) < .5 && Math.abs(b.x - c.x) < .5) || (Math.abs(a.y - b.y) < .5 && Math.abs(b.y - c.y) < .5)) o.splice(i, 1);
+  }
+  return o;
+}
+/* gambar garis siku yang punya titik belok: lewat semua titik persis, ujung menempel di sisi yang menghadap titik pertama/terakhir */
+function eaOrthoRoute(f, RA, RB) {
+  var W = (f.bends || []).map(function (q) { return { x: q.x, y: q.y, pin: q.pin }; }); if (!W.length) return null;
+  function endSide(R, a, q) {
+    if (a && lnAhead(R, a.s, q, -1)) return a.s;
+    var inX = q.x > R.l && q.x < R.r, inY = q.y > R.t && q.y < R.b;
+    if (inX && !inY) return q.y < R.cy ? 'n' : 's';
+    if (inY && !inX) return q.x < R.cx ? 'w' : 'e';
+    if (a) return a.s;
+    var dx = q.x < R.l ? R.l - q.x : q.x - R.r, dy = q.y < R.t ? R.t - q.y : q.y - R.b;
+    return dx >= dy ? (q.x < R.cx ? 'w' : 'e') : (q.y < R.cy ? 'n' : 's');
+  }
+  function endPt(R, s, a, q) {
+    var c = horizS(s) ? q.y : q.x;
+    if (lnInSpan(R, s, c, 1)) return lnPort(R, s, c);
+    return a && a.s === s ? anchorPt(R, a) : lnPort(R, s, horizS(s) ? R.cy : R.cx);
+  }
+  var q0 = W[0], qn = W[W.length - 1], sS = endSide(RA, f.sa, q0), sT = endSide(RB, f.ta, qn);
+  var S = endPt(RA, sS, f.sa, q0), T = endPt(RB, sT, f.ta, qn);
+  var pts = [S], h = horizS(sS);
+  W.forEach(function (q) {
+    var c = pts[pts.length - 1];
+    if (Math.abs(c.x - q.x) > .5 && Math.abs(c.y - q.y) > .5) pts.push(h ? { x: q.x, y: c.y } : { x: c.x, y: q.y });
+    else h = Math.abs(c.y - q.y) < .5 ? false : true;
+    pts.push(q);
+  });
+  var c2 = pts[pts.length - 1];
+  if (Math.abs(c2.x - T.x) > .5 && Math.abs(c2.y - T.y) > .5) pts.push(horizS(sT) ? { x: c2.x, y: T.y } : { x: T.x, y: c2.y });
+  pts.push(T);
+  var raw = lnSimplify(pts);
+  return { pts: cleanPts(raw), raw: raw };
+}
+/* geser ujung (atStart) supaya ruas yang diseret ke koordinat c tetap menempel di objek */
+function lnFixEnd(P, R, atStart, hz, c) {
+  var k = atStart ? 0 : P.length - 1, E = P[k], s = lnSideAt(R, E);
+  if (hz !== horizS(s)) { if (hz) E.y = c; else E.x = c; var np0 = lnPort(R, s, lnClamp(R, s, hz ? E.x : E.y)); E.x = np0.x; E.y = np0.y; return P; }
+  if (lnInSpan(R, s, c, 1)) { var np = lnPort(R, s, c); E.x = np.x; E.y = np.y; return P; }
+  /* ruas keluar dari bentang objek: ujung pindah ke sisi yang menghadap ruas, ditambah tikungan kecil (perilaku EA) */
+  var ns = hz ? (c < R.cy ? 'n' : 's') : (c < R.cx ? 'w' : 'e');
+  var np2 = lnPort(R, ns, lnClamp(R, ns, hz ? E.x : E.y)), stub = hz ? { x: np2.x, y: c } : { x: c, y: np2.y };
+  P[k] = np2;
+  if (atStart) P.splice(1, 0, stub); else P.splice(P.length - 1, 0, stub);
+  return P;
+}
+/* setelah ruas tengah digeser, ujung garis bisa jadi "masuk" kembali ke objeknya (misalnya bentuk U ditarik
+   balik). Seperti EA: ruas berikutnya langsung disambung ke sisi objek, garis jadi lurus lagi. */
+function lnReattach(P, R, atStart) {
+  for (var guard = 0; guard < 6 && P.length > 2; guard++) {
+    var Q = atStart ? P : P.slice().reverse(), E = Q[0], N = Q[1], s = lnSideAt(R, E);
+    if (lnAhead(R, s, N, -0.5)) break;
+    var M = Q[2], hz = lnHz(N, M), c = hz ? N.y : N.x, cand = hz ? (M.x > R.cx ? 'e' : 'w') : (M.y > R.cy ? 's' : 'n');
+    if (!(lnHz(N, M) || lnVt(N, M)) || !lnInSpan(R, cand, c, 1) || !lnAhead(R, cand, M, 0)) break;
+    Q = [lnPort(R, cand, c)].concat(Q.slice(2));
+    P = atStart ? Q : Q.reverse();
+  }
+  return P;
+}
+/* seret ruas i dari rute P0 sampai koordinat tegak lurusnya = c (selalu dihitung dari keadaan awal, jadi bisa kembali lurus) */
+function lnDragSeg(P0, i, c, RA, RB, keep) {
+  var P = P0.map(function (q) { return { x: q.x, y: q.y, pin: q.pin }; }), n = P.length;
+  var hz = Math.abs(P[i].y - P[i + 1].y) < .5 && Math.abs(P[i].x - P[i + 1].x) >= .5;
+  function same(a, b) { return hz ? Math.abs(a.y - b.y) < .5 : Math.abs(a.x - b.x) < .5; }
+  /* ruas yang bersambung lurus dengan tetangganya dipisah dulu, supaya muncul sambungan tegak lurus */
+  if (i + 2 < n && same(P[i + 1], P[i + 2]) && i + 1 < n - 1) { P.splice(i + 2, 0, { x: P[i + 1].x, y: P[i + 1].y }); n++; P[i + 1].pin = 0; }
+  if (i > 0 && same(P[i - 1], P[i])) { P.splice(i, 0, { x: P[i].x, y: P[i].y }); i++; n++; P[i].pin = 0; }
+  var atS = i === 0, atT = i + 1 === n - 1;
+  if (!atS) { if (hz) P[i].y = c; else P[i].x = c; }
+  if (!atT) { if (hz) P[i + 1].y = c; else P[i + 1].x = c; }
+  if (atT) P = lnFixEnd(P, RB, false, hz, c);
+  if (atS) P = lnFixEnd(P, RA, true, hz, c);
+  if (!keep) { P = lnSimplify(P); P = lnReattach(P, RA, true); P = lnReattach(P, RB, false); }
+  return keep ? P : lnSimplify(P);
+}
+/* geser titik sudut k ke (x, y) */
+function lnDragCorner(P0, k, x, y, RA, RB) {
+  var a = P0[k - 1], b = P0[k], c = P0[k + 1], hB = lnHz(a, b), hA = lnHz(b, c), vB = lnVt(a, b), vA = lnVt(b, c);
+  if ((hB && vA) || (vB && hA)) {
+    var P = lnDragSeg(P0, k, hA ? y : x, RA, RB, true);
+    /* setelah ruas sesudahnya digeser, indeks titik k tidak berubah */
+    var R2 = lnSimplify(lnDragSeg(P, k - 1, hB ? y : x, RA, RB, true));
+    return lnSimplify(lnReattach(lnReattach(R2, RA, true), RB, false));
+  }
+  /* titik di tengah garis lurus (hasil Ctrl+klik): jadi tonjolan seperti di EA */
+  var vert = vB || vA, P2 = P0.map(function (q) { return { x: q.x, y: q.y, pin: q.pin }; });
+  var along = vert ? y : x, perp = vert ? x : y;
+  P2.splice(k + 1, 0, vert ? { x: b.x, y: along } : { x: along, y: b.y });
+  if (vert) P2[k].y = along; else P2[k].x = along;
+  P2[k].pin = 1;
+  return lnDragSeg(P2, k - 1, perp, RA, RB);
+}
+/* simpan rute hasil sunting ke garis */
+function lnStore(f, P, RA, RB) {
+  f.bends = P.slice(1, -1).map(function (q) { var o = { x: Math.round(q.x), y: Math.round(q.y) }; if (q.pin) o.pin = 1; return o; });
+  f.sa = lnAnchor(RA, P[0]); f.ta = lnAnchor(RB, P[P.length - 1]);
+  f.manual = true; delete f.eaSE; if (fs(f).route >= 3) f.style.route = 1;
+}
+/* titik terdekat di tepi objek dari posisi kursor */
+function lnNearestBorder(R, p) {
+  var g = geomOf(R.e);
+  if (g === 'rect') {
+    var x = Math.min(R.r, Math.max(R.l, p.x)), y = Math.min(R.b, Math.max(R.t, p.y));
+    var d = [['w', Math.abs(p.x - R.l)], ['e', Math.abs(p.x - R.r)], ['n', Math.abs(p.y - R.t)], ['s', Math.abs(p.y - R.b)]];
+    if (p.x > R.l && p.x < R.r && p.y > R.t && p.y < R.b) d.sort(function (a, b) { return a[1] - b[1]; });
+    else d = [[p.x < R.l ? 'w' : p.x > R.r ? 'e' : p.y < R.t ? 'n' : 's']];
+    var s = d[0][0], c = horizS(s) ? lnClamp(R, s, y) : lnClamp(R, s, x);
+    return { s: s, pt: lnPort(R, s, c) };
+  }
+  var s2 = sideOf(R, p), c2 = lnClamp(R, s2, horizS(s2) ? p.y : p.x);
+  return { s: s2, pt: lnPort(R, s2, c2) };
+}
+function lnDist(p, a, b) {
+  var dx = b.x - a.x, dy = b.y - a.y, L = dx * dx + dy * dy, t = L ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / L)) : 0;
+  return { d: Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy)), q: { x: a.x + t * dx, y: a.y + t * dy } };
+}
+function lnRaw(D, f) { var r = routeAll(D).get(f.id); return r ? (r.raw || r.pts).map(function (q) { return { x: q.x, y: q.y, pin: q.pin }; }) : null; }
+
+/* ---------- pegangan (kotak kecil putih seperti EA) ---------- */
+function lnHandles(f, r, k) {
+  var P = r.raw || r.pts, hs = (COARSE ? 7 : 3.6) / k, sw = 1.1 / k, s = '';
+  for (var i = 1; i < P.length - 1; i++) s += '<rect class="handle lnc" data-h="lc:' + i + '" x="' + (P[i].x - hs) + '" y="' + (P[i].y - hs) + '" width="' + hs * 2 + '" height="' + hs * 2 + '" style="stroke-width:' + sw + 'px;cursor:move"><title>Seret untuk memindah tikungan. Ctrl+klik untuk menghapus.</title></rect>';
+  [['s', P[0]], ['t', P[P.length - 1]]].forEach(function (q) {
+    s += '<rect class="handle lnc" data-h="end:' + q[0] + '" x="' + (q[1].x - hs) + '" y="' + (q[1].y - hs) + '" width="' + hs * 2 + '" height="' + hs * 2 + '" style="stroke-width:' + sw + 'px;cursor:crosshair"><title>Geser menyusuri tepi objek. Tarik menjauh untuk menyambung ke objek lain.</title></rect>';
+  });
+  return s;
+}
+
+/* ---------- interaksi ---------- */
+function lnOrtho(f) { return fs(f).route > 0; }
+function lnDown(e, D, p, gid, hd) {
+  var k = view().k, f;
+  /* pegangan pada garis terpilih */
+  if (hd && sel.size === 1) {
+    var fid = Array.from(sel)[0], hv = hd.dataset.h; f = flOf(D, fid);
+    if (f && hv.indexOf('lc:') === 0) {
+      var P0 = lnRaw(D, f), ci = +hv.slice(3);
+      if (e.ctrlKey || e.metaKey) { lnRemovePoint(D, f, P0, ci); return true; }
+      drag = { t: 'lnCorner', fid: fid, i: ci, P0: P0, p0: p, sx: e.clientX, sy: e.clientY, moved: false, ortho: lnOrtho(f) }; return true;
+    }
+    if (f && hv.indexOf('end:') === 0) {
+      drag = { t: 'lnEnd', fid: fid, which: hv.slice(4), snap: JSON.parse(JSON.stringify({ from: f.from, to: f.to, sa: f.sa || null, ta: f.ta || null, bends: f.bends || [], eaSE: f.eaSE || null })), P0: lnRaw(D, f), moved: false, sx: e.clientX, sy: e.clientY };
+      return true;
+    }
+    return false;
+  }
+  if (!gid || gid[0] !== 'f') return false;
+  f = flOf(D, gid); if (!f) return false;
+  var P = lnRaw(D, f); if (!P) return false;
+  var best = null;
+  for (var i = 0; i < P.length - 1; i++) { var dd = lnDist(p, P[i], P[i + 1]); if (!best || dd.d < best.d) best = { d: dd.d, i: i, q: dd.q }; }
+  if (e.ctrlKey || e.metaKey) {
+    /* Ctrl+klik: tambah titik di garis, atau hapus titik yang diklik */
+    for (var j = 1; j < P.length - 1; j++) if (Math.hypot(P[j].x - p.x, P[j].y - p.y) < 7 / k) { lnRemovePoint(D, f, P, j); sel = new Set([gid]); return true; }
+    var RA = rect(elOf(D, f.from)), RB = rect(elOf(D, f.to)), q = best.q;
+    if (lnOrtho(f)) { if (lnHz(P[best.i], P[best.i + 1])) q.y = P[best.i].y; else if (lnVt(P[best.i], P[best.i + 1])) q.x = P[best.i].x; }
+    mutate(function () { P.splice(best.i + 1, 0, { x: Math.round(q.x), y: Math.round(q.y), pin: 1 }); lnStore(f, P, RA, RB); sel = new Set([gid]); });
+    toast('Titik ditambahkan. Seret kotak kecilnya untuk membuat tikungan. Ctrl+klik titiknya untuk menghapus.');
+    return true;
+  }
+  if (e.shiftKey || multiPick) return false;
+  sel = new Set([gid]); panel(); syncBar(); draw();
+  drag = { t: 'lnSeg', fid: gid, i: best.i, P0: P, p0: p, sx: e.clientX, sy: e.clientY, moved: false, ortho: lnOrtho(f) };
+  return true;
+}
+function lnRemovePoint(D, f, P, j) {
+  var RA = rect(elOf(D, f.from)), RB = rect(elOf(D, f.to));
+  mutate(function () {
+    P.splice(j, 1);
+    if (P.length <= 2) { f.bends = []; if (lnOrtho(f)) { delete f.sa; delete f.ta; } f.manual = true; delete f.eaSE; }
+    else lnStore(f, lnSimplify(P), RA, RB);
+  });
+}
+function lnMove(e, D, p) {
+  var d = drag, f = flOf(D, d.fid); if (!f) return;
+  if (!d.moved) { if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 3) return; push(); d.moved = true; }
+  var A = elOf(D, f.from), B = elOf(D, f.to); if (!A || !B) return;
+  var RA = rect(A), RB = rect(B), P;
+  if (d.t === 'lnSeg') {
+    var a = d.P0[d.i], b = d.P0[d.i + 1];
+    if (d.ortho && (lnHz(a, b) || lnVt(a, b))) {
+      var hz = lnHz(a, b), c = snap(hz ? a.y + (p.y - d.p0.y) : a.x + (p.x - d.p0.x), e);
+      P = lnDragSeg(d.P0, d.i, c, RA, RB);
+    } else {
+      /* garis lurus/custom: menyeret garis membuat titik belok baru di tempat yang diseret */
+      P = d.P0.map(function (q) { return { x: q.x, y: q.y, pin: q.pin }; });
+      P.splice(d.i + 1, 0, { x: snap(p.x, e), y: snap(p.y, e), pin: 1 });
+    }
+    lnStore(f, P, RA, RB);
+  } else if (d.t === 'lnCorner') {
+    var x = snap(p.x, e), y = snap(p.y, e);
+    if (d.ortho) P = lnDragCorner(d.P0, d.i, x, y, RA, RB);
+    else { P = d.P0.map(function (q) { return { x: q.x, y: q.y, pin: q.pin }; }); P[d.i] = { x: x, y: y, pin: 1 }; }
+    lnStore(f, P, RA, RB);
+  } else if (d.t === 'lnEnd') lnEndMove(e, D, p, f);
+  draw();
+}
+/* ujung garis: menyusuri tepi objek; kalau ditarik cukup jauh, lepas dan bisa disambung ke objek lain */
+function lnEndMove(e, D, p, f) {
+  var d = drag, k = view().k, s0 = d.snap, isS = d.which === 's', home = elOf(D, isS ? s0.from : s0.to), other = elOf(D, isS ? s0.to : s0.from);
+  var gap = 18 / k, target = null;
+  function near(el) { var R = rect(el); return p.x > R.l - gap && p.x < R.r + gap && p.y > R.t - gap && p.y < R.b + gap; }
+  if (home && near(home)) target = home;
+  else {
+    var hit = elementAt(D, p, other ? other.id : null);
+    if (hit && (!isContainer(hit) || linkKinds(isS ? hit : other, isS ? other : hit, D.kind).length)) target = hit;
+  }
+  /* kembalikan dulu ke keadaan awal, lalu terapkan posisi baru */
+  f.from = s0.from; f.to = s0.to; f.bends = JSON.parse(JSON.stringify(s0.bends)); if (s0.sa) f.sa = JSON.parse(JSON.stringify(s0.sa)); else delete f.sa; if (s0.ta) f.ta = JSON.parse(JSON.stringify(s0.ta)); else delete f.ta;
+  d.free = null;
+  if (!target) { d.free = { a: d.P0[isS ? d.P0.length - 1 : 0], b: p }; d.target = null; return; }
+  d.target = target.id;
+  var R = rect(target), nb = lnNearestBorder(R, p);
+  /* magnet: kalau hampir sejajar dengan ujung seberang, luruskan sekalian (garis lurus tanpa patahan kecil) */
+  var oR = other ? rect(other) : null, opp = target !== home ? (oR ? { x: oR.cx, y: oR.cy } : null) : lnRawEnd(d, isS), mg = 14 / k;
+  if (opp) { var oc = horizS(nb.s) ? opp.y : opp.x, nc = horizS(nb.s) ? nb.pt.y : nb.pt.x; if (Math.abs(oc - nc) < mg && lnInSpan(R, nb.s, oc, 4)) nb.pt = lnPort(R, nb.s, oc); }
+  if (target !== home) {
+    /* pindah ke objek lain: titik belok lama tidak cocok lagi, garis dirapikan ulang */
+    if (isS) f.from = target.id; else f.to = target.id;
+    f.bends = [];
+    if (isS) { f.sa = { s: nb.s, p: lnP(R, nb.s, nb.pt) }; delete f.ta; } else { f.ta = { s: nb.s, p: lnP(R, nb.s, nb.pt) }; delete f.sa; }
+    f.manual = true; delete f.eaSE; return;
+  }
+  var P = d.P0.map(function (q) { return { x: q.x, y: q.y, pin: q.pin }; }), j = isS ? 0 : P.length - 1;
+  P[j] = { x: nb.pt.x, y: nb.pt.y };
+  if (fs(f).route > 0 && P.length > 2) {
+    /* sudut di sebelah ujung ikut bergeser supaya ruas pertama tetap tegak lurus sisi */
+    var nj = isS ? 1 : P.length - 2, nx = P[nj];
+    if (horizS(nb.s)) nx.y = nb.pt.y; else nx.x = nb.pt.x;
+    var nn = P[isS ? 2 : P.length - 3];
+    if (nn && !(Math.abs(nn.x - nx.x) < .5 || Math.abs(nn.y - nx.y) < .5)) P.splice(isS ? 2 : P.length - 2, 0, horizS(nb.s) ? { x: nx.x, y: nn.y } : { x: nn.x, y: nx.y });
+  }
+  var RA = rect(elOf(D, f.from)), RB = rect(elOf(D, f.to));
+  if (P.length > 2) lnStore(f, lnSimplify(P), RA, RB);
+  else { f.bends = []; if (isS) f.sa = { s: nb.s, p: lnP(R, nb.s, nb.pt) }; else f.ta = { s: nb.s, p: lnP(R, nb.s, nb.pt) }; f.manual = true; delete f.eaSE; }
+}
+/* titik ujung seberang (yang tidak diseret) dari rute awal; untuk sambungan baru dihitung dari tengah sisi objek seberang */
+function lnRawEnd(d, isS) {
+  var P = d.P0; if (!P || P.length < 2) return null;
+  var o = isS ? P[P.length - 1] : P[0], nx = isS ? P[P.length - 2] : P[1];
+  return P.length === 2 ? o : nx;
+}
+function lnUp(d) {
+  var D = cur(), f = flOf(D, d.fid);
+  if (!d.moved) { draw(); return; }
+  if (d.t === 'lnEnd' && f) {
+    var s0 = d.snap, bad = !d.target;
+    if (!bad && (f.from !== s0.from || f.to !== s0.to)) {
+      var A = elOf(D, f.from), B = elOf(D, f.to), ks = linkKinds(A, B, D.kind);
+      if (!ks.length) { bad = true; toast('Garis ini tidak bisa disambung ke sana.'); }
+      else if (ks.indexOf(f.kind) < 0) f.kind = ks[0];
+    }
+    if (bad) {
+      f.from = s0.from; f.to = s0.to; f.bends = s0.bends; if (s0.sa) f.sa = s0.sa; else delete f.sa; if (s0.ta) f.ta = s0.ta; else delete f.ta; if (s0.eaSE) f.eaSE = s0.eaSE;
+      undoS.pop(); d.free = null; draw(); return;
+    }
+  }
+  afterChange();
+}
+
+/* ---------- Tree Style & Lateral (gaya garis EA) ----------
+   Tree vertikal: keluar tegak, lewat garis tengah mendatar, masuk tegak (3 ruas).
+   Tree horizontal: kebalikannya. Lateral horizontal: keluar tegak lalu masuk mendatar ke sisi tujuan (bentuk L),
+   lateral vertikal: keluar mendatar lalu masuk tegak. Sama dengan TREE=V / H / LV / LH di EA. */
+function treeRoute(f, RA, RB, st) {
+  var dx = RB.cx - RA.cx, dy = RB.cy - RA.cy, S, T;
+  if (st === 3) { var d1 = dy >= 0; S = lnPort(RA, d1 ? 's' : 'n', RA.cx); T = lnPort(RB, d1 ? 'n' : 's', RB.cx); var my = (S.y + T.y) / 2; return cleanPts([S, { x: S.x, y: my }, { x: T.x, y: my }, T]); }
+  if (st === 4) { var d2 = dx >= 0; S = lnPort(RA, d2 ? 'e' : 'w', RA.cy); T = lnPort(RB, d2 ? 'w' : 'e', RB.cy); var mx = (S.x + T.x) / 2; return cleanPts([S, { x: mx, y: S.y }, { x: mx, y: T.y }, T]); }
+  if (st === 6) {
+    /* keluar tegak dari tengah asal, masuk mendatar ke tengah sisi tujuan */
+    if (RB.cy > RA.t && RB.cy < RA.b) return treeRoute(f, RA, RB, 4);
+    S = lnPort(RA, dy >= 0 ? 's' : 'n', RA.cx); T = lnPort(RB, dx >= 0 ? 'w' : 'e', RB.cy);
+    if (RA.cx > RB.l && RA.cx < RB.r) return cleanPts([S, lnPort(RB, dy >= 0 ? 'n' : 's', RA.cx)]);
+    return cleanPts([S, { x: S.x, y: T.y }, T]);
+  }
+  if (RB.cx > RA.l && RB.cx < RA.r) return treeRoute(f, RA, RB, 3);
+  S = lnPort(RA, dx >= 0 ? 'e' : 'w', RA.cy); T = lnPort(RB, dy >= 0 ? 'n' : 's', RB.cx);
+  if (RA.cy > RB.t && RA.cy < RB.b) return cleanPts([S, lnPort(RB, dx >= 0 ? 'w' : 'e', RA.cy)]);
+  return cleanPts([S, { x: T.x, y: S.y }, T]);
+}
+
+/* ---------- lompatan garis (line jump) seperti EA: garis mendatar yang memotong garis tegak lain diberi lengkung kecil ---------- */
+function lnJumps(D, out) {
+  if (doc.prefs.jumps === false) return;
+  var vs = [];
+  D.flows.forEach(function (f) { var r = out.get(f.id); if (!r) return; var P = r.pts; for (var k = 0; k < P.length - 1; k++) { var c = P[k], d = P[k + 1]; if (lnVt(c, d)) vs.push({ f: f.id, x: c.x, y0: Math.min(c.y, d.y), y1: Math.max(c.y, d.y) }); } });
+  D.flows.forEach(function (f) {
+    var r = out.get(f.id); if (!r) return; var P = r.pts, J = [];
+    for (var i = 0; i < P.length - 1; i++) {
+      var a = P[i], b = P[i + 1]; if (!lnHz(a, b)) continue;
+      var x0 = Math.min(a.x, b.x) + 6, x1 = Math.max(a.x, b.x) - 6;
+      vs.forEach(function (v) { if (v.f !== f.id && v.x > x0 && v.x < x1 && a.y > v.y0 + 6 && a.y < v.y1 - 6) J.push({ i: i, x: v.x }); });
+    }
+    if (J.length) r.jumps = J; else delete r.jumps;
+  });
+}
+function lnJumpPath(P, J) {
+  var R = 4, s = 'M' + P[0].x.toFixed(1) + ' ' + P[0].y.toFixed(1);
+  for (var i = 0; i < P.length - 1; i++) {
+    var a = P[i], b = P[i + 1], dir = b.x >= a.x ? 1 : -1;
+    J.filter(function (j) { return j.i === i; }).map(function (j) { return j.x; }).sort(function (u, v) { return (u - v) * dir; }).forEach(function (x) {
+      s += 'L' + (x - R * dir).toFixed(1) + ' ' + a.y.toFixed(1) + 'A' + R + ' ' + R + ' 0 0 ' + (dir > 0 ? 1 : 0) + ' ' + (x + R * dir).toFixed(1) + ' ' + a.y.toFixed(1);
+    });
+    s += 'L' + b.x.toFixed(1) + ' ' + b.y.toFixed(1);
+  }
+  return s;
 }
 
 
@@ -2897,6 +3288,7 @@ function overlay(D, routes, v) {
     if (e.grp && sel.has(e.id)) { var g = gbox[e.grp] || (gbox[e.grp] = { l: 1e9, t: 1e9, r: -1e9, b: -1e9 }); g.l = Math.min(g.l, e.x); g.t = Math.min(g.t, e.y); g.r = Math.max(g.r, e.x + e.w); g.b = Math.max(g.b, e.y + e.h); }
   });
   Object.keys(gbox).forEach(function (gk2) { var g = gbox[gk2], m = 8 / k; s += '<rect class="grpbox" style="stroke-width:' + 1.4 / k + 'px;stroke-dasharray:' + 6 / k + ' ' + 3 / k + '" x="' + (g.l - m) + '" y="' + (g.t - m) + '" width="' + (g.r - g.l + 2 * m) + '" height="' + (g.b - g.t + 2 * m) + '"/>'; });
+  if (drag && drag.free) s += '<path class="pv" style="stroke-width:' + 1.4 / k + 'px;stroke-dasharray:' + 5 / k + ' ' + 4 / k + '" d="M' + drag.free.a.x + ' ' + drag.free.a.y + 'L' + drag.free.b.x + ' ' + drag.free.b.y + '"/>';
   if (drag && drag.guides) drag.guides.forEach(function (g) { s += '<path class="guide" style="stroke-width:' + 1.5 / k + 'px;stroke-dasharray:' + 5 / k + ' ' + 3 / k + '" d="M' + g[0] + ' ' + g[1] + 'L' + g[2] + ' ' + g[3] + '"/>'; });
   D.elements.forEach(function (e) {
     if (!sel.has(e.id)) return;
@@ -2915,7 +3307,8 @@ function overlay(D, routes, v) {
       s += '<rect class="handle" data-h="' + h[0] + '" style="stroke-width:' + sw + 'px;cursor:' + h[3] + '" x="' + (h[1] - hs) + '" y="' + (h[2] - hs) + '" width="' + hs * 2 + '" height="' + hs * 2 + '"/>';
     });
     var f = flOf(D, id), r = f && routes.get(id);
-    if (r) {
+    if (r && !isDfd()) s += lnHandles(f, r, k);
+    else if (r) {
       var P = r.pts, ortho = fs(f).route > 0, hb = 3.6 / k;
       if (ortho) {
         for (var i = 0; i < P.length - 1; i++) {
@@ -3091,7 +3484,7 @@ function panel() {
       h += '<div class="sec"><h2>Data flow' + (mig ? ' (warisan induk)' : '') + '</h2><div class="field"><label for="p-name">Nama alur</label><input class="in" id="p-name" data-f="name" value="' + esc(f.name) + '" list="dl-p"></div>';
       h += '<div class="field"><label for="p-code">Kode</label><input class="in" id="p-code" data-f="code" value="' + esc(f.code || Pam.codeOf(f.name)) + '"></div>';
       h += '<div class="kv"><span>Arah</span><b style="font-family:var(--f-body)">' + esc(a.name) + ' → ' + esc(b.name) + '</b></div></div>';
-      h += '<div class="sec"><h2>Gaya garis</h2><div class="field"><label for="p-route">Bentuk</label><select class="in" id="p-route" data-f="route">' + ROUTES.map(function (r, i) { return '<option value="' + i + '"' + (st.route === i ? ' selected' : '') + '>' + r + '</option>'; }).join('') + '</select></div>';
+      h += '<div class="sec"><h2>Gaya garis</h2><div class="field"><label for="p-route">Bentuk</label><select class="in" id="p-route" data-f="route">' + routeNames().map(function (r, i) { return '<option value="' + i + '"' + (st.route === i ? ' selected' : '') + '>' + r + '</option>'; }).join('') + '</select></div>';
       h += '<div class="row"><button class="btn" data-act="flip" title="Tukar asal dan tujuan alur">Balik arah</button><button class="btn" data-act="tidy" title="Hapus tikungan dan titik tempel, lalu hitung ulang jalur otomatis (Ctrl+L)"' + (((f.bends || []).length || f.sa || f.ta) ? '' : ' disabled') + '>Rapikan garis</button></div>';
       h += '<p class="hint">' + (st.route > 0 ? 'Seret <b>kotak biru di ujung</b> untuk memindah titik tempel ke sisi lain, atau ke objek lain. Seret <b>pegangan di tengah ruas</b> untuk menggeser ruas itu.' : 'Seret <b>kotak biru di ujung</b> untuk memindah titik tempel. Seret titik kecil di tengah garis untuk membuat tikungan, klik dua kali tikungan untuk menghapusnya.') + '</p></div>';
       if (D.parent) h += '<button class="btn block" data-act="migrate">Migrasikan ke induk</button>';
@@ -3433,7 +3826,7 @@ function quickConnectMenu(from, side, x, y) {
   if (!isDfd()) {
     var RA0 = rect(A), lst = D.elements.filter(function (e) { return e.id !== from && linkKinds(A, e, D.kind).length; });
     lst.sort(function (a, b) { var ra = rect(a), rb = rect(b); return Math.hypot(ra.cx - RA0.cx, ra.cy - RA0.cy) - Math.hypot(rb.cx - RA0.cx, rb.cy - RA0.cy); });
-    qcPending = { from: from, side: side, pt: { x: RA0.cx + NRM[side][0] * (A.w / 2 + 90), y: RA0.cy + NRM[side][1] * (A.h / 2 + 70) } };
+    qcPending = { from: from, side: side, click: true, pt: { x: RA0.cx + NRM[side][0] * (A.w / 2 + 90), y: RA0.cy + NRM[side][1] * (A.h / 2 + 70) } };
     var its = [{ hd: 'Sambungkan "' + (A.name || TT[A.type].label) + '" ke' }];
     lst.slice(0, 12).forEach(function (e) { its.push(item((e.name || TT[e.type].label) + '  · ' + TT[e.type].label, 'qconn:' + e.id)); });
     its.push(HR, { hd: 'Atau buat elemen baru' });
@@ -3635,7 +4028,7 @@ function buildToolbar() {
     '<button class="tb col" data-pop="fill" data-need="e" title="Warna isi" aria-label="Warna isi">' + ico('fill') + '<span class="sw" id="swF"></span></button>' +
     '<button class="tb col" data-pop="text" data-need="1" title="Warna teks" aria-label="Warna teks">' + ico('text') + '<span class="sw" id="swT"></span></button>' +
     '<select class="fsel" id="fDash" data-need="1" title="Pola garis" aria-label="Pola garis">' + Object.keys(DASHES).map(function (k) { return '<option value="' + k + '">' + DASHES[k] + '</option>'; }).join('') + '</select>' +
-    '<select class="fsel" id="fRoute" data-need="f" title="Bentuk garis alur" aria-label="Bentuk garis alur">' + ROUTES.map(function (r, i) { return '<option value="' + i + '">' + r + '</option>'; }).join('') + '</select>' +
+    '<select class="fsel" id="fRoute" data-need="f" title="Bentuk garis alur" aria-label="Bentuk garis alur">' + routeNames().map(function (r, i) { return '<option value="' + i + '">' + r + '</option>'; }).join('') + '</select>' +
     '<select class="fsel" id="fArrow" data-need="f" title="Panah" aria-label="Panah">' + Object.keys(ARROWS).map(function (k) { return '<option value="' + k + '">' + ARROWS[k] + '</option>'; }).join('') + '</select>' +
     '</div><div class="vsep"></div><div class="tg">' +
     '<select class="fsel" id="fFam" data-need="1" title="Huruf" aria-label="Huruf">' + FONTS.map(function (f) { return '<option>' + f + '</option>'; }).join('') + '</select>' +
@@ -3713,7 +4106,7 @@ function menuItems(name) {
   if (name === 'arrange') return [item('Sesuaikan dengan teks', 'adjust', 'Ctrl+J', { dis: !nE }), item('Ukuran normal', 'normsize', '', { dis: !nE }), HR, { hd: 'Ratakan' }, item('Kiri', 'alL', '', { dis: nE < 2 }), item('Tengah (sumbu vertikal)', 'alC', '', { dis: nE < 2 }), item('Kanan', 'alR', '', { dis: nE < 2 }), item('Atas', 'alT', '', { dis: nE < 2 }), item('Tengah (sumbu horizontal)', 'alM', '', { dis: nE < 2 }), item('Bawah', 'alB', '', { dis: nE < 2 }), item('Samakan lebar', 'sameW', '', { dis: nE < 2 }), item('Samakan tinggi', 'sameH', '', { dis: nE < 2 }), HR, item('Sebar horizontal', 'distH', '', { dis: nE < 3 }), item('Sebar vertikal', 'distV', '', { dis: nE < 3 }), HR, { hd: 'Alur' }, item('Rapikan alur terpilih', 'tidy', 'Ctrl+L', { dis: !selFlows().length }), item('Rapikan semua alur… (pilih tampilan)', 'tidyall', 'Ctrl+Shift+L'), item('Rapikan otomatis setiap ada perubahan', 'autotidy', '', { ck: autoTidyOn() }), HR, { hd: 'Urutan' }, item('Bawa ke depan', 'front', 'Ctrl+]', { dis: !has }), item('Kirim ke belakang', 'back', 'Ctrl+[', { dis: !has }), item('Maju satu', 'fwd', '', { dis: !has }), item('Mundur satu', 'bwd', '', { dis: !has })];
   if (name === 'format') return [item('Bayangan (shadow)', 'shadow', '', { ck: doc.prefs.shadow }), HR, item('Warna garis…', 'pop:stroke', '', { dis: !has }), item('Warna isi…', 'pop:fill', '', { dis: !nE }), item('Warna teks…', 'pop:text', '', { dis: !has }), HR, { hd: 'Pola garis' }]
     .concat(Object.keys(DASHES).map(function (k) { return item(DASHES[k], 'dash:' + k, '', { dis: !has, ck: st && st.dash === k }); }))
-    .concat([{ hd: 'Garis alur' }], ROUTES.map(function (r, i) { return item(r, 'route:' + i, '', { dis: !f, ck: f && fs(f).route === i }); }), [HR], Object.keys(ARROWS).map(function (k) { return item(ARROWS[k], 'arrow:' + k, '', { dis: !f, ck: f && arrowKey(fs(f).arrows) === k }); }),
+    .concat([{ hd: 'Garis alur' }], routeNames().map(function (r, i) { return item(r, 'route:' + i, '', { dis: !f, ck: f && fs(f).route === i }); }), [HR], Object.keys(ARROWS).map(function (k) { return item(ARROWS[k], 'arrow:' + k, '', { dis: !f, ck: f && arrowKey(fs(f).arrows) === k }); }),
       [HR, item('Tebal', 'fb', '', { dis: !has, ck: st && st.font.b }), item('Miring', 'fi', '', { dis: !has, ck: st && st.font.i }), item('Garis bawah', 'fu', '', { dis: !has, ck: st && st.font.u }), HR, item('Preferensi tampilan…', 'dispref')]);
   if (name === 'help') return [item('Cara pakai…', 'help', 'F1'), item('Arti warna pemeriksaan…', 'helpchk'), item('Pintasan keyboard…', 'helpkeys')].concat(installEv ? [HR, item('Pasang Alir sebagai aplikasi', 'install')] : []).concat([HR, item('Tentang Alir', 'about')]);
   if (name === 'view') return [item('Skala 100%', 'z100', 'F5'), item('Perbesar', 'zin', 'F6'), item('Perkecil', 'zout', 'F7'), { hd: 'Skala' }]
@@ -3772,7 +4165,7 @@ function contextMenu(e, id) {
       else {
         var ks = linkKinds(elOf(D, o.from), elOf(D, o.to), D.kind); if (ks.indexOf(o.kind) < 0) ks.unshift(o.kind);
         items.push({ hd: 'Jenis garis' }); ks.forEach(function (k) { items.push(item(CT[k].label0, 'ckind:' + k, '', { ck: o.kind === k })); });
-        items.push({ hd: 'Bentuk garis' }); ROUTES.forEach(function (r, i) { items.push(item(r, 'route:' + i, '', { ck: fs(o).route === i })); });
+        items.push({ hd: 'Bentuk garis' }); routeNames().forEach(function (r, i) { items.push(item(r, 'route:' + i, '', { ck: fs(o).route === i })); });
         items.push(item('Rapikan garis', 'tidy', 'Ctrl+L'), item('Balik arah', 'flip'), item('Warna garis…', 'pop:stroke'));
       }
       items.push(HR, item('Bawa ke depan', 'front'), item('Kirim ke belakang', 'back'));
@@ -3794,7 +4187,7 @@ function contextMenu(e, id) {
     items.push(item('Warna garis…', 'pop:stroke'));
     if (o.type) items.push(item('Warna isi…', 'pop:fill'));
     items.push(item('Warna teks…', 'pop:text'));
-    if (!o.type) { items.push(HR, { hd: 'Gaya garis' }); ROUTES.forEach(function (r, i) { items.push(item(r, 'route:' + i, '', { ck: fs(o).route === i })); }); items.push(item('Rapikan garis', 'tidy', 'Ctrl+L'), item('Balik arah', 'flip')); if (D.parent) items.push(item('Migrasikan ke induk', 'migrate')); }
+    if (!o.type) { items.push(HR, { hd: 'Gaya garis' }); routeNames().forEach(function (r, i) { items.push(item(r, 'route:' + i, '', { ck: fs(o).route === i })); }); items.push(item('Rapikan garis', 'tidy', 'Ctrl+L'), item('Balik arah', 'flip')); if (D.parent) items.push(item('Migrasikan ke induk', 'migrate')); }
     items.push(HR, item('Bawa ke depan', 'front'), item('Kirim ke belakang', 'back'));
   } else {
     items.push(item('Tempel', 'paste', 'Ctrl+V', { dis: !clipb }), item('Pilih semua', 'selall', 'Ctrl+A'), item(multiPick ? 'Selesai memilih' : 'Pilih beberapa (klik satu per satu)', 'multipick'), item('Cari elemen…', 'find', 'Ctrl+F'), HR);
@@ -3962,7 +4355,7 @@ function displayPrefs() {
     }).join('') + '</tbody></table></div>';
   }
   var body = '<div class="sec"><h3>Gaya bawaan simbol</h3><div id="dp-t">' + table() + '</div><div class="row"><button class="btn" data-pre="classic">Warna PowerDesigner</button><button class="btn" data-pre="mono">Hitam putih (laporan)</button></div></div>' +
-    '<div class="sec"><h3>Alur</h3><div class="two"><div class="field"><label for="dp-r">Bentuk garis</label><select class="in" id="dp-r">' + ROUTES.map(function (r, i) { return '<option value="' + i + '"' + (d.flow.route === i ? ' selected' : '') + '>' + r + '</option>'; }).join('') + '</select></div>' +
+    '<div class="sec"><h3>Alur</h3><div class="two"><div class="field"><label for="dp-r">Bentuk garis</label><select class="in" id="dp-r">' + routeNames().map(function (r, i) { return '<option value="' + i + '"' + (d.flow.route === i ? ' selected' : '') + '>' + r + '</option>'; }).join('') + '</select></div>' +
     '<div class="field"><label for="dp-a">Panah</label><select class="in" id="dp-a">' + Object.keys(ARROWS).map(function (k) { return '<option value="' + k + '"' + (arrowKey(d.flow.arrows) === k ? ' selected' : '') + '>' + ARROWS[k] + '</option>'; }).join('') + '</select></div></div></div>' +
     '<div class="sec"><h3>Terapkan ke</h3><label class="cbx"><input type="radio" name="dp-ap" value="new" checked> Simbol baru dan simbol yang belum diberi gaya sendiri</label><label class="cbx"><input type="radio" name="dp-ap" value="all"> Semua simbol (gaya per objek dihapus)</label><label class="cbx"><input type="radio" name="dp-ap" value="sel"' + (sel.size ? '' : ' disabled') + '> Simbol terpilih saja</label></div>';
   modal('Preferensi tampilan', body, '<button class="btn" data-close>Batal</button><button class="btn pri" data-ok>Terapkan</button>', function (s, close) {
@@ -4109,7 +4502,7 @@ cv.addEventListener('pointerdown', function (e) {
   if (e.button !== 0) return;
   var decB = e.target.closest('[data-dec]'); if (decB && tool === 'select') { decompose(decB.dataset.dec); return; }
   var g = e.target.closest('[data-id]'), gid = g && g.dataset.id, hd = e.target.closest('[data-h]');
-  var now = Date.now(), dbl = gid && !hd && lastDown.id === gid && now - lastDown.t < 450 && Math.hypot(e.clientX - lastDown.x, e.clientY - lastDown.y) < 6;
+  var now = Date.now(), dbl = gid && !hd && !e.ctrlKey && !e.metaKey && lastDown.id === gid && now - lastDown.t < 450 && Math.hypot(e.clientX - lastDown.x, e.clientY - lastDown.y) < 6;
   lastDown = { id: gid, t: dbl ? 0 : now, x: e.clientX, y: e.clientY };
   if (dbl && tool === 'select' && !multiPick) { drag = null; startRename(gid); return; }
   if (tool === 'select') {
@@ -4118,6 +4511,7 @@ cv.addEventListener('pointerdown', function (e) {
       D.elements.forEach(function (x) { if (sel.has(x.id) && !x.locked) grp[x.id] = { x: x.x, y: x.y, w: x.w, h: x.h }; });
       drag = { t: 'resize', id: lead.id, h: hd.dataset.h, pushed: false, o: { x: lead.x, y: lead.y, w: lead.w, h: lead.h }, grp: grp }; return;
     }
+    if (!isDfd() && lnDown(e, D, p, gid, hd)) return;
     if (hd && sel.size === 1) {
       var id = Array.from(sel)[0], hv = hd.dataset.h;
       if (hv.indexOf('bend:') === 0) { drag = { t: 'bend', fid: id, i: +hv.slice(5), pushed: false }; return; }
@@ -4173,6 +4567,7 @@ cv.addEventListener('pointermove', function (e) {
   if (!drag) { if (tool === 'flow' && flowFrom) draw(); return; }
   var v = view();
   if (drag.t === 'pan') { v.x = drag.vx + e.clientX - drag.sx; v.y = drag.vy + e.clientY - drag.sy; v.fresh = false; draw(); }
+  else if (drag.t.indexOf('ln') === 0) lnMove(e, D, p);
   else if (drag.t === 'move') {
     if (!Object.keys(drag.orig).length) { if (!drag.warned && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) >= 4) { drag.warned = true; toast('Objek ini dikunci. Klik kanan → Buka kunci untuk menggesernya.'); } return; }
     if (!drag.moved) { if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 4) return; push(); drag.moved = true; var mvSet = new Set(Object.keys(drag.orig)); pinAround(D, mvSet, false); drag.bo2 = {};
@@ -4258,6 +4653,7 @@ function endPointer(e) {
   if (pinch) { if (ptrs.size < 2) pinch = null; return; }
   if (!drag) return;
   var d = drag; drag = null;
+  if (d.t.indexOf('ln') === 0) { lnUp(d); return; }
   if (d.t === 'qc') {
     if (!isDfd() && d.moved) { draw(); var oe = d.over && elOf(cur(), d.over); if (oe && isContainer(oe) && !linkKinds(elOf(cur(), d.from), oe, cur().kind).length) d.over = null; if (d.over) eaKindMenu(d.from, d.over, d.side, e.clientX, e.clientY); else eaNewElementMenu(d.from, d.side, lastPt, e.clientX, e.clientY); return; }
     if (d.moved) { if (d.over) createFlow(d.from, d.over, { sa: { s: d.side, p: .5 } }); else draw(); }
@@ -4607,7 +5003,7 @@ var HELP = {
     '<h4>Menyambung elemen</h4><ul><li>Pilih elemen, lalu <b>seret panah biru</b> di sisinya ke elemen lain. Kalau ada beberapa jenis hubungan (misalnya «include», «extend», Generalization), Alir menanyakan jenisnya.</li>' +
     '<li>Seret panah biru ke <b>area kosong</b> untuk membuat elemen baru yang langsung tersambung (seperti Quick Link di EA).</li>' +
     '<li>Atau pilih jenis garis di Toolbox, klik elemen asal, lalu klik elemen tujuan.</li>' +
-    '<li>Garis dirapikan otomatis setiap ada perubahan. Garis yang kamu atur sendiri tidak diubah. Matikan lewat Susun → Rapikan otomatis.</li></ul>' +
+    '<li>Garis dirapikan otomatis setiap ada perubahan. Garis yang kamu atur sendiri tidak diubah. Matikan lewat Susun → Rapikan otomatis.</li></ul><h4>Mengatur garis (seperti EA)</h4><ul><li><b>Seret garisnya langsung</b> untuk menggeser ruas. Kalau ruas di ujung digeser keluar dari objek, tikungan kecil dibuat sendiri; kalau dikembalikan, garis lurus lagi.</li><li><b>Ctrl+klik</b> di garis menambah titik (kotak kecil). Seret titiknya untuk membuat tikungan. Ctrl+klik titiknya untuk menghapus.</li><li>Kotak di <b>ujung garis</b> bisa digeser menyusuri tepi objek. Tarik menjauh dari objek untuk memindah sambungan ke objek lain; lepas di tempat kosong untuk membatalkan.</li><li>Bentuk garis sama seperti EA: Direct / Custom Line, Orthogonal - Square, Orthogonal - Rounded, Tree Style (vertikal/horizontal), dan Lateral (vertikal/horizontal). Pilih di panel kanan atau klik kanan garis.</li><li>Garis yang bersilangan diberi lompatan kecil seperti EA (bisa dimatikan di Format → Preferensi tampilan).</li><li>Tarik panah biru ke tempat kosong: elemen baru muncul tepat di titik kamu melepasnya.</li></ul>' +
     '<h4>Swimlane, pool, dan batas sistem</h4><ul><li>Seperti di EA, tiap <b>partition</b> (swimlane) adalah elemen sendiri, bukan satu tabel. Klik di dekat partition lain untuk menaruh partition baru menempel di sampingnya.</li><li>Saat digeser atau diubah ukurannya, tepinya <b>menempel otomatis</b> ke partition lain (seperti opsi Dockable di EA). Tahan Alt untuk mematikan.</li><li>Klik kanan partition → <b>Rapatkan semua partition</b> untuk menjejerkan tanpa celah dan menyamakan tingginya. Klik kanan → Jadikan mendatar/tegak untuk mengubah arah.</li><li>Lane yang ditaruh di dalam pool otomatis menyesuaikan lebar pool.</li><li>Geser bingkai lewat <b>judul atau tepinya</b>. Isi di dalamnya ikut berpindah.</li></ul>' +
     '<h4>Ke Enterprise Architect</h4><ul><li><b>Buka .eap</b>: Berkas → Buka. Activity, Use Case, dan BPMN dibaca, diagram jenis lain dilewati.</li><li><b>Ekspor ke EA</b> (Ctrl+S) membuat berkas .xml (XMI) untuk diimpor ke EA. Langkahnya ditampilkan di jendela ekspor.</li><li>Untuk laporan: Berkas → Ekspor semua ke PDF atau PNG.</li></ul>',
   tentang: '<p><b>Alir</b> adalah editor diagram di browser: DFD yang bisa membuka dan menyimpan berkas <b>.pam</b> PowerDesigner 6, serta Activity, Use Case, dan BPMN yang bisa membuka <b>.eap</b> dan mengekspor ke Enterprise Architect.</p><p><b>Jangan jadikan Alir sebagai patokan.</b> Alir bukan produk resmi PowerDesigner, SAP, atau Sparx Systems. Selalu buka hasil akhir di aplikasi aslinya sebelum dikumpulkan.</p><p>Semua data tersimpan di browser masing-masing pengguna. Tidak ada yang dikirim ke server.</p>'
