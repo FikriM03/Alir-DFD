@@ -133,6 +133,21 @@ svg.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-widt
 .handle { fill: #fff; stroke: #e03e2d; }
 .mid { fill: #e03e2d; opacity: .35; } .mid:hover { opacity: .9; }
 .marq { fill: rgba(224, 62, 45, .08); stroke: #e03e2d; }
+#mpbar { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 6; display: flex; align-items: center; gap: 8px; white-space: nowrap; justify-content: center; max-width: calc(100% - 24px); padding: 6px 8px 6px 14px; background: #fff; border: 1.5px solid #1a73e8; border-radius: 10px; box-shadow: 0 4px 14px rgba(0,0,0,.14); font-size: 13px; color: #1d2733; }
+#mpbar .btn { padding: 4px 10px; font-size: 12.5px; }
+#mpbar .btn.pri { background: #1a73e8; border-color: #1a73e8; color: #fff; }
+#findbar { position: absolute; top: 10px; right: 12px; z-index: 7; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; width: min(380px, calc(100% - 24px)); padding: 8px; background: #fff; border: 1px solid #c9d1db; border-radius: 10px; box-shadow: 0 6px 18px rgba(0,0,0,.14); font-size: 13px; }
+#findbar #findq { flex: 1 1 160px; min-width: 0; }
+#findbar #findn { color: #5b6573; font-size: 12px; white-space: nowrap; }
+#findbar .btn { padding: 4px 8px; }
+#findl { flex-basis: 100%; display: flex; flex-direction: column; max-height: 260px; overflow: auto; }
+#findl:empty { display: none; }
+#findl .fi { display: flex; justify-content: space-between; gap: 10px; text-align: left; padding: 6px 8px; border: 0; background: none; border-radius: 6px; cursor: pointer; font: inherit; color: inherit; }
+#findl .fi:hover, #findl .fi:focus-visible { background: #eef3fb; }
+#findl .fi span { color: #6b7684; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+#findl .fmore { color: #6b7684; font-size: 12px; padding: 4px 8px; }
+.grpbox { fill: none; stroke: #7b5cd6; pointer-events: none; }
+.lockb { pointer-events: none; }
 .guide { fill: none; stroke: #1a73e8; pointer-events: none; }
 .pv { stroke: #e03e2d; fill: none; }
 .endh { fill: #1a73e8; stroke: #fff; }
@@ -2055,6 +2070,8 @@ function umlPanel() {
       if (e.type === 'task') h += '<label class="cbx"><input type="checkbox" data-f="sub"' + (e.sub ? ' checked' : '') + '> Sub-proses (tanda +)</label>';
       if (e.type === 'partition') h += '<label class="cbx"><input type="checkbox" data-f="horiz"' + (e.horiz ? ' checked' : '') + '> Partition mendatar (judul di kiri)</label>';
       if (DOCK_T[e.type] && e.type !== 'pool') h += '<button class="btn block" data-act="dockall">Rapatkan semua ' + (e.type === 'lane' ? 'lane' : 'partition') + '</button><p class="hint">Seperti di EA, tiap ' + (e.type === 'lane' ? 'lane' : 'partition') + ' adalah elemen sendiri. Kalau digeser mendekati yang lain, tepinya menempel otomatis (tahan Alt untuk mematikan).</p>';
+      if (e.locked) h += '<p class="hint">Objek ini <b>terkunci</b>: tidak bisa digeser, diubah ukurannya, atau dihapus.</p><button class="btn block" data-act="lock">Buka kunci</button>';
+      if (e.grp) h += '<p class="hint">Bagian dari kelompok. Klik salah satu anggota untuk memilih semuanya.</p><button class="btn block" data-act="ungroup">Pisahkan kelompok</button>';
       h += '<div class="field"><label for="p-note">Catatan (Notes)</label><textarea class="in ta" id="p-note" data-f="note" rows="2" placeholder="opsional">' + esc(e.note || '') + '</textarea></div></div>';
       if (!isContainer(e)) {
         var fl = D.flows.filter(function (x) { return x.from === e.id || x.to === e.id; });
@@ -2109,7 +2126,7 @@ function umlPanelClick(e) {
   var b = e.target.closest('[data-pbd]');
   if (b) { var id = b.dataset.pbd; if (id === active) { pbOpen[id] = !pbOpen[id]; panel(); } else switchTo(id); return true; }
   var be = e.target.closest('[data-pbe]');
-  if (be) { if (be.dataset.pbd2 !== active) switchTo(be.dataset.pbd2); sel = new Set([be.dataset.pbe]); draw(); panel(); syncBar(); viewSel(); return true; }
+  if (be) { if (be.dataset.pbd2 !== active) switchTo(be.dataset.pbd2); if (multiPick && be.dataset.pbd2 === active) { if (sel.has(be.dataset.pbe)) sel.delete(be.dataset.pbe); else sel.add(be.dataset.pbe); draw(); panel(); syncBar(); return true; } sel = new Set([be.dataset.pbe]); draw(); panel(); syncBar(); viewSel(); return true; }
   return false;
 }
 
@@ -2873,20 +2890,28 @@ function sceneMarkup(D, routes, selSet) {
 var COARSE = false; try { COARSE = matchMedia('(pointer: coarse)').matches; } catch (x) { COARSE = false; }
 function overlay(D, routes, v) {
   var k = v.k, s = '', hs = (COARSE ? 8 : 4.5) / k, sw = 1.3 / k;
+  /* gembok kecil di objek terkunci, kotak putus-putus di kelompok yang terpilih (hanya di layar, tidak ikut diekspor) */
+  var gbox = {};
+  D.elements.forEach(function (e) {
+    if (e.locked) { var lx = e.x + e.w - 2 / k, ly = e.y + 2 / k; s += '<g class="lockb" transform="translate(' + lx + ' ' + ly + ') scale(' + 1 / k + ')"><title>Terkunci</title><rect x="-13" y="-1" width="13" height="13" rx="3" fill="#fff" stroke="#8a6d00"/><rect x="-10" y="5" width="7" height="5" rx="1" fill="#8a6d00"/><path d="M-8.6 5V3.4a2.1 2.1 0 0 1 4.2 0V5" fill="none" stroke="#8a6d00" stroke-width="1.3"/></g>'; }
+    if (e.grp && sel.has(e.id)) { var g = gbox[e.grp] || (gbox[e.grp] = { l: 1e9, t: 1e9, r: -1e9, b: -1e9 }); g.l = Math.min(g.l, e.x); g.t = Math.min(g.t, e.y); g.r = Math.max(g.r, e.x + e.w); g.b = Math.max(g.b, e.y + e.h); }
+  });
+  Object.keys(gbox).forEach(function (gk2) { var g = gbox[gk2], m = 8 / k; s += '<rect class="grpbox" style="stroke-width:' + 1.4 / k + 'px;stroke-dasharray:' + 6 / k + ' ' + 3 / k + '" x="' + (g.l - m) + '" y="' + (g.t - m) + '" width="' + (g.r - g.l + 2 * m) + '" height="' + (g.b - g.t + 2 * m) + '"/>'; });
   if (drag && drag.guides) drag.guides.forEach(function (g) { s += '<path class="guide" style="stroke-width:' + 1.5 / k + 'px;stroke-dasharray:' + 5 / k + ' ' + 3 / k + '" d="M' + g[0] + ' ' + g[1] + 'L' + g[2] + ' ' + g[3] + '"/>'; });
   D.elements.forEach(function (e) {
     if (!sel.has(e.id)) return;
     s += '<rect class="selbox" style="stroke-width:' + sw + 'px;stroke-dasharray:' + 4 / k + ' ' + 3 / k + '" x="' + (e.x - 3 / k) + '" y="' + (e.y - 3 / k) + '" width="' + (e.w + 6 / k) + '" height="' + (e.h + 6 / k) + '"/>';
   });
   var selE = D.elements.filter(function (x) { return sel.has(x.id); });
-  if (selE.length > 1 && !(drag && drag.t === 'move')) selE.forEach(function (e) {
+  if (selE.length > 1 && !multiPick && !(drag && drag.t === 'move')) selE.forEach(function (e) {
+    if (e.locked || e.w * k < 36 || e.h * k < 22) return; /* objek terlalu kecil di layar: pegangan malah menutupi objeknya */
     [['nw', e.x, e.y, 'nwse-resize'], ['ne', e.x + e.w, e.y, 'nesw-resize'], ['sw', e.x, e.y + e.h, 'nesw-resize'], ['se', e.x + e.w, e.y + e.h, 'nwse-resize'], ['n', e.x + e.w / 2, e.y, 'ns-resize'], ['s', e.x + e.w / 2, e.y + e.h, 'ns-resize'], ['w', e.x, e.y + e.h / 2, 'ew-resize'], ['e', e.x + e.w, e.y + e.h / 2, 'ew-resize']].forEach(function (h) {
       s += '<rect class="handle" data-h="' + h[0] + '" data-e="' + e.id + '" style="stroke-width:' + sw + 'px;cursor:' + h[3] + '" x="' + (h[1] - hs) + '" y="' + (h[2] - hs) + '" width="' + hs * 2 + '" height="' + hs * 2 + '"><title>Seret untuk mengubah ukuran semua yang dipilih sekaligus</title></rect>';
     });
   });
   if (sel.size === 1) {
     var id = Array.from(sel)[0], e = elOf(D, id);
-    if (e) [['nw', e.x, e.y, 'nwse-resize'], ['ne', e.x + e.w, e.y, 'nesw-resize'], ['sw', e.x, e.y + e.h, 'nesw-resize'], ['se', e.x + e.w, e.y + e.h, 'nwse-resize'], ['n', e.x + e.w / 2, e.y, 'ns-resize'], ['s', e.x + e.w / 2, e.y + e.h, 'ns-resize'], ['w', e.x, e.y + e.h / 2, 'ew-resize'], ['e', e.x + e.w, e.y + e.h / 2, 'ew-resize']].forEach(function (h) {
+    if (e && !e.locked) [['nw', e.x, e.y, 'nwse-resize'], ['ne', e.x + e.w, e.y, 'nesw-resize'], ['sw', e.x, e.y + e.h, 'nesw-resize'], ['se', e.x + e.w, e.y + e.h, 'nwse-resize'], ['n', e.x + e.w / 2, e.y, 'ns-resize'], ['s', e.x + e.w / 2, e.y + e.h, 'ns-resize'], ['w', e.x, e.y + e.h / 2, 'ew-resize'], ['e', e.x + e.w, e.y + e.h / 2, 'ew-resize']].forEach(function (h) {
       s += '<rect class="handle" data-h="' + h[0] + '" style="stroke-width:' + sw + 'px;cursor:' + h[3] + '" x="' + (h[1] - hs) + '" y="' + (h[2] - hs) + '" width="' + hs * 2 + '" height="' + hs * 2 + '"/>';
     });
     var f = flOf(D, id), r = f && routes.get(id);
@@ -3214,7 +3239,8 @@ function dropDiagram(id) {
 }
 function delSel() {
   if (!sel.size) return;
-  var D = cur(), n = 0;
+  var D = cur(), n = 0, lk = D.elements.filter(function (e) { return sel.has(e.id) && e.locked; });
+  if (lk.length) { lk.forEach(function (e) { sel.delete(e.id); }); toast(lk.length + ' objek terkunci tidak dihapus. Buka kuncinya dulu kalau memang mau dihapus.'); if (!sel.size) { draw(); panel(); syncBar(); return; } }
   mutate(function () {
     var rm = new Set(sel);
     D.elements.forEach(function (e) { if (rm.has(e.id)) { var c = childOf(D, e); if (c) { dropDiagram(c.id); n++; } } });
@@ -3241,9 +3267,10 @@ function pasteClip() {
   if (!clipb || !clipb.els.length) return;
   pasteN++;
   mutate(function () {
-    var D = cur(), map = {}, ns = new Set(), off = 20 * pasteN;
+    var D = cur(), map = {}, gmap = {}, ns = new Set(), off = 20 * pasteN;
     clipb.els.forEach(function (e) {
-      var n = clone(e); map[e.id] = n.id = uid('e'); delete n.oid; delete n.ssym; delete n.guid; n.x += off; n.y += off;
+      var n = clone(e); map[e.id] = n.id = uid('e'); delete n.oid; delete n.ssym; delete n.guid; delete n.locked; n.x += off; n.y += off;
+      if (n.grp) { gmap[n.grp] = gmap[n.grp] || uid('g'); n.grp = gmap[n.grp]; }
       if (n.type !== 'entity') n.num = nextNum(D, n.type);
       D.elements.push(n); ns.add(n.id);
     });
@@ -3276,6 +3303,98 @@ function segHitsRect(a, b, x0, y0, x1, y1) {
 }
 function dupSel() { copySel(); pasteClip(); }
 function selectAll() { var D = cur(); sel = new Set(D.elements.map(function (e) { return e.id; }).concat(D.flows.map(function (f) { return f.id; }))); draw(); panel(); syncBar(); }
+/* Mode "pilih beberapa" (seperti Canva): tiap klik menambah/membuang objek dari pilihan, tanpa Shift. Berguna juga di HP. */
+var multiPick = false;
+function setMultiPick(on) {
+  multiPick = !!on;
+  var b = document.getElementById('mpbar');
+  if (multiPick && !b) { b = document.createElement('div'); b.id = 'mpbar'; b.setAttribute('role', 'status'); $('#stage').appendChild(b); b.addEventListener('click', function (e) { var a = e.target.closest('[data-mp]'); if (!a) return; if (a.dataset.mp === 'all') { selectAll(); } else setMultiPick(false); }); }
+  if (!multiPick && b) b.remove();
+  mpUpdate(); status();
+}
+function mpUpdate() {
+  var b = document.getElementById('mpbar'); if (!b) return;
+  b.innerHTML = '<span><b>Pilih beberapa</b> · ' + sel.size + ' dipilih</span><button class="btn" data-mp="all">Semua</button><button class="btn pri" data-mp="done">Selesai</button>';
+}
+function selectSame() {
+  var D = cur(), ids = Array.from(sel), types = {}, kinds = {};
+  ids.forEach(function (id) { var e = elOf(D, id), f = flOf(D, id); if (e) types[e.type] = 1; if (f) kinds[f.kind || 'flow'] = 1; });
+  D.elements.forEach(function (e) { if (types[e.type]) sel.add(e.id); });
+  D.flows.forEach(function (f) { if (kinds[f.kind || 'flow']) sel.add(f.id); });
+  draw(); panel(); syncBar(); mpUpdate(); toast(sel.size + ' objek sejenis dipilih.');
+}
+/* ---------- kunci, kelompok, cari ---------- */
+function grpExpand(set) {
+  var D = cur(), g = {}; D.elements.forEach(function (e) { if (set.has(e.id) && e.grp) g[e.grp] = 1; });
+  D.elements.forEach(function (e) { if (e.grp && g[e.grp]) set.add(e.id); });
+  return set;
+}
+function grpMembers(id) { var D = cur(), e = elOf(D, id); return e && e.grp ? D.elements.filter(function (x) { return x.grp === e.grp; }).map(function (x) { return x.id; }) : [id]; }
+function toggleLock() {
+  var l = selEls(); if (!l.length) { toast('Pilih objek yang mau dikunci dulu.'); return; }
+  var all = l.every(function (e) { return e.locked; });
+  mutate(function () { l.forEach(function (e) { if (all) delete e.locked; else e.locked = true; }); });
+  toast(all ? l.length + ' objek dibuka kuncinya.' : l.length + ' objek dikunci: tidak bisa tergeser, diubah ukurannya, atau terhapus. Klik kanan → Buka kunci untuk mengubahnya lagi.');
+}
+function groupSel() {
+  var l = selEls(); if (l.length < 2) { toast('Pilih minimal dua objek untuk dikelompokkan.'); return; }
+  var g = uid('g'); mutate(function () { l.forEach(function (e) { e.grp = g; }); });
+  toast(l.length + ' objek dikelompokkan. Klik salah satunya untuk memilih semuanya. Ctrl+Shift+G untuk memisahkan.');
+}
+function ungroupSel() {
+  var l = selEls().filter(function (e) { return e.grp; }); if (!l.length) { toast('Objek terpilih tidak berada dalam kelompok.'); return; }
+  mutate(function () { l.forEach(function (e) { delete e.grp; }); }); toast('Kelompok dipisahkan.');
+}
+var findHits = [], findIdx = -1;
+function findOpen() {
+  var b = document.getElementById('findbar');
+  if (!b) {
+    b = document.createElement('div'); b.id = 'findbar';
+    b.innerHTML = '<input class="in" id="findq" type="search" placeholder="Cari nama elemen atau garis…" aria-label="Cari elemen" autocomplete="off"><span id="findn"></span><button class="btn" data-fd="prev" aria-label="Sebelumnya">↑</button><button class="btn" data-fd="next" aria-label="Berikutnya">↓</button><button class="btn" data-fd="close" aria-label="Tutup">✕</button><div id="findl"></div>';
+    $('#stage').appendChild(b);
+    var q = b.querySelector('#findq');
+    q.addEventListener('input', function () { findRun(q.value); });
+    q.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); findGo(e.shiftKey ? -1 : 1); }
+      else if (e.key === 'Escape') { e.preventDefault(); findClose(); }
+      else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') { e.preventDefault(); q.select(); }
+      e.stopPropagation();
+    });
+    b.addEventListener('click', function (e) {
+      var a = e.target.closest('[data-fd]'), it = e.target.closest('[data-fi]');
+      if (it) { findIdx = +it.dataset.fi - 1; findGo(1); return; }
+      if (!a) return; if (a.dataset.fd === 'close') findClose(); else findGo(a.dataset.fd === 'prev' ? -1 : 1);
+    });
+  }
+  var q2 = b.querySelector('#findq'); q2.focus(); q2.select(); findRun(q2.value);
+}
+function findClose() { var b = document.getElementById('findbar'); if (b) b.remove(); findHits = []; cv.focus({ preventScroll: true }); }
+function findRun(q) {
+  q = norm(q); findHits = []; findIdx = -1;
+  if (q) {
+    var ds = doc.diagrams.slice().sort(function (a, b) { return (a.id === active ? 0 : 1) - (b.id === active ? 0 : 1); });
+    ds.forEach(function (D) {
+      D.elements.forEach(function (e) { var t = norm(((e.num ? e.num + ' ' : '') + (e.name || ''))); if (t.indexOf(q) >= 0) findHits.push({ d: D.id, id: e.id, t: (e.num ? e.num + ' ' : '') + (e.name || ''), k: TT[e.type] ? TT[e.type].label : TYPE_ID[e.type] || e.type, dn: D.name || diagTitle(D) }); });
+      D.flows.forEach(function (f) { var t = norm(f.name || ''); if (t && t.indexOf(q) >= 0) findHits.push({ d: D.id, id: f.id, t: f.name, k: 'Garis', dn: D.name || diagTitle(D) }); });
+    });
+  }
+  var n = document.getElementById('findn'), l = document.getElementById('findl'); if (!n) return;
+  n.textContent = q ? (findHits.length ? findHits.length + ' ketemu' : 'tidak ada') : '';
+  l.innerHTML = findHits.slice(0, 8).map(function (h, i) { return '<button class="fi" data-fi="' + i + '"><b>' + esc(h.t) + '</b><span>' + esc(h.k) + (h.d !== active ? ' · ' + esc(h.dn) : '') + '</span></button>'; }).join('') + (findHits.length > 8 ? '<div class="fmore">Tekan Enter untuk lanjut ke hasil berikutnya.</div>' : '');
+}
+function findGo(step) {
+  if (!findHits.length) return;
+  findIdx = (findIdx + step + findHits.length) % findHits.length;
+  var h = findHits[findIdx]; if (h.d !== active) switchTo(h.d);
+  var D = cur(), e = elOf(D, h.id), v = view(), s = stageBox(), c;
+  if (e) c = { x: e.x + e.w / 2, y: e.y + e.h / 2 };
+  else { var r = routeAll(D).get(h.id); if (r) c = r.lab; }
+  sel = new Set([h.id]);
+  if (c) { remember(); if (v.k < .8) v.k = 1; v.x = s.w / 2 - c.x * v.k; v.y = s.h / 2 - c.y * v.k; v.fresh = false; }
+  draw(); panel(); syncBar();
+  var n = document.getElementById('findn'); if (n) n.textContent = (findIdx + 1) + ' dari ' + findHits.length;
+  var fl = document.getElementById('findl'); if (fl) fl.innerHTML = ''; /* daftar ditutup supaya tidak menutupi objek yang ditemukan */
+}
 function selectConnected() {
   var D = cur(), s = new Set(sel);
   D.flows.forEach(function (f) { if (sel.has(f.from) || sel.has(f.to) || sel.has(f.id)) { s.add(f.id); s.add(f.from); s.add(f.to); } });
@@ -3335,9 +3454,9 @@ function moveEls(list, dx, dy) {
   list.forEach(function (e) { e.x += dx; e.y += dy; });
   D.flows.forEach(function (f) { if (ms.has(f.from) && ms.has(f.to)) (f.bends || []).forEach(function (b) { b.x += dx; b.y += dy; }); });
 }
-function nudge(dx, dy) { var l = selEls(); if (l.length) mutate(function () { moveEls(l, dx, dy); }); }
+function nudge(dx, dy) { var l = selEls().filter(function (e) { return !e.locked; }); if (l.length) mutate(function () { moveEls(l, dx, dy); }); }
 function align(kind) {
-  var l = selEls(); if (l.length < 2) { toast('Pilih minimal dua objek untuk diratakan.'); return; }
+  var l = selEls(); if (l.some(function (e) { return e.locked; })) toast('Objek terkunci tidak ikut diubah.'); l = l.filter(function (e) { return !e.locked; }).concat(l.filter(function (e) { return e.locked; })); if (l.length < 2) { toast('Pilih minimal dua objek untuk diratakan.'); return; }
   mutate(function () {
     var x0 = Math.min.apply(null, l.map(function (e) { return e.x; })), x1 = Math.max.apply(null, l.map(function (e) { return e.x + e.w; }));
     var y0 = Math.min.apply(null, l.map(function (e) { return e.y; })), y1 = Math.max.apply(null, l.map(function (e) { return e.y + e.h; }));
@@ -3527,7 +3646,7 @@ function buildToolbar() {
     '</div><button class="tb only-narrow" data-act="panel">Properti</button>';
 }
 buildToolbar();
-function syncBar() {
+function syncBar() { if (typeof mpUpdate === "function") mpUpdate();
   var n = sel.size, st = curStyleOf(), hasF = selFlows().length > 0, nE = selEls().length;
   $$('#toolbar [data-need]').forEach(function (b) { var need = b.dataset.need; b.disabled = need === 'f' ? !hasF : need === 'e' ? !nE : need === '2' ? nE < 2 : n < 1; });
   $('#bUndo').disabled = !undoS.length; $('#bRedo').disabled = !redoS.length; $('#bPaste').disabled = !clipb;
@@ -3589,7 +3708,7 @@ function menuItems(name) {
   if (name === 'file' && !isDfd()) return [item('Halaman mulai…', 'start'), item('Buka .eap / .xml / .json…', 'open', 'Ctrl+O'), HR, item('Ekspor ke Enterprise Architect…', 'exportea', 'Ctrl+S'), item('Simpan proyek Alir (.json)', 'saveproj'), { hd: 'Diagram ini' }, item('Ekspor gambar PNG', 'png'), item('Ekspor gambar JPG', 'jpg'), item('Ekspor gambar SVG', 'svg'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Preferensi tampilan…', 'dispref')];
   if (name === 'dict' && !isDfd()) return [{ hd: 'Diagram baru' }, item('Activity Diagram', 'newdiag:activity'), item('Use Case Diagram', 'newdiag:usecase'), item('BPMN (Business Process)', 'newdiag:bpmn'), HR, item('Ganti nama diagram…', 'renamediag'), item('Hapus diagram ini', 'deldiag', '', { dis: doc.diagrams.length < 2 }), item('Paket (folder) baru', 'newpkg'), HR, item('Periksa diagram', 'check', 'F4')];
   if (name === 'file') return [item('Halaman mulai…', 'start'), item('Model DFD baru', 'new'), item('Buka .pam / .json / .zip…', 'open', 'Ctrl+O'), HR, item('Simpan sebagai .pam', 'savepam', 'Ctrl+S'), item('Simpan proyek (.json)', 'savejson'), { hd: 'Diagram ini' }, item('Ekspor gambar PNG', 'png'), item('Ekspor gambar JPG', 'jpg'), item('Ekspor gambar SVG', 'svg'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Opsi model…', 'modelopt'), item('Preferensi tampilan…', 'dispref')];
-  if (name === 'edit') return [item('Urungkan', 'undo', 'Ctrl+Z', { dis: !undoS.length }), item('Ulangi', 'redo', 'Ctrl+Y', { dis: !redoS.length }), HR, item('Potong', 'cut', 'Ctrl+X', { dis: !has }), item('Salin', 'copy', 'Ctrl+C', { dis: !has }), item('Tempel', 'paste', 'Ctrl+V', { dis: !clipb }), item('Hapus', 'del', 'Del', { dis: !has }), HR, item('Pilih simbol terhubung', 'selconn', '', { dis: !has }), item('Pilih semua', 'selall', 'Ctrl+A'), item('Duplikat', 'dup', 'Ctrl+D', { dis: !has }), item('Ubah nama', 'rename', 'F2', { dis: sel.size !== 1 })];
+  if (name === 'edit') return [item('Urungkan', 'undo', 'Ctrl+Z', { dis: !undoS.length }), item('Ulangi', 'redo', 'Ctrl+Y', { dis: !redoS.length }), HR, item('Potong', 'cut', 'Ctrl+X', { dis: !has }), item('Salin', 'copy', 'Ctrl+C', { dis: !has }), item('Tempel', 'paste', 'Ctrl+V', { dis: !clipb }), item('Hapus', 'del', 'Del', { dis: !has }), HR, item('Pilih simbol terhubung', 'selconn', '', { dis: !has }), item('Pilih semua', 'selall', 'Ctrl+A'), item('Pilih beberapa (klik satu per satu)', 'multipick', '', { ck: multiPick }), item('Pilih semua yang sejenis', 'selsame', '', { dis: !has }), item('Cari elemen…', 'find', 'Ctrl+F'), HR, item('Kunci / buka kunci posisi', 'lock', '', { dis: !nE }), item('Kelompokkan', 'group', 'Ctrl+G', { dis: nE < 2 }), item('Pisahkan kelompok', 'ungroup', 'Ctrl+Shift+G', { dis: !nE }), HR, item('Duplikat', 'dup', 'Ctrl+D', { dis: !has }), item('Ubah nama', 'rename', 'F2', { dis: sel.size !== 1 })];
   if (name === 'dict') return [item('Properti model…', 'modelopt'), { hd: 'Sub-proses' }, item(proc && childOf(D, proc) ? 'Buka diagram turunan' : 'Dekomposisi proses terpilih', 'decomp', 'Alt+↓', { dis: !proc }), item('Naik satu level', 'up', 'Alt+↑', { dis: !D.parent }), item('Hapus dekomposisi', 'undecomp', '', { dis: !(proc && childOf(D, proc)) }), item('Pohon proses…', 'tree'), HR, item('Daftar objek…', 'objlist'), item('Urutkan ulang nomor objek', 'renum'), item('Auto-balance alur', 'autobal', '', { dis: !D.parent }), item('Migrasikan alur terpilih ke induk', 'migrate', '', { dis: !D.parent || !f }), HR, item('Periksa model…', 'check', 'F4')];
   if (name === 'arrange') return [item('Sesuaikan dengan teks', 'adjust', 'Ctrl+J', { dis: !nE }), item('Ukuran normal', 'normsize', '', { dis: !nE }), HR, { hd: 'Ratakan' }, item('Kiri', 'alL', '', { dis: nE < 2 }), item('Tengah (sumbu vertikal)', 'alC', '', { dis: nE < 2 }), item('Kanan', 'alR', '', { dis: nE < 2 }), item('Atas', 'alT', '', { dis: nE < 2 }), item('Tengah (sumbu horizontal)', 'alM', '', { dis: nE < 2 }), item('Bawah', 'alB', '', { dis: nE < 2 }), item('Samakan lebar', 'sameW', '', { dis: nE < 2 }), item('Samakan tinggi', 'sameH', '', { dis: nE < 2 }), HR, item('Sebar horizontal', 'distH', '', { dis: nE < 3 }), item('Sebar vertikal', 'distV', '', { dis: nE < 3 }), HR, { hd: 'Alur' }, item('Rapikan alur terpilih', 'tidy', 'Ctrl+L', { dis: !selFlows().length }), item('Rapikan semua alur… (pilih tampilan)', 'tidyall', 'Ctrl+Shift+L'), item('Rapikan otomatis setiap ada perubahan', 'autotidy', '', { ck: autoTidyOn() }), HR, { hd: 'Urutan' }, item('Bawa ke depan', 'front', 'Ctrl+]', { dis: !has }), item('Kirim ke belakang', 'back', 'Ctrl+[', { dis: !has }), item('Maju satu', 'fwd', '', { dis: !has }), item('Mundur satu', 'bwd', '', { dis: !has })];
   if (name === 'format') return [item('Bayangan (shadow)', 'shadow', '', { ck: doc.prefs.shadow }), HR, item('Warna garis…', 'pop:stroke', '', { dis: !has }), item('Warna isi…', 'pop:fill', '', { dis: !nE }), item('Warna teks…', 'pop:text', '', { dis: !has }), HR, { hd: 'Pola garis' }]
@@ -3638,7 +3757,7 @@ function contextMenu(e, id) {
   var mE = selEls();
   if (mE.length > 1 && id && sel.has(id)) {
     /* beberapa objek dipilih: perintah untuk semuanya sekaligus */
-    items.push({ hd: mE.length + ' objek dipilih' }, item('Potong', 'cut', 'Ctrl+X'), item('Salin', 'copy', 'Ctrl+C'), item('Duplikat', 'dup', 'Ctrl+D'), item('Hapus', 'del', 'Del'), HR,
+    items.push({ hd: mE.length + ' objek dipilih' }, item(multiPick ? 'Selesai memilih' : 'Pilih beberapa lagi (klik satu per satu)', 'multipick'), item('Pilih semua yang sejenis', 'selsame'), item('Pilih yang terhubung', 'selconn'), HR, item(mE.every(function (x) { return x.locked; }) ? 'Buka kunci' : 'Kunci posisi', 'lock'), item('Kelompokkan', 'group', 'Ctrl+G'), item('Pisahkan kelompok', 'ungroup', 'Ctrl+Shift+G', { dis: !mE.some(function (x) { return x.grp; }) }), HR, item('Potong', 'cut', 'Ctrl+X'), item('Salin', 'copy', 'Ctrl+C'), item('Duplikat', 'dup', 'Ctrl+D'), item('Hapus', 'del', 'Del'), HR,
       { hd: 'Ratakan' }, item('Kiri', 'alL'), item('Kanan', 'alR'), item('Atas', 'alT'), item('Bawah', 'alB'), item('Tengah (sumbu vertikal)', 'alC'), item('Tengah (sumbu horizontal)', 'alM'), HR,
       item('Samakan lebar', 'sameW'), item('Samakan tinggi', 'sameH'), item('Sebar horizontal', 'distH', '', { dis: mE.length < 3 }), item('Sebar vertikal', 'distV', '', { dis: mE.length < 3 }));
     if (!isDfd() && mE.every(function (x) { return x.type === mE[0].type && (x.type === 'partition' || x.type === 'lane'); })) items.push(HR, item('Rapatkan ' + (mE[0].type === 'lane' ? 'lane' : 'partition') + ' terpilih', 'dockall'));
@@ -3647,7 +3766,8 @@ function contextMenu(e, id) {
   }
   if (!isDfd()) {
     if (o) {
-      items.push(item('Ubah nama', 'rename', 'F2'), item('Potong', 'cut', 'Ctrl+X'), item('Salin', 'copy', 'Ctrl+C'), item('Duplikat', 'dup', 'Ctrl+D'), item('Hapus', 'del', 'Del'), HR);
+      items.push(item('Ubah nama', 'rename', 'F2'), item('Potong', 'cut', 'Ctrl+X'), item('Salin', 'copy', 'Ctrl+C'), item('Duplikat', 'dup', 'Ctrl+D'), item('Hapus', 'del', 'Del'), HR, item(multiPick ? 'Selesai memilih' : 'Pilih beberapa (klik satu per satu)', 'multipick'), item('Pilih semua yang sejenis', 'selsame'), item('Pilih yang terhubung', 'selconn'), HR);
+      if (o.type) items.push(item(o.locked ? 'Buka kunci' : 'Kunci posisi', 'lock'), HR);
       if (o.type) { if (!isContainer(o)) items.push(item('Sesuaikan dengan teks', 'adjust', 'Ctrl+J'), item('Ukuran normal', 'normsize')); if (o.type === 'partition') items.push(item(o.horiz ? 'Jadikan partition tegak' : 'Jadikan partition mendatar', 'porient')); if (o.type === 'partition' || o.type === 'lane') items.push(item('Rapatkan semua ' + (o.type === 'lane' ? 'lane' : 'partition'), 'dockall'), HR); items.push(item('Warna garis…', 'pop:stroke'), item('Warna isi…', 'pop:fill'), item('Warna teks…', 'pop:text')); }
       else {
         var ks = linkKinds(elOf(D, o.from), elOf(D, o.to), D.kind); if (ks.indexOf(o.kind) < 0) ks.unshift(o.kind);
@@ -3657,7 +3777,7 @@ function contextMenu(e, id) {
       }
       items.push(HR, item('Bawa ke depan', 'front'), item('Kirim ke belakang', 'back'));
     } else {
-      items.push(item('Tempel', 'paste', 'Ctrl+V', { dis: !clipb }), item('Pilih semua', 'selall', 'Ctrl+A'), HR, item('Rapikan semua garis…', 'tidyall', 'Ctrl+Shift+L'), item('Tampilan global', 'fit', 'F8'), HR, item('Ganti nama diagram…', 'renamediag'), item('Diagram baru…', 'newdiag'), item('Periksa diagram', 'check', 'F4'));
+      items.push(item('Tempel', 'paste', 'Ctrl+V', { dis: !clipb }), item('Pilih semua', 'selall', 'Ctrl+A'), item(multiPick ? 'Selesai memilih' : 'Pilih beberapa (klik satu per satu)', 'multipick'), item('Cari elemen…', 'find', 'Ctrl+F'), HR, item('Rapikan semua garis…', 'tidyall', 'Ctrl+Shift+L'), item('Tampilan global', 'fit', 'F8'), HR, item('Ganti nama diagram…', 'renamediag'), item('Diagram baru…', 'newdiag'), item('Periksa diagram', 'check', 'F4'));
     }
     renderMenu(items, e.clientX, e.clientY); return;
   }
@@ -3668,7 +3788,8 @@ function contextMenu(e, id) {
     items.push(HR);
   }
   if (o) {
-    items.push(item('Ubah nama', 'rename', 'F2'), item('Potong', 'cut', 'Ctrl+X'), item('Salin', 'copy', 'Ctrl+C'), item('Duplikat', 'dup', 'Ctrl+D'), item('Hapus', 'del', 'Del'), item('Pilih simbol terhubung', 'selconn'), HR);
+    items.push(item('Ubah nama', 'rename', 'F2'), item('Potong', 'cut', 'Ctrl+X'), item('Salin', 'copy', 'Ctrl+C'), item('Duplikat', 'dup', 'Ctrl+D'), item('Hapus', 'del', 'Del'), HR, item(multiPick ? 'Selesai memilih' : 'Pilih beberapa (klik satu per satu)', 'multipick'), item('Pilih semua yang sejenis', 'selsame'), item('Pilih simbol terhubung', 'selconn'), HR);
+    if (o.type) items.push(item(o.locked ? 'Buka kunci' : 'Kunci posisi', 'lock'), HR);
     if (o.type) items.push(item('Sesuaikan dengan teks', 'adjust', 'Ctrl+J'), item('Ukuran normal', 'normsize'), HR);
     items.push(item('Warna garis…', 'pop:stroke'));
     if (o.type) items.push(item('Warna isi…', 'pop:fill'));
@@ -3676,7 +3797,7 @@ function contextMenu(e, id) {
     if (!o.type) { items.push(HR, { hd: 'Gaya garis' }); ROUTES.forEach(function (r, i) { items.push(item(r, 'route:' + i, '', { ck: fs(o).route === i })); }); items.push(item('Rapikan garis', 'tidy', 'Ctrl+L'), item('Balik arah', 'flip')); if (D.parent) items.push(item('Migrasikan ke induk', 'migrate')); }
     items.push(HR, item('Bawa ke depan', 'front'), item('Kirim ke belakang', 'back'));
   } else {
-    items.push(item('Tempel', 'paste', 'Ctrl+V', { dis: !clipb }), item('Pilih semua', 'selall', 'Ctrl+A'), HR);
+    items.push(item('Tempel', 'paste', 'Ctrl+V', { dis: !clipb }), item('Pilih semua', 'selall', 'Ctrl+A'), item(multiPick ? 'Selesai memilih' : 'Pilih beberapa (klik satu per satu)', 'multipick'), item('Cari elemen…', 'find', 'Ctrl+F'), HR);
     if (D.parent) items.push(item('Naik satu level', 'up', 'Alt+↑'), item('Auto-balance alur', 'autobal'), HR);
     items.push(item('Tampilan global', 'fit', 'F8'), item('Periksa model…', 'check', 'F4'), item('Preferensi tampilan…', 'dispref'));
   }
@@ -3738,6 +3859,12 @@ function run(a, btn) {
     case 'dup': dupSel(); break;
     case 'selall': selectAll(); break;
     case 'selconn': selectConnected(); break;
+    case 'lock': toggleLock(); break;
+    case 'group': groupSel(); break;
+    case 'ungroup': ungroupSel(); break;
+    case 'find': findOpen(); break;
+    case 'multipick': setMultiPick(!multiPick); if (multiPick) toast('Klik objek satu per satu untuk memilih. Tekan Selesai atau Esc kalau sudah.'); break;
+    case 'selsame': selectSame(); break;
     case 'rename': if (sel.size === 1) startRename(id); break;
     case 'pick': sel = new Set([btn.dataset.id]); draw(); panel(); syncBar(); break;
     case 'decomp': if (id && elOf(D, id)) decompose(id); break;
@@ -3984,11 +4111,11 @@ cv.addEventListener('pointerdown', function (e) {
   var g = e.target.closest('[data-id]'), gid = g && g.dataset.id, hd = e.target.closest('[data-h]');
   var now = Date.now(), dbl = gid && !hd && lastDown.id === gid && now - lastDown.t < 450 && Math.hypot(e.clientX - lastDown.x, e.clientY - lastDown.y) < 6;
   lastDown = { id: gid, t: dbl ? 0 : now, x: e.clientX, y: e.clientY };
-  if (dbl && tool === 'select') { drag = null; startRename(gid); return; }
+  if (dbl && tool === 'select' && !multiPick) { drag = null; startRename(gid); return; }
   if (tool === 'select') {
     if (hd && hd.dataset.e && elOf(D, hd.dataset.e)) {
       var lead = elOf(D, hd.dataset.e), grp = {};
-      D.elements.forEach(function (x) { if (sel.has(x.id)) grp[x.id] = { x: x.x, y: x.y, w: x.w, h: x.h }; });
+      D.elements.forEach(function (x) { if (sel.has(x.id) && !x.locked) grp[x.id] = { x: x.x, y: x.y, w: x.w, h: x.h }; });
       drag = { t: 'resize', id: lead.id, h: hd.dataset.h, pushed: false, o: { x: lead.x, y: lead.y, w: lead.w, h: lead.h }, grp: grp }; return;
     }
     if (hd && sel.size === 1) {
@@ -4007,18 +4134,22 @@ cv.addEventListener('pointerdown', function (e) {
       var el = elOf(D, id); if (el) { drag = { t: 'resize', id: id, h: hv, pushed: false, o: { x: el.x, y: el.y, w: el.w, h: el.h } }; return; }
     }
     if (gid) {
-      if (e.shiftKey || e.ctrlKey || e.metaKey) { if (sel.has(gid)) sel.delete(gid); else sel.add(gid); }
-      else if (!sel.has(gid)) sel = new Set([gid]);
+      var unpick = null;
+      var gm = grpMembers(gid);
+      if (multiPick) { if (sel.has(gid)) unpick = gid; else gm.forEach(function (x) { sel.add(x); }); }
+      else if (e.shiftKey || e.ctrlKey || e.metaKey) { if (sel.has(gid)) gm.forEach(function (x) { sel.delete(x); }); else gm.forEach(function (x) { sel.add(x); }); }
+      else if (!sel.has(gid)) sel = new Set(gm);
+      mpUpdate();
       panel(); draw(); syncBar();
       if (gid[0] === 'e' && sel.has(gid)) {
         var ms = new Set(Array.from(sel).filter(function (x) { return x[0] === 'e'; })), orig = {}, bo = {};
-        if (!isDfd()) Array.from(ms).forEach(function (cid) { var c = elOf(D, cid); if (c && isContainer(c)) contentsOf(D, c).forEach(function (o) { ms.add(o.id); }); });
-        D.elements.forEach(function (x) { if (ms.has(x.id)) orig[x.id] = { x: x.x, y: x.y }; });
+        if (!isDfd()) Array.from(ms).forEach(function (cid) { var c = elOf(D, cid); if (c && isContainer(c) && !c.locked) contentsOf(D, c).forEach(function (o) { ms.add(o.id); }); });
+        D.elements.forEach(function (x) { if (ms.has(x.id) && !x.locked) orig[x.id] = { x: x.x, y: x.y }; });
         D.flows.forEach(function (f2) { if (ms.has(f2.from) && ms.has(f2.to) && f2.bends && f2.bends.length) bo[f2.id] = f2.bends.map(function (q) { return { x: q.x, y: q.y }; }); });
-        drag = { t: 'move', start: p, sx: e.clientX, sy: e.clientY, moved: false, orig: orig, bo: bo, lead: gid };
-      }
+        drag = { t: 'move', start: p, sx: e.clientX, sy: e.clientY, moved: false, orig: orig, bo: bo, lead: gid, unpick: unpick };
+      } else if (unpick) { grpMembers(unpick).forEach(function (x) { sel.delete(x); }); panel(); draw(); syncBar(); mpUpdate(); }
     } else {
-      var base = e.shiftKey ? new Set(sel) : new Set(); if (!e.shiftKey) { sel.clear(); panel(); syncBar(); }
+      var keep = e.shiftKey || multiPick, base = keep ? new Set(sel) : new Set(); if (!keep) { sel.clear(); panel(); syncBar(); }
       drag = { t: 'marquee', x0: p.x, y0: p.y, x1: p.x, y1: p.y, base: base, routes: routeAll(D) }; draw();
     }
     return;
@@ -4043,6 +4174,7 @@ cv.addEventListener('pointermove', function (e) {
   var v = view();
   if (drag.t === 'pan') { v.x = drag.vx + e.clientX - drag.sx; v.y = drag.vy + e.clientY - drag.sy; v.fresh = false; draw(); }
   else if (drag.t === 'move') {
+    if (!Object.keys(drag.orig).length) { if (!drag.warned && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) >= 4) { drag.warned = true; toast('Objek ini dikunci. Klik kanan → Buka kunci untuk menggesernya.'); } return; }
     if (!drag.moved) { if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 4) return; push(); drag.moved = true; var mvSet = new Set(Object.keys(drag.orig)); pinAround(D, mvSet, false); drag.bo2 = {};
       D.flows.forEach(function (f) { var a = mvSet.has(f.from), b = mvSet.has(f.to); if (a !== b && fs(f).route > 0 && f.bends && f.bends.length && f.sa && f.ta) drag.bo2[f.id] = { b: f.bends.map(function (q) { return { x: q.x, y: q.y }; }), mov: a ? 's' : 't' }; }); }
     var dx = p.x - drag.start.x, dy = p.y - drag.start.y, sdx = 0, sdy = 0, first = true;
@@ -4132,8 +4264,9 @@ function endPointer(e) {
     else quickConnectMenu(d.from, d.side, e.clientX, e.clientY);
     return;
   }
+  if (d.t === 'move' && !d.moved && d.unpick) { grpMembers(d.unpick).forEach(function (x) { sel.delete(x); }); panel(); draw(); syncBar(); mpUpdate(); return; }
   if ((d.t === 'move' && d.moved) || ((d.t === 'resize' || d.t === 'bend' || d.t === 'end' || d.t === 'seg') && d.pushed)) afterChange();
-  else if (d.t === 'marquee') { panel(); draw(); syncBar(); } else draw();
+  else if (d.t === 'marquee') { grpExpand(sel); panel(); draw(); syncBar(); mpUpdate(); } else draw();
 }
 cv.addEventListener('pointerup', endPointer);
 cv.addEventListener('pointercancel', endPointer);
@@ -4156,13 +4289,14 @@ window.addEventListener('keydown', function (e) {
   if (e.altKey && e.key === 'ArrowDown') { e.preventDefault(); var one = selEls()[0]; if (one && one.type === 'process' && isDfd()) decompose(one.id); return; }
   if (mod) {
     var map = { a: 'selall', c: 'copy', x: 'cut', v: 'paste', d: 'dup', y: 'redo', s: isDfd() ? 'savepam' : 'exportea', o: 'open', 0: 'fit', j: 'adjust', l: 'tidy', ']': 'front', '[': 'back' };
-    var act = (k === 'l' && e.shiftKey) ? 'tidyall' : k === 'z' ? (e.shiftKey ? 'redo' : 'undo') : (k === '=' || k === '+') ? 'zin' : k === '-' ? 'zout' : map[k];
+    var act = (k === 'l' && e.shiftKey) ? 'tidyall' : k === 'g' ? (e.shiftKey ? 'ungroup' : 'group') : k === 'f' ? 'find' : k === 'z' ? (e.shiftKey ? 'redo' : 'undo') : (k === '=' || k === '+') ? 'zin' : k === '-' ? 'zout' : map[k];
     if (act) { e.preventDefault(); run(act); }
     return;
   }
   if (e.key === ' ') { if (tg && tg.closest && tg.closest('button,[data-tab]')) return; if (!spaceDown) { spaceDown = true; draw(); } e.preventDefault(); return; }
   if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); delSel(); return; }
   if (e.key === 'Escape' && drag && drag.t !== 'pan' && drag.t !== 'marquee') { var dg = drag; drag = null; if (dg.pushed || dg.moved) { undo(); redoS.pop(); } draw(); return; }
+  if (e.key === 'Escape' && multiPick) { setMultiPick(false); return; }
   if (e.key === 'Escape') { flowFrom = null; sel.clear(); setTool('select'); panel(); syncBar(); closeMenus(); closePop(); return; }
   if (e.key === 'F2') { e.preventDefault(); run('rename'); return; }
   if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) { e.preventDefault(); var r = cv.getBoundingClientRect(); contextMenu({ clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }, sel.size === 1 ? Array.from(sel)[0] : null); return; }
@@ -4466,7 +4600,7 @@ var HELP = {
     '<tr><td><span class="sw3" style="background:var(--warn)"></span><b>Kuning: peringatan</b></td><td>Boleh, tapi perlu dicek. Contoh: alur belum diberi nama, data store hanya diisi tapi tidak pernah dibaca, entitas belum terhubung, nama proses dipakai dua kali.</td></tr>' +
     '<tr><td><span class="sw3" style="background:var(--ok)"></span><b>Hijau: aman</b></td><td>Contoh: "Seimbang dengan induk: 10 alur cocok".</td></tr></table>' +
     '<p><b>Seimbang (balancing)</b> artinya setiap alur yang masuk atau keluar dari proses di level induk harus muncul juga di level turunannya, dengan nama yang sama.</p>',
-  kunci: '<table>' + [['V / H / P / D / E / F', 'Alat Pilih / Geser / Proses / Store / Entitas / Alur'], ['Ctrl+A, Ctrl+C, Ctrl+X, Ctrl+V', 'Pilih semua, salin, potong, tempel'], ['Ctrl+D', 'Duplikat'], ['Ctrl+Z / Ctrl+Y', 'Urungkan / ulangi'], ['Delete', 'Hapus pilihan'], ['F2', 'Ganti nama'], ['Ctrl+L', 'Rapikan garis alur terpilih'], ['Ctrl+J', 'Sesuaikan ukuran dengan teks'], ['Panah / Shift+panah', 'Geser objek 5 / 20 px'], ['Alt+↓ / Alt+↑', 'Masuk dekomposisi / naik satu level'], ['Ctrl + scroll, cubit touchpad', 'Zoom'], ['Scroll, geser dua jari di touchpad, Shift+scroll, Spasi+seret', 'Geser kanvas'], ['Alt saat menyeret', 'Tanpa snap ke grid'], ['F1', 'Bantuan ini'], ['F4', 'Periksa model'], ['F5 / F6 / F7', 'Skala 100% / perbesar / perkecil'], ['F8 / F9', 'Tampilan global / tampilan sebelumnya'], ['Ctrl+S', 'Simpan .pam'], ['Ctrl+O', 'Buka berkas']].map(function (r) { return '<tr><td><kbd>' + r[0] + '</kbd></td><td>' + r[1] + '</td></tr>'; }).join('') + '</table>',
+  kunci: '<table>' + [['V / H / P / D / E / F', 'Alat Pilih / Geser / Proses / Store / Entitas / Alur'], ['Ctrl+A, Ctrl+C, Ctrl+X, Ctrl+V', 'Pilih semua, salin, potong, tempel'], ['Shift+klik, atau klik kanan → Pilih beberapa', 'Memilih banyak objek satu per satu'], ['Ctrl+G, Ctrl+Shift+G', 'Kelompokkan, pisahkan kelompok'], ['Ctrl+F', 'Cari elemen di semua diagram'], ['Klik kanan → Kunci posisi', 'Objek tidak bisa tergeser, diubah ukurannya, atau terhapus'], ['Shift saat menggeser, Esc saat menyeret', 'Gerak lurus, batalkan geseran'], ['Ctrl+D', 'Duplikat'], ['Ctrl+Z / Ctrl+Y', 'Urungkan / ulangi'], ['Delete', 'Hapus pilihan'], ['F2', 'Ganti nama'], ['Ctrl+L', 'Rapikan garis alur terpilih'], ['Ctrl+J', 'Sesuaikan ukuran dengan teks'], ['Panah / Shift+panah', 'Geser objek 5 / 20 px'], ['Alt+↓ / Alt+↑', 'Masuk dekomposisi / naik satu level'], ['Ctrl + scroll, cubit touchpad', 'Zoom'], ['Scroll, geser dua jari di touchpad, Shift+scroll, Spasi+seret', 'Geser kanvas'], ['Alt saat menyeret', 'Tanpa snap ke grid'], ['F1', 'Bantuan ini'], ['F4', 'Periksa model'], ['F5 / F6 / F7', 'Skala 100% / perbesar / perkecil'], ['F8 / F9', 'Tampilan global / tampilan sebelumnya'], ['Ctrl+S', 'Simpan .pam'], ['Ctrl+O', 'Buka berkas']].map(function (r) { return '<tr><td><kbd>' + r[0] + '</kbd></td><td>' + r[1] + '</td></tr>'; }).join('') + '</table>',
   uml: '<h4>Memulai</h4><ul><li>Klik ikon <b>rumah</b> di kiri atas (Halaman mulai) untuk memilih <b>Activity</b>, <b>Use Case</b>, atau <b>BPMN</b>. Semua diagram UML disimpan dalam satu proyek, terpisah dari DFD.</li>' +
     '<li><b>Toolbox</b> di kiri berisi elemen dan jenis garis, sama seperti di Enterprise Architect. Klik elemen lalu klik di kanvas.</li>' +
     '<li><b>Project Browser</b> di kanan menampilkan paket, diagram, dan elemennya. Klik elemen di situ untuk langsung menuju ke elemennya.</li></ul>' +
@@ -4489,7 +4623,7 @@ function helpModal(tab) {
 function status() {
   checkBadge();
   var ft = tool === 'flow' || tool.indexOf('c:') === 0;
-  $('#hint').textContent = ft && flowFrom ? 'Sekarang klik elemen tujuan. Klik area kosong untuk batal.' : ft ? 'Klik elemen asal, lalu klik elemen tujuan. Esc untuk berhenti.' : HINT[tool] || (TT[tool] ? 'Klik di kanvas untuk menaruh ' + TT[tool].label + '. Tahan Shift untuk menaruh beberapa.' : '');
+  $('#hint').textContent = multiPick ? 'Mode pilih beberapa: klik objek untuk menambah atau membuang dari pilihan. Seret objek terpilih untuk memindah semuanya. Esc untuk selesai.' : ft && flowFrom ? 'Sekarang klik elemen tujuan. Klik area kosong untuk batal.' : ft ? 'Klik elemen asal, lalu klik elemen tujuan. Esc untuk berhenti.' : HINT[tool] || (TT[tool] ? 'Klik di kanvas untuk menaruh ' + TT[tool].label + '. Tahan Shift untuk menaruh beberapa.' : '');
   $('#method').textContent = (isDfd() ? METHODS[doc.method] : KINDS[cur().kind].name) + ' · draf tersimpan otomatis di browser ini';
   if (isDfd() && buildRail.m !== doc.method) { buildRail.m = doc.method; buildRail(); }
 }
