@@ -133,6 +133,7 @@ svg.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-widt
 .handle { fill: #fff; stroke: #e03e2d; }
 .mid { fill: #e03e2d; opacity: .35; } .mid:hover { opacity: .9; }
 .marq { fill: rgba(224, 62, 45, .08); stroke: #e03e2d; }
+.guide { fill: none; stroke: #1a73e8; pointer-events: none; }
 .pv { stroke: #e03e2d; fill: none; }
 .endh { fill: #1a73e8; stroke: #fff; }
 .seg { fill: #fff; stroke: #1a73e8; } .seg:hover { fill: #1a73e8; }
@@ -1108,6 +1109,7 @@ function routeAll(D) {
   function key(f) { return [f.from, f.to].sort().join('|'); }
   function auto(f) { return !(f.bends && f.bends.length) && !f.sa && !f.ta; }
   D.flows.forEach(function (f) { if (!auto(f)) return; var k = key(f); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(f); });
+  if (!isDfd()) eaSideUse = {};
   D.flows.forEach(function (f) {
     var A = els.get(f.from), B = els.get(f.to); if (!A || !B) return;
     var RA = rect(A), RB = rect(B), off = 0, e1 = null, e2 = null;
@@ -1115,9 +1117,13 @@ function routeAll(D) {
       var g = groups.get(key(f)), i = g.indexOf(f); off = (i - (g.length - 1) / 2) * GAP;
       var ids = [f.from, f.to].sort(), r1 = rect(els.get(ids[0])), r2 = rect(els.get(ids[1])); e1 = { x: r1.cx, y: r1.cy, id: ids[0] }; e2 = { x: r2.cx, y: r2.cy, id: ids[1] };
     }
-    var pts = (!isDfd() && auto(f) && fs(f).route > 0) ? eaAutoRoute(D, A, B, off) : routeOne(f, RA, RB, off, e1, e2);
+    var ep = (!isDfd() && fs(f).route > 0) ? eaPathRoute(f, RA, RB) : null;
+    var pts = ep || ((!isDfd() && auto(f) && fs(f).route > 0) ? eaAutoRoute(D, A, B, off) : routeOne(f, RA, RB, off, e1, e2));
+    if (!isDfd()) eaNoteSides(f, pts, RA, RB);
     out.set(f.id, { pts: pts, raw: pts, lab: labelAt(pts) });
   });
+  eaSideUse = null;
+  if (!isDfd()) { diaUsed = {}; D.flows.forEach(function (f) { var r = out.get(f.id); if (!r) return; [[f.from, r.pts[0]], [f.to, r.pts[r.pts.length - 1]]].forEach(function (q) { var e = els.get(q[0]); if (!e || !LBL_OUT[e.type]) return; var R = rect(e), sd = sideOf(R, q[1]); (diaUsed[e.id] = diaUsed[e.id] || {})[sd] = 1; }); }); }
   placeLabels(D, out);
   return out;
 }
@@ -1198,7 +1204,7 @@ function segX(a, b, c, d) {
 function crossings(r1, r2) { var n = 0; for (var i = 0; i < r1.length - 1; i++) for (var j = 0; j < r2.length - 1; j++) if (segX(r1[i], r1[i + 1], r2[j], r2[j + 1])) n++; return n; }
 /* rentang sisi yang boleh dipakai titik tempel (untuk lingkaran dan belah ketupat dipersempit) */
 function sideSpan(e, s, gap) {
-  var g = geomOf(e), R = rect(e), m = Math.min(10, gap * .6), f = g === 'ell' ? .78 : g === 'diamond' ? .3 : g === 'dot' ? 0 : 1;
+  var g = geomOf(e), R = rect(e), m = Math.min(10, gap * .6), f = g === 'ell' ? .78 : g === 'diamond' || g === 'dot' ? 0 : 1;
   if (horizS(s)) { var hh = (R.b - R.t) / 2; return [R.cy - Math.max(0, hh * f - (f === 1 ? m : 0)), R.cy + Math.max(0, hh * f - (f === 1 ? m : 0))]; }
   var hw = (R.r - R.l) / 2; return [R.cx - Math.max(0, hw * f - (f === 1 ? m : 0)), R.cx + Math.max(0, hw * f - (f === 1 ? m : 0))];
 }
@@ -1211,13 +1217,29 @@ function sideConfigs(RA, RB) {
   var dx = RB.cx - RA.cx, dy = RB.cy - RA.cy, hA = dx >= 0 ? 'e' : 'w', hB = dx >= 0 ? 'w' : 'e', vA = dy >= 0 ? 's' : 'n', vB = dy >= 0 ? 'n' : 's';
   return [[hA, hB], [vA, vB], [hA, vB], [vA, hB]];
 }
+/* sisi berhadapan yang rentangnya bertumpuk: samakan titik tempel supaya garis lurus tanpa patahan kecil */
+function alignFacing(A, sA, B, sB, S, T) {
+  if (horizS(sA) !== horizS(sB) || sA === sB) return [S, T];
+  var a = sideSpan(A, sA, 12), b = sideSpan(B, sB, 12), lo = Math.max(a[0], b[0]), hi = Math.min(a[1], b[1]);
+  if (hi < lo) return [S, T];
+  var cS = horizS(sA) ? S.y : S.x, cT = horizS(sA) ? T.y : T.x, c;
+  if (cT >= lo && cT <= hi) c = cT; else if (cS >= lo && cS <= hi) c = cS; else c = (lo + hi) / 2;
+  return [portPt(A, sA, c), portPt(B, sB, c)];
+}
 function quickRoute(A, sA, B, sB) {
-  var S = portPt(A, sA, horizS(sA) ? A.y + A.h / 2 : A.x + A.w / 2), T = portPt(B, sB, horizS(sB) ? B.y + B.h / 2 : B.x + B.w / 2);
-  return cleanPts(orthoConnect(S, sA, T, sB));
+  var S = portPt(A, sA, horizS(sA) ? A.y + A.h / 2 : A.x + A.w / 2), T = portPt(B, sB, horizS(sB) ? B.y + B.h / 2 : B.x + B.w / 2), q = alignFacing(A, sA, B, sB, S, T);
+  return cleanPts(orthoConnect(q[0], sA, q[1], sB));
+}
+/* ujung garis harus keluar/masuk tegak lurus dari luar sisi tempelnya, bukan menembus objek */
+function badEnds(p, sA, sB) {
+  var n = p.length, a = p[0], a1 = p[1], z = p[n - 1], z1 = p[n - 2], bad = 0;
+  if ((a1.x - a.x) * NRM[sA][0] + (a1.y - a.y) * NRM[sA][1] < 1) bad++;
+  if ((z1.x - z.x) * NRM[sB][0] + (z1.y - z.y) * NRM[sB][1] < 1) bad++;
+  return bad;
 }
 function cfgScore(A, B, cfg, obs) {
   var p = quickRoute(A, cfg[0], B, cfg[1]), sk = {}; sk[A.id] = 1; sk[B.id] = 1;
-  return polyLen(p) + (p.length - 2) * 45 + routeHits(p, obs, sk) * 4000;
+  return polyLen(p) + (p.length - 2) * 45 + routeHits(p, obs, sk) * 4000 + badEnds(p, cfg[0], cfg[1]) * 3000;
 }
 /* jalur siku yang menghindari objek: A* di atas grid koordinat penting (tepi objek ± jarak) */
 function heapPush(h, it) { h.push(it); var i = h.length - 1; while (i > 0) { var p = (i - 1) >> 1; if (h[p].f <= h[i].f) break; var t = h[p]; h[p] = h[i]; h[i] = t; i = p; } }
@@ -1286,11 +1308,24 @@ function autoRoute(D, opt) {
     if (!bundles.has(k)) { var ids = k.split('|'); bundles.set(k, { key: k, a: ids[0], b: ids[1], list: [] }); }
     bundles.get(k).list.push(f);
   });
-  var subs = [];
-  bundles.forEach(function (bd) {
+  var subs = [], pick = new Map();
+  /* decision/gateway: sudutnya cuma satu titik, jadi satu sisi sebaiknya dipakai satu kelompok garis saja.
+     Putaran 1 memilih tanpa memperhatikan yang lain, putaran 2 menghindari sisi yang sudah dipilih kelompok lain. */
+  function scored(bd, usePen) {
     var A = els.get(bd.a), B = els.get(bd.b), cfgs = sideConfigs(rect(A), rect(B));
     if (opt.force && opt.force[bd.key] != null) cfgs = cfgs.slice(opt.force[bd.key]).concat(cfgs.slice(0, opt.force[bd.key]));
-    var sc = cfgs.map(function (c, i) { return { c: c, s: cfgScore(A, B, c, obs) + (opt.force && opt.force[bd.key] != null && i === 0 ? -1e6 : 0) }; }).sort(function (x, y) { return x.s - y.s; });
+    function pen(e, s2) {
+      if (!usePen || geomOf(e) !== 'diamond') return 0; var n = 0;
+      pick.forEach(function (c, k) { if (k === bd.key) return; var o = bundles.get(k); if (o.a === e.id && c[0] === s2) n++; if (o.b === e.id && c[1] === s2) n++; });
+      return n * 400;
+    }
+    return cfgs.map(function (c, i) { return { c: c, s: cfgScore(A, B, c, obs) + pen(A, c[0]) + pen(B, c[1]) + (opt.force && opt.force[bd.key] != null && i === 0 ? -1e6 : 0) }; }).sort(function (x, y) { return x.s - y.s; });
+  }
+  var hasDia = D.elements.some(function (e) { return geomOf(e) === 'diamond'; });
+  if (hasDia) { bundles.forEach(function (bd) { pick.set(bd.key, scored(bd, false)[0].c); }); bundles.forEach(function (bd) { pick.set(bd.key, scored(bd, true)[0].c); }); }
+  bundles.forEach(function (bd) {
+    var A = els.get(bd.a), B = els.get(bd.b);
+    var sc = scored(bd, hasDia);
     var outs = bd.list.filter(function (f) { return f.from === bd.a; }), ins = bd.list.filter(function (f) { return f.from !== bd.a; });
     var best = sc[0].c, alt = null;
     if (opt.split && outs.length && ins.length && bd.list.length >= 6) {
@@ -1629,6 +1664,15 @@ function ufont(bold, size) { return { family: 'Tahoma', size: size || 8, b: !!bo
 function lbl2(e, w, f, color, cx, cy) { return tblock(wrap(e.name, w, f), cx, cy, f, color); }
 function shadowAttr() { return doc.prefs.shadow !== false ? ' filter="url(#eaSh)"' : ''; }
 function fillOf(st) { return st.fill === 'none' ? 'none' : (st.fill === EA_FILL && doc.prefs.gradient !== false ? 'url(#eaGr)' : st.fill); }
+/* label decision/gateway: kalau sudut atas/bawah dipakai garis, label digeser ke samping supaya tidak ditimpa garis (EA juga begitu) */
+var diaUsed = {}, LBL_OUT = { decision: 1, merge: 1, gateway: 1, initial: 1, final: 1, flowfinal: 1, start: 1, intermediate: 1, end: 1 };
+function diaLabel(e, st, pos) {
+  var u = diaUsed[e.id] || {}, side = pos === 'top' ? 'n' : 's';
+  if (!e.name || !u[side]) return outsideLabel(e, st, pos);
+  var f = st.font, lh = f.size * 4 / 3 * 1.2, lines = wrap(e.name, Math.max(90, e.w * 2.4), f), w = Math.max.apply(null, lines.map(function (l) { return textW(l, fontCss(f)); }));
+  var cx = e.x + e.w / 2 - 8 - w / 2, cy = pos === 'top' ? e.y - 2 - lh * lines.length / 2 : e.y + e.h + 2 + lh * lines.length / 2;
+  return tblock(lines, cx, cy, f, st.text);
+}
 function outsideLabel(e, st, pos) {
   if (!e.name) return '';
   var f = st.font, lh = f.size * 4 / 3 * 1.2, lines = wrap(e.name, Math.max(90, e.w * 2.4), f), cx = e.x + e.w / 2;
@@ -1641,19 +1685,19 @@ function T(o) { return Object.assign({ geom: 'rect', size: [110, 45], grow: true
 TT.action = T({ k: 'activity', label: 'Activity', name: 'Aktivitas', ea: 'Activity', icon: '<rect x="3.5" y="6.5" width="17" height="11" rx="4"/>',
   draw: function (e, st) { var r = Math.min(10, e.h / 3); return '<rect x="' + e.x + '" y="' + e.y + '" width="' + e.w + '" height="' + e.h + '" rx="' + r + '" fill="' + fillOf(st) + '" stroke="' + st.stroke + '"' + shadowAttr() + '/>' + lbl2(e, e.w - 12, st.font, st.text, e.x + e.w / 2, e.y + e.h / 2); } });
 TT.initial = T({ k: 'activity', label: 'Initial', name: 'Mulai', ea: 'StateNode', nType: 100, geom: 'dot', size: [20, 20], grow: false, fill: '#000000', font: ufont(false), lpos: 'bottom', icon: '<circle cx="12" cy="12" r="6" fill="currentColor"/>',
-  draw: function (e, st) { return '<ellipse cx="' + (e.x + e.w / 2) + '" cy="' + (e.y + e.h / 2) + '" rx="' + e.w / 2 + '" ry="' + e.h / 2 + '" fill="' + st.fill + '" stroke="' + st.stroke + '"/>' + outsideLabel(e, st, 'bottom'); } });
+  draw: function (e, st) { return '<ellipse cx="' + (e.x + e.w / 2) + '" cy="' + (e.y + e.h / 2) + '" rx="' + e.w / 2 + '" ry="' + e.h / 2 + '" fill="' + st.fill + '" stroke="' + st.stroke + '"/>' + diaLabel(e, st, 'bottom'); } });
 TT.final = T({ k: 'activity', label: 'Final', name: 'Selesai', ea: 'StateNode', nType: 101, geom: 'dot', size: [22, 22], grow: false, fill: '#000000', font: ufont(false), icon: '<circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="4" fill="currentColor"/>',
-  draw: function (e, st) { var cx = e.x + e.w / 2, cy = e.y + e.h / 2; return '<ellipse cx="' + cx + '" cy="' + cy + '" rx="' + e.w / 2 + '" ry="' + e.h / 2 + '" fill="#fff" stroke="' + st.stroke + '" stroke-width="1.2"/><ellipse cx="' + cx + '" cy="' + cy + '" rx="' + e.w * .3 + '" ry="' + e.h * .3 + '" fill="' + st.fill + '"/>' + outsideLabel(e, st, 'bottom'); } });
+  draw: function (e, st) { var cx = e.x + e.w / 2, cy = e.y + e.h / 2; return '<ellipse cx="' + cx + '" cy="' + cy + '" rx="' + e.w / 2 + '" ry="' + e.h / 2 + '" fill="#fff" stroke="' + st.stroke + '" stroke-width="1.2"/><ellipse cx="' + cx + '" cy="' + cy + '" rx="' + e.w * .3 + '" ry="' + e.h * .3 + '" fill="' + st.fill + '"/>' + diaLabel(e, st, 'bottom'); } });
 TT.flowfinal = T({ k: 'activity', label: 'Flow Final', name: '', ea: 'StateNode', nType: 102, geom: 'dot', size: [22, 22], grow: false, fill: '#ffffff', font: ufont(false), icon: '<circle cx="12" cy="12" r="7.5"/><path d="M7 7l10 10M17 7L7 17"/>',
-  draw: function (e, st) { var cx = e.x + e.w / 2, cy = e.y + e.h / 2, a = e.w * .35, b = e.h * .35; return '<ellipse cx="' + cx + '" cy="' + cy + '" rx="' + e.w / 2 + '" ry="' + e.h / 2 + '" fill="' + st.fill + '" stroke="' + st.stroke + '"/><path d="M' + (cx - a) + ' ' + (cy - b) + 'L' + (cx + a) + ' ' + (cy + b) + 'M' + (cx + a) + ' ' + (cy - b) + 'L' + (cx - a) + ' ' + (cy + b) + '" stroke="' + st.stroke + '"/>' + outsideLabel(e, st, 'bottom'); } });
+  draw: function (e, st) { var cx = e.x + e.w / 2, cy = e.y + e.h / 2, a = e.w * .35, b = e.h * .35; return '<ellipse cx="' + cx + '" cy="' + cy + '" rx="' + e.w / 2 + '" ry="' + e.h / 2 + '" fill="' + st.fill + '" stroke="' + st.stroke + '"/><path d="M' + (cx - a) + ' ' + (cy - b) + 'L' + (cx + a) + ' ' + (cy + b) + 'M' + (cx + a) + ' ' + (cy - b) + 'L' + (cx - a) + ' ' + (cy + b) + '" stroke="' + st.stroke + '"/>' + diaLabel(e, st, 'bottom'); } });
 function diamond(e, st, extra) {
   var cx = e.x + e.w / 2, cy = e.y + e.h / 2;
   return '<path d="M' + cx + ' ' + e.y + 'L' + (e.x + e.w) + ' ' + cy + 'L' + cx + ' ' + (e.y + e.h) + 'L' + e.x + ' ' + cy + 'z" fill="' + fillOf(st) + '" stroke="' + st.stroke + '"' + shadowAttr() + '/>' + (extra || '');
 }
 TT.decision = T({ k: 'activity', label: 'Decision', name: '', ea: 'Decision', geom: 'diamond', size: [30, 40], grow: false, font: ufont(false), icon: '<path d="M12 3l8 9-8 9-8-9z"/>',
-  draw: function (e, st) { return diamond(e, st) + outsideLabel(e, st, 'top'); } });
+  draw: function (e, st) { return diamond(e, st) + diaLabel(e, st, 'top'); } });
 TT.merge = T({ k: 'activity', label: 'Merge', name: '', ea: 'MergeNode', geom: 'diamond', size: [30, 40], grow: false, font: ufont(false), icon: '<path d="M12 3l8 9-8 9-8-9z"/><path d="M8 12h8"/>',
-  draw: function (e, st) { return diamond(e, st) + outsideLabel(e, st, 'top'); } });
+  draw: function (e, st) { return diamond(e, st) + diaLabel(e, st, 'top'); } });
 TT.fork = T({ k: 'activity', label: 'Fork/Join (mendatar)', name: '', ea: 'Synchronization', size: [90, 7], fill: '#000000', font: ufont(false), icon: '<path d="M3 12h18" stroke-width="4"/>',
   draw: function (e, st) { return '<rect x="' + e.x + '" y="' + e.y + '" width="' + e.w + '" height="' + e.h + '" fill="' + st.fill + '" stroke="' + st.stroke + '"/>'; } });
 TT.forkv = T({ k: 'activity', label: 'Fork/Join (tegak)', name: '', ea: 'Synchronization', size: [7, 90], fill: '#000000', font: ufont(false), icon: '<path d="M12 3v18" stroke-width="4"/>',
@@ -1662,9 +1706,15 @@ TT.object = T({ k: 'activity', label: 'Object', name: 'Objek', ea: 'Object', siz
   draw: function (e, st) { return '<rect x="' + e.x + '" y="' + e.y + '" width="' + e.w + '" height="' + e.h + '" fill="' + fillOf(st) + '" stroke="' + st.stroke + '"' + shadowAttr() + '/>' + lbl2(e, e.w - 10, st.font, st.text, e.x + e.w / 2, e.y + e.h / 2); } });
 TT.datastore = T({ k: 'activity', label: 'Datastore', name: 'Data', ea: 'Object', stereo: 'datastore', size: [100, 44], icon: '<rect x="3.5" y="6.5" width="17" height="11"/><path d="M6 10h12"/>',
   draw: function (e, st) { var f2 = Object.assign({}, st.font, { b: false }); return '<rect x="' + e.x + '" y="' + e.y + '" width="' + e.w + '" height="' + e.h + '" fill="' + fillOf(st) + '" stroke="' + st.stroke + '"' + shadowAttr() + '/>' + tblock(['«datastore»'], e.x + e.w / 2, e.y + 11, f2, st.text) + lbl2(e, e.w - 10, st.font, st.text, e.x + e.w / 2, e.y + e.h / 2 + 7); } });
-function laneHead(e, st, vert, band) {
-  /* vert: judul di atas (swimlane tegak); kalau tidak, judul diputar di kiri */
-  var s = '<rect x="' + e.x + '" y="' + e.y + '" width="' + e.w + '" height="' + e.h + '" fill="' + (st.fill === EA_FILL || st.fill === 'none' ? 'none' : st.fill) + '" stroke="' + st.stroke + '"/>';
+function laneHead(e, st, vert, band, open) {
+  /* vert: judul di atas (swimlane tegak); kalau tidak, judul diputar di kiri.
+     open: digambar seperti Activity Partition di EA, kotak judul + dua garis sejajar, ujungnya terbuka */
+  var fl = st.fill === EA_FILL || st.fill === 'none' ? 'none' : st.fill, s;
+  if (open) {
+    s = '<rect x="' + e.x + '" y="' + e.y + '" width="' + e.w + '" height="' + e.h + '" fill="' + (fl === 'none' ? 'transparent' : fl) + '" stroke="none"/>';
+    s += vert ? '<path d="M' + e.x + ' ' + (e.y + e.h) + 'V' + e.y + 'H' + (e.x + e.w) + 'V' + (e.y + e.h) + '" fill="none" stroke="' + st.stroke + '"/>'
+      : '<path d="M' + (e.x + e.w) + ' ' + e.y + 'H' + e.x + 'V' + (e.y + e.h) + 'H' + (e.x + e.w) + '" fill="none" stroke="' + st.stroke + '"/>';
+  } else s = '<rect x="' + e.x + '" y="' + e.y + '" width="' + e.w + '" height="' + e.h + '" fill="' + fl + '" stroke="' + st.stroke + '"/>';
   if (vert) {
     s += '<path d="M' + e.x + ' ' + (e.y + band) + 'H' + (e.x + e.w) + '" stroke="' + st.stroke + '"/>';
     s += tblock(wrap(e.name, e.w - 10, st.font).slice(0, 2), e.x + e.w / 2, e.y + band / 2, st.font, st.text);
@@ -1678,7 +1728,7 @@ function laneHead(e, st, vert, band) {
 TT.partition = T({ k: 'activity', label: 'Partition (swimlane)', name: 'Partisi', ea: 'ActivityPartition', container: true, size: [230, 520], fill: 'none', head: 22,
   icon: '<rect x="3.5" y="3.5" width="17" height="17"/><path d="M3.5 8h17M12 3.5v17"/>',
   hit: function (e) { return e.horiz ? { x: e.x, y: e.y, w: 24, h: e.h } : { x: e.x, y: e.y, w: e.w, h: 24 }; },
-  draw: function (e, st) { return laneHead(e, st, !e.horiz, 22); } });
+  draw: function (e, st) { return laneHead(e, st, !e.horiz, 22, true); } });
 TT.note = T({ k: 'any', label: 'Note', name: 'Catatan', ea: 'Note', size: [130, 60], fill: '#fffbe6', font: ufont(false), icon: '<path d="M5 3.5h10l4 4v13H5z"/><path d="M15 3.5v4h4"/>',
   draw: function (e, st) { var c = 10; return '<path d="M' + e.x + ' ' + e.y + 'H' + (e.x + e.w - c) + 'L' + (e.x + e.w) + ' ' + (e.y + c) + 'V' + (e.y + e.h) + 'H' + e.x + 'z" fill="' + st.fill + '" stroke="' + st.stroke + '"/><path d="M' + (e.x + e.w - c) + ' ' + e.y + 'V' + (e.y + c) + 'H' + (e.x + e.w) + '" fill="none" stroke="' + st.stroke + '"/>' + tblock(wrap(e.name, e.w - 14, st.font), e.x + e.w / 2, e.y + e.h / 2, st.font, st.text); } });
 /* use case */
@@ -1705,7 +1755,7 @@ function evShape(kind) {
   return function (e, st) {
     var cx = e.x + e.w / 2, cy = e.y + e.h / 2, r = Math.min(e.w, e.h) / 2, s = '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="' + fillOf(st) + '" stroke="' + st.stroke + '" stroke-width="' + (kind === 'end' ? 3 : 1.1) + '"' + shadowAttr() + '/>';
     if (kind === 'mid') s += '<circle cx="' + cx + '" cy="' + cy + '" r="' + (r - 3) + '" fill="none" stroke="' + st.stroke + '"/>';
-    return s + evDef(e, st, cx, cy, r) + outsideLabel(e, st, 'bottom');
+    return s + evDef(e, st, cx, cy, r) + diaLabel(e, st, 'bottom');
   };
 }
 TT.start = T({ k: 'bpmn', label: 'Start Event', name: 'Start', ea: 'Event', stereo: 'StartEvent', geom: 'dot', size: [30, 30], grow: false, font: ufont(false), icon: '<circle cx="12" cy="12" r="7.5"/>', draw: evShape('start') });
@@ -1718,7 +1768,7 @@ TT.gateway = T({ k: 'bpmn', label: 'Gateway', name: '', ea: 'Decision', stereo: 
     else if (g === 'and') m = '<path d="M' + cx + ' ' + (cy - k * 1.2) + 'V' + (cy + k * 1.2) + 'M' + (cx - k * 1.2) + ' ' + cy + 'H' + (cx + k * 1.2) + '" stroke="' + st.stroke + '" stroke-width="2.6"/>';
     else if (g === 'or') m = '<circle cx="' + cx + '" cy="' + cy + '" r="' + k * 1.15 + '" fill="none" stroke="' + st.stroke + '" stroke-width="2.4"/>';
     else if (g === 'ev') m = '<circle cx="' + cx + '" cy="' + cy + '" r="' + k * 1.3 + '" fill="none" stroke="' + st.stroke + '"/><circle cx="' + cx + '" cy="' + cy + '" r="' + k * 1.05 + '" fill="none" stroke="' + st.stroke + '"/>';
-    return diamond(e, st, m) + outsideLabel(e, st, 'bottom');
+    return diamond(e, st, m) + diaLabel(e, st, 'bottom');
   } });
 TT.dataobject = T({ k: 'bpmn', label: 'Data Object', name: 'Dokumen', ea: 'Artifact', stereo: 'DataObject', size: [30, 40], grow: false, font: ufont(false), icon: '<path d="M6 3.5h8l4 4v13H6z"/><path d="M14 3.5v4h4"/>',
   draw: function (e, st) { var c = Math.min(10, e.w / 3); return '<path d="M' + e.x + ' ' + e.y + 'H' + (e.x + e.w - c) + 'L' + (e.x + e.w) + ' ' + (e.y + c) + 'V' + (e.y + e.h) + 'H' + e.x + 'z" fill="' + fillOf(st) + '" stroke="' + st.stroke + '"' + shadowAttr() + '/><path d="M' + (e.x + e.w - c) + ' ' + e.y + 'V' + (e.y + c) + 'H' + (e.x + e.w) + '" fill="none" stroke="' + st.stroke + '"/>' + outsideLabel(e, st, 'bottom'); } });
@@ -1907,7 +1957,11 @@ function umlCheck(D) {
     });
     var lanesT = D.kind === 'bpmn' ? ['pool', 'lane'] : ['partition'];
     if (D.elements.some(function (e) { return lanesT.indexOf(e.type) >= 0; })) {
-      D.elements.forEach(function (e) { if (isContainer(e) || isNoteish(e)) return; if (!containerOf(D, e, lanesT)) items.push({ s: 'warn', t: nm(e) + ' berada di luar ' + (D.kind === 'bpmn' ? 'pool/lane' : 'swimlane') + '.', ids: [e.id] }); });
+      D.elements.forEach(function (e) { if (isContainer(e) || isNoteish(e)) return; if (!containerOf(D, e, lanesT)) items.push({ s: 'warn', t: nm(e) + ' berada di luar ' + (D.kind === 'bpmn' ? 'pool/lane' : 'partition') + '.', ids: [e.id] }); });
+      /* di EA tiap partition/lane elemen sendiri: kalau bertumpuk atau elemen melintasi batasnya, pemiliknya jadi ambigu */
+      var lp = D.elements.filter(function (e) { return e.type === 'partition' || e.type === 'lane'; });
+      lp.forEach(function (a, i) { lp.slice(i + 1).forEach(function (b) { if (a.type !== b.type) return; var ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y); if (ox > 4 && oy > 4) items.push({ s: 'warn', t: (a.type === 'lane' ? 'Lane ' : 'Partition ') + nm(a) + ' dan ' + nm(b) + ' saling menumpuk. Di EA keduanya elemen terpisah, jadi elemen di area tumpukan bisa masuk ke yang salah. Geser atau klik kanan → Rapatkan.', ids: [a.id, b.id] }); }); });
+      D.elements.forEach(function (e) { if (isContainer(e) || isNoteish(e)) return; var c = containerOf(D, e, ['partition', 'lane']); if (!c) return; var out = Math.max(c.x - e.x, 0) + Math.max(e.x + e.w - c.x - c.w, 0) + Math.max(c.y - e.y, 0) + Math.max(e.y + e.h - c.y - c.h, 0); if (out > 6) items.push({ s: 'warn', t: nm(e) + ' melewati batas ' + (c.type === 'lane' ? 'lane ' : 'partition ') + nm(c) + '. Di EA ia hanya masuk ke satu ' + (c.type === 'lane' ? 'lane' : 'partition') + ', geser supaya utuh di dalamnya.', ids: [e.id] }); });
     }
     if (D.kind === 'bpmn') D.flows.forEach(function (f) { var a = els.get(f.from), b = els.get(f.to); if (f.kind === 'seq' && a && b && poolOf(a) && poolOf(b) && poolOf(a) !== poolOf(b)) items.push({ s: 'bad', t: 'Sequence flow tidak boleh melintasi pool. Pakai Message Flow.', ids: [f.id] }); });
   } else if (D.kind === 'usecase') {
@@ -1973,7 +2027,8 @@ function umlPanel() {
       if (e.type === 'gateway') h += '<div class="field"><label for="p-gw">Jenis gateway</label><select class="in" id="p-gw" data-f="gw">' + Object.keys(GW_TYPES).map(function (k) { return '<option value="' + k + '"' + ((e.gw || 'xor') === k ? ' selected' : '') + '>' + GW_TYPES[k] + '</option>'; }).join('') + '</select></div>';
       if (e.type === 'start' || e.type === 'intermediate' || e.type === 'end') h += '<div class="field"><label for="p-ev">Penanda event</label><select class="in" id="p-ev" data-f="ev">' + Object.keys(EV_DEFS).map(function (k) { return '<option value="' + k + '"' + ((e.ev || 'none') === k ? ' selected' : '') + '>' + EV_DEFS[k] + '</option>'; }).join('') + '</select></div>';
       if (e.type === 'task') h += '<label class="cbx"><input type="checkbox" data-f="sub"' + (e.sub ? ' checked' : '') + '> Sub-proses (tanda +)</label>';
-      if (e.type === 'partition') h += '<label class="cbx"><input type="checkbox" data-f="horiz"' + (e.horiz ? ' checked' : '') + '> Swimlane mendatar (judul di kiri)</label>';
+      if (e.type === 'partition') h += '<label class="cbx"><input type="checkbox" data-f="horiz"' + (e.horiz ? ' checked' : '') + '> Partition mendatar (judul di kiri)</label>';
+      if (DOCK_T[e.type] && e.type !== 'pool') h += '<button class="btn block" data-act="dockall">Rapatkan semua ' + (e.type === 'lane' ? 'lane' : 'partition') + '</button><p class="hint">Seperti di EA, tiap ' + (e.type === 'lane' ? 'lane' : 'partition') + ' adalah elemen sendiri. Kalau digeser mendekati yang lain, tepinya menempel otomatis (tahan Alt untuk mematikan).</p>';
       h += '<div class="field"><label for="p-note">Catatan (Notes)</label><textarea class="in ta" id="p-note" data-f="note" rows="2" placeholder="opsional">' + esc(e.note || '') + '</textarea></div></div>';
       if (!isContainer(e)) {
         var fl = D.flows.filter(function (x) { return x.from === e.id || x.to === e.id; });
@@ -2046,15 +2101,76 @@ function umlToolbox() {
   $('#rail').innerHTML = h;
 }
 
+/* ---------- Dockable (seperti EA): partition/pool/lane menempel rapi saat didekatkan, tapi tetap elemen terpisah ---------- */
+var DOCK_T = { partition: ['partition'], pool: ['pool'], lane: ['lane'] };
+function dockOthers(D, el, skip) { return D.elements.filter(function (o) { return o !== el && DOCK_T[el.type].indexOf(o.type) >= 0 && !(skip && skip[o.id]); }); }
+function snapAxis(cands, th) { var best = null; cands.forEach(function (c) { var d = c[1] - c[0]; if (Math.abs(d) <= th && (!best || Math.abs(d) < Math.abs(best.d))) best = { d: d, at: c[1], o: c[2] }; }); return best; }
+function dockMove(D, el, L, moving, th) {
+  var os = dockOthers(D, el, moving), cx = [], cy = [], g = [];
+  os.forEach(function (o) {
+    var R = rect(o), vo = L.t < R.b + th && L.b > R.t - th, ho = L.l < R.r + th && L.r > R.l - th;
+    if (vo) cx.push([L.l, R.r, o], [L.r, R.l, o], [L.l, R.l, o], [L.r, R.r, o]);
+    if (ho) cy.push([L.t, R.b, o], [L.b, R.t, o], [L.t, R.t, o], [L.b, R.b, o]);
+  });
+  var sx = snapAxis(cx, th), sy = snapAxis(cy, th), dx = sx ? sx.d : 0, dy = sy ? sy.d : 0;
+  if (sx) { var o1 = rect(sx.o); g.push([sx.at, Math.min(o1.t, L.t + dy) - 8, sx.at, Math.max(o1.b, L.b + dy) + 8]); }
+  if (sy) { var o2 = rect(sy.o); g.push([Math.min(o2.l, L.l + dx) - 8, sy.at, Math.max(o2.r, L.r + dx) + 8, sy.at]); }
+  return { dx: dx, dy: dy, g: g };
+}
+function dockResize(D, el, L, hv, th) {
+  var os = dockOthers(D, el), g = [], o = { l: L.l, t: L.t, r: L.r, b: L.b };
+  [['w', 'l', 'x'], ['e', 'r', 'x'], ['n', 't', 'y'], ['s', 'b', 'y']].forEach(function (q) {
+    if (hv.indexOf(q[0]) < 0) return;
+    var cands = [];
+    os.forEach(function (x) { var R = rect(x); if (q[2] === 'x' ? (L.t < R.b + 40 && L.b > R.t - 40) : (L.l < R.r + 40 && L.r > R.l - 40)) (q[2] === 'x' ? [R.l, R.r] : [R.t, R.b]).forEach(function (v) { cands.push([L[q[1]], v, x]); }); });
+    var sn = snapAxis(cands, th); if (!sn) return;
+    o[q[1]] = sn.at; var R2 = rect(sn.o);
+    g.push(q[2] === 'x' ? [sn.at, Math.min(R2.t, o.t) - 8, sn.at, Math.max(R2.b, o.b) + 8] : [Math.min(R2.l, o.l) - 8, sn.at, Math.max(R2.r, o.r) + 8, sn.at]);
+  });
+  if (o.r - o.l < 20) { o.l = L.l; o.r = L.r; } if (o.b - o.t < 20) { o.t = L.t; o.b = L.b; }
+  o.g = g; return o;
+}
+/* Rapatkan: partition (atau lane dalam satu pool) yang dipilih/semua dijejerkan tanpa celah dan disamakan tinggi/lebarnya. Isinya ikut bergeser. */
+function dockAll(ids) {
+  var D = cur(), pick = ids && ids.length ? D.elements.filter(function (e) { return ids.indexOf(e.id) >= 0; }) : [];
+  var type = pick.length ? pick[0].type : (D.kind === 'bpmn' ? 'lane' : 'partition');
+  if (!DOCK_T[type] || type === 'pool') { toast('Pilih partition atau lane yang mau dirapatkan.'); return; }
+  var list = (pick.length > 1 ? pick : D.elements).filter(function (e) { return e.type === type; });
+  if (type === 'partition' && list.length) { var hz = list.filter(function (e) { return e.horiz; }).length > list.length / 2; list = list.filter(function (e) { return !!e.horiz === hz; }); }
+  if (list.length < 2) { toast('Butuh minimal dua ' + (type === 'lane' ? 'lane' : 'partition') + ' untuk dirapatkan.'); return; }
+  var horizStack = type === 'lane' || list[0].horiz;
+  mutate(function () {
+    list.sort(function (a, b) { return horizStack ? a.y - b.y : a.x - b.x; });
+    var moves = list.map(function (e) { return contentsOf(D, e).filter(function (c) { return list.indexOf(c) < 0; }); });
+    var x0 = Math.min.apply(null, list.map(function (e) { return e.x; })), y0 = Math.min.apply(null, list.map(function (e) { return e.y; }));
+    var x1 = Math.max.apply(null, list.map(function (e) { return e.x + e.w; })), y1 = Math.max.apply(null, list.map(function (e) { return e.y + e.h; }));
+    var pos = horizStack ? list[0].y : list[0].x;
+    list.forEach(function (e, i) {
+      var dx = 0, dy = 0;
+      if (horizStack) { dx = x0 - e.x; dy = pos - e.y; e.x = x0; e.w = x1 - x0; e.y = pos; pos += e.h; }
+      else { dx = pos - e.x; dy = y0 - e.y; e.x = pos; e.y = y0; e.h = y1 - y0; pos += e.w; }
+      moves[i].forEach(function (c) { c.x += dx; c.y += dy; });
+    });
+  });
+  toast((type === 'lane' ? 'Lane' : 'Partition') + ' dirapatkan. Di EA tetap elemen terpisah, hanya letaknya menempel.');
+}
 /* ---------- membuat elemen ---------- */
 function umlAddEl(type, p, ev) {
   var D = cur(), t = TT[type], s = t.size, o = { id: uid('e'), type: type, name: t.name, x: snap(p.x - s[0] / 2, ev), y: snap(p.y - s[1] / 2, ev), w: s[0], h: s[1], style: {} };
   if (t.name && ['action', 'usecase', 'task', 'object'].indexOf(type) >= 0) o.name = t.name + ' ' + (D.elements.filter(function (x) { return x.type === type; }).length + 1);
-  /* swimlane / lane baru menempel di samping yang sudah ada */
+  /* Partition di EA adalah elemen sendiri-sendiri (tidak tergabung). Yang baru ditaruh di tempat klik;
+     kalau diklik di atas/dekat partition lain, dia "docking" (menempel rapi) di sebelahnya seperti opsi Dockable di EA. */
   if (type === 'partition') {
-    var ps = D.elements.filter(function (x) { return x.type === 'partition' && !x.horiz; });
-    if (ps.length) { var last = ps.reduce(function (m, x) { return x.x + x.w > m.x + m.w ? x : m; }); o.x = last.x + last.w; o.y = last.y; o.h = last.h; }
+    var ps = D.elements.filter(function (x) { return x.type === 'partition'; });
     o.name = 'Partisi ' + (ps.length + 1);
+    var near = null, nd = 1e9;
+    ps.forEach(function (x) { var dx = Math.max(x.x - p.x, 0, p.x - (x.x + x.w)), dy = Math.max(x.y - p.y, 0, p.y - (x.y + x.h)), d = Math.hypot(dx, dy); if (d < 60 && d < nd) { nd = d; near = x; } });
+    if (near) {
+      var hz = !!near.horiz, cur0 = near, guard = 0;
+      for (;;) { var nx = ps.find(function (x) { return !!x.horiz === hz && x !== cur0 && (hz ? Math.abs(x.y - (cur0.y + cur0.h)) < 2 && x.x < cur0.x + cur0.w && x.x + x.w > cur0.x : Math.abs(x.x - (cur0.x + cur0.w)) < 2 && x.y < cur0.y + cur0.h && x.y + x.h > cur0.y); }); if (!nx || ++guard > 50) break; cur0 = nx; }
+      if (hz) { o.horiz = true; o.x = cur0.x; o.w = cur0.w; o.y = cur0.y + cur0.h; o.h = cur0.h; }
+      else { o.x = cur0.x + cur0.w; o.y = cur0.y; o.h = cur0.h; o.w = cur0.w; }
+    }
   }
   if (type === 'lane') {
     var pool = D.elements.find(function (x) { return x.type === 'pool' && p.x > x.x && p.x < x.x + x.w && p.y > x.y && p.y < x.y + x.h; });
@@ -2155,7 +2271,7 @@ function buildEaDoc(M, name) {
       if (fill) e.style.fill = fill; if (line) e.style.stroke = line; if (fc) e.style.text = fc;
       if (type === 'gateway') { var gt = String(o.props.gatewayType || '').split('#')[0]; e.gw = gt === 'Parallel' ? 'and' : gt === 'Inclusive' ? 'or' : gt === 'Event' ? 'ev' : /true/.test(o.props.markerVisible || '') ? 'xorx' : 'xor'; }
       if (type === 'start' || type === 'intermediate' || type === 'end') { var ed = String(o.props.eventDefinition || '').split('#')[0]; e.ev = ed === 'Message' ? 'message' : ed === 'Timer' ? 'timer' : 'none'; }
-      if (type === 'partition' && w > h * 1.4) e.horiz = true;
+      if (type === 'partition' && ds.VPartition !== '1') e.horiz = true; /* di EA partition tanpa VPartition=1 = mendatar */
       idm[go.oid] = e.id; D.elements.push(e);
     });
     g.links.forEach(function (gl) {
@@ -2346,7 +2462,7 @@ function eaXmi(d, only) {
       if (e.style.stroke) st += 'LCol=' + colorToRef(e.style.stroke) + ';';
       if (e.style.text) st += 'BFol=' + colorToRef(e.style.text) + ';';
       if (isContainer(e)) st = 'Dockable=on;' + st;
-      if (e.type === 'partition') st += e.horiz ? 'HPartition=1;' : 'VPartition=1;';
+      if (e.type === 'partition' && !e.horiz) st += 'VPartition=1;';
       s += '\t\t\t\t<UML:DiagramElement geometry="Left=' + Math.round(e.x + ox) + ';Top=' + Math.round(e.y + oy) + ';Right=' + Math.round(e.x + e.w + ox) + ';Bottom=' + Math.round(e.y + e.h + oy) + ';" subject="' + xid(e.guid) + '" seqno="' + (++seq) + '" style="' + st + '"/>\n';
     });
     var routes = routeAll(D);
@@ -2537,18 +2653,54 @@ function openXmiText(text, name) {
 }
 
 /* jalur otomatis UML: pilih pasangan sisi terbaik (menghindari elemen lain) */
+/* Garis siku hasil impor EA: digambar seperti EA. EDGE = sisi keluar di sumber (1 atas, 2 kanan, 3 bawah, 4 kiri),
+   SX/SY/EX/EY = geser titik tempel dari tengah objek. Ruas bergantian tegak/mendatar mulai dari arah EDGE,
+   tiap titik belok hanya dipakai koordinat yang sesuai arah ruasnya (jadi tidak ada patahan kecil). */
+function eaPathRoute(f, RA, RB) {
+  if (!f.eaSE || f.eaSE.a !== f.from || f.eaSE.z !== f.to || f.sa || f.ta) return null;
+  var g = styleKV(f.eaSE.g), side = { 1: 'n', 2: 'e', 3: 's', 4: 'w' }[g.EDGE]; if (!side) return null;
+  var sx = +g.SX || 0, sy = +g.SY || 0, ex = +g.EX || 0, ey = +g.EY || 0, b = f.bends || [];
+  function inX(R, x, m) { return x >= R.l + m && x <= R.r - m; }
+  function inY(R, y, m) { return y >= R.t + m && y <= R.b - m; }
+  function clampX(R, x) { var m = Math.min(6, (R.r - R.l) / 4); return Math.min(R.r - m, Math.max(R.l + m, x)); }
+  function clampY(R, y) { var m = Math.min(6, (R.b - R.t) / 4); return Math.min(R.b - m, Math.max(R.t + m, y)); }
+  var vert = !horizS(side), S;
+  if (vert) { var x0 = b.length && inX(RA, b[0].x, 2) ? b[0].x : clampX(RA, RA.cx + sx); S = { x: x0, y: edgeY(RA, x0, side === 's') }; }
+  else { var y0 = b.length && inY(RA, b[0].y, 2) ? b[0].y : clampY(RA, RA.cy - sy); S = { x: edgeX(RA, y0, side === 'e'), y: y0 }; }
+  /* titik belok pertama harus di depan sisi keluar; kalau objek sudah dipindah ke belakangnya, pakai cara biasa */
+  var first = b[0] || { x: RB.cx, y: RB.cy }, ahead = (first.x - S.x) * NRM[side][0] + (first.y - S.y) * NRM[side][1];
+  if (b.length && ahead < -2) return null;
+  var pts = [S], cur = S, dir = vert;
+  b.forEach(function (q) { var nx = dir ? { x: cur.x, y: q.y } : { x: q.x, y: cur.y }; pts.push(nx); cur = nx; dir = !dir; });
+  if (!b.length && ahead < 2) {
+    /* tanpa titik belok tapi sasaran tidak di depan sisi keluar: belok sekali di luar objek */
+    var st = { x: S.x + NRM[side][0] * 14, y: S.y + NRM[side][1] * 14 }; pts.push(st); cur = st; dir = !dir;
+  }
+  var T;
+  if (dir) {
+    if (inX(RB, cur.x, 1)) T = { x: cur.x, y: edgeY(RB, cur.x, cur.y > RB.cy) };
+    else { var yy = clampY(RB, RB.cy - ey); pts.push({ x: cur.x, y: yy }); T = { x: edgeX(RB, yy, cur.x > RB.cx), y: yy }; }
+  } else {
+    if (inY(RB, cur.y, 1)) T = { x: edgeX(RB, cur.y, cur.x > RB.cx), y: cur.y };
+    else { var xx = clampX(RB, RB.cx + ex); pts.push({ x: xx, y: cur.y }); T = { x: xx, y: edgeY(RB, xx, cur.y > RB.cy) }; }
+  }
+  pts.push(T);
+  return cleanPts(pts);
+}
+/* sisi decision/gateway yang sudah dipakai garis lain (diisi routeAll selama satu putaran), supaya garis masuk & keluar tidak menumpuk di satu sudut */
+var eaSideUse = null;
+function eaNoteSides(f, pts, RA, RB) {
+  if (!eaSideUse || !pts || pts.length < 2) return;
+  [[f.from, RA, pts[0]], [f.to, RB, pts[pts.length - 1]]].forEach(function (q) { if (geomOf(q[1].e) !== 'diamond') return; var k = q[0] + ':' + sideOf(q[1], q[2]); eaSideUse[k] = (eaSideUse[k] || 0) + 1; });
+}
 function eaAutoRoute(D, A, B, off) {
-  var obs = obstaclesOf(D), best = null;
-  sideConfigs(rect(A), rect(B)).forEach(function (c) { var sc = cfgScore(A, B, c, obs); if (!best || sc < best.s) best = { s: sc, c: c }; });
+  var obs = obstaclesOf(D), best = null, use = eaSideUse || {};
+  function pen(e, s2) { return geomOf(e) === 'diamond' ? (use[e.id + ':' + s2] || 0) * 400 : 0; }
+  sideConfigs(rect(A), rect(B)).forEach(function (c) { var sc = cfgScore(A, B, c, obs) + pen(A, c[0]) + pen(B, c[1]); if (!best || sc < best.s) best = { s: sc, c: c }; });
   var sA = best.c[0], sB = best.c[1];
   function port(e, s2) { var c0 = horizS(s2) ? e.y + e.h / 2 + off : e.x + e.w / 2 + off, sp = sideSpan(e, s2, 12); c0 = Math.min(sp[1], Math.max(sp[0], c0)); return portPt(e, s2, c0); }
   var S = port(A, sA), T = port(B, sB);
-  if (horizS(sA) === horizS(sB) && sA !== sB) {
-    if (horizS(sA) && Math.abs(S.y - T.y) < 14 && A.y < T.y && A.y + A.h > T.y) S = portPt(A, sA, T.y);
-    else if (horizS(sA) && Math.abs(S.y - T.y) < 14 && B.y < S.y && B.y + B.h > S.y) T = portPt(B, sB, S.y);
-    else if (!horizS(sA) && Math.abs(S.x - T.x) < 14 && A.x < T.x && A.x + A.w > T.x) S = portPt(A, sA, T.x);
-    else if (!horizS(sA) && Math.abs(S.x - T.x) < 14 && B.x < S.x && B.x + B.w > S.x) T = portPt(B, sB, S.x);
-  }
+  if (Math.abs(horizS(sA) ? S.y - T.y : S.x - T.x) < 14 || !off) { var q = alignFacing(A, sA, B, sB, S, T); S = q[0]; T = q[1]; }
   return cleanPts(orthoConnect(S, sA, T, sB));
 }
 
@@ -2694,6 +2846,7 @@ function sceneMarkup(D, routes, selSet) {
 }
 function overlay(D, routes, v) {
   var k = v.k, s = '', hs = 4.5 / k, sw = 1.3 / k;
+  if (drag && drag.guides) drag.guides.forEach(function (g) { s += '<path class="guide" style="stroke-width:' + 1.5 / k + 'px;stroke-dasharray:' + 5 / k + ' ' + 3 / k + '" d="M' + g[0] + ' ' + g[1] + 'L' + g[2] + ' ' + g[3] + '"/>'; });
   D.elements.forEach(function (e) {
     if (!sel.has(e.id)) return;
     s += '<rect class="selbox" style="stroke-width:' + sw + 'px;stroke-dasharray:' + 4 / k + ' ' + 3 / k + '" x="' + (e.x - 3 / k) + '" y="' + (e.y - 3 / k) + '" width="' + (e.w + 6 / k) + '" height="' + (e.h + 6 / k) + '"/>';
@@ -3452,7 +3605,7 @@ function contextMenu(e, id) {
   if (!isDfd()) {
     if (o) {
       items.push(item('Ubah nama', 'rename', 'F2'), item('Potong', 'cut', 'Ctrl+X'), item('Salin', 'copy', 'Ctrl+C'), item('Duplikat', 'dup', 'Ctrl+D'), item('Hapus', 'del', 'Del'), HR);
-      if (o.type) { if (!isContainer(o)) items.push(item('Sesuaikan dengan teks', 'adjust', 'Ctrl+J'), item('Ukuran normal', 'normsize')); items.push(item('Warna garis…', 'pop:stroke'), item('Warna isi…', 'pop:fill'), item('Warna teks…', 'pop:text')); }
+      if (o.type) { if (!isContainer(o)) items.push(item('Sesuaikan dengan teks', 'adjust', 'Ctrl+J'), item('Ukuran normal', 'normsize')); if (o.type === 'partition') items.push(item(o.horiz ? 'Jadikan partition tegak' : 'Jadikan partition mendatar', 'porient')); if (o.type === 'partition' || o.type === 'lane') items.push(item('Rapatkan semua ' + (o.type === 'lane' ? 'lane' : 'partition'), 'dockall'), HR); items.push(item('Warna garis…', 'pop:stroke'), item('Warna isi…', 'pop:fill'), item('Warna teks…', 'pop:text')); }
       else {
         var ks = linkKinds(elOf(D, o.from), elOf(D, o.to), D.kind); if (ks.indexOf(o.kind) < 0) ks.unshift(o.kind);
         items.push({ hd: 'Jenis garis' }); ks.forEach(function (k) { items.push(item(CT[k].label0, 'ckind:' + k, '', { ck: o.kind === k })); });
@@ -3555,6 +3708,8 @@ function run(a, btn) {
     case 'check': checkModal(); break;
     case 'adjust': adjustToText(); break;
     case 'normsize': normalSize(); break;
+    case 'dockall': dockAll(Array.from(sel).filter(function (x) { return x[0] === 'e'; })); break;
+    case 'porient': { var po = elOf(D, id); if (po && po.type === 'partition') mutate(function () { if (po.horiz) delete po.horiz; else po.horiz = true; }); break; }
     case 'alL': case 'alC': case 'alR': case 'alT': case 'alM': case 'alB': case 'sameW': case 'sameH': align(a); break;
     case 'distH': distribute(true); break;
     case 'distV': distribute(false); break;
@@ -3789,7 +3944,7 @@ cv.addEventListener('pointerdown', function (e) {
         if (!isDfd()) Array.from(ms).forEach(function (cid) { var c = elOf(D, cid); if (c && isContainer(c)) contentsOf(D, c).forEach(function (o) { ms.add(o.id); }); });
         D.elements.forEach(function (x) { if (ms.has(x.id)) orig[x.id] = { x: x.x, y: x.y }; });
         D.flows.forEach(function (f2) { if (ms.has(f2.from) && ms.has(f2.to) && f2.bends && f2.bends.length) bo[f2.id] = f2.bends.map(function (q) { return { x: q.x, y: q.y }; }); });
-        drag = { t: 'move', start: p, sx: e.clientX, sy: e.clientY, moved: false, orig: orig, bo: bo };
+        drag = { t: 'move', start: p, sx: e.clientX, sy: e.clientY, moved: false, orig: orig, bo: bo, lead: gid };
       }
     } else {
       var base = e.shiftKey ? new Set(sel) : new Set(); if (!e.shiftKey) { sel.clear(); panel(); syncBar(); }
@@ -3820,7 +3975,10 @@ cv.addEventListener('pointermove', function (e) {
     if (!drag.moved) { if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 4) return; push(); drag.moved = true; var mvSet = new Set(Object.keys(drag.orig)); pinAround(D, mvSet, false); drag.bo2 = {};
       D.flows.forEach(function (f) { var a = mvSet.has(f.from), b = mvSet.has(f.to); if (a !== b && fs(f).route > 0 && f.bends && f.bends.length && f.sa && f.ta) drag.bo2[f.id] = { b: f.bends.map(function (q) { return { x: q.x, y: q.y }; }), mov: a ? 's' : 't' }; }); }
     var dx = p.x - drag.start.x, dy = p.y - drag.start.y, sdx = 0, sdy = 0, first = true;
-    D.elements.forEach(function (x) { var o = drag.orig[x.id]; if (!o) return; if (first) { sdx = snap(o.x + dx, e) - o.x; sdy = snap(o.y + dy, e) - o.y; first = false; } x.x = o.x + sdx; x.y = o.y + sdy; });
+    D.elements.forEach(function (x) { var o = drag.orig[x.id]; if (!o || !first) return; sdx = snap(o.x + dx, e) - o.x; sdy = snap(o.y + dy, e) - o.y; first = false; });
+    drag.guides = null;
+    if (!isDfd() && drag.lead && !e.altKey) { var le = elOf(D, drag.lead), lo = le && drag.orig[le.id]; if (lo && DOCK_T[le.type]) { var sn = dockMove(D, le, { l: lo.x + sdx, t: lo.y + sdy, r: lo.x + sdx + le.w, b: lo.y + sdy + le.h }, drag.orig, 10 / v.k); sdx += sn.dx; sdy += sn.dy; drag.guides = sn.g; } }
+    D.elements.forEach(function (x) { var o = drag.orig[x.id]; if (!o) return; x.x = o.x + sdx; x.y = o.y + sdy; });
     D.flows.forEach(function (f) { var b0 = drag.bo[f.id]; if (b0) f.bends = b0.map(function (b) { return { x: b.x + sdx, y: b.y + sdy }; }); });
     Object.keys(drag.bo2 || {}).forEach(function (fid) { var f = flOf(D, fid), o = drag.bo2[fid]; if (f) f.bends = shiftStub(f, o.b, o.mov, sdx, sdy); });
     draw();
@@ -3830,6 +3988,8 @@ cv.addEventListener('pointermove', function (e) {
     var mw = TT[el.type] ? 6 : MINW, mh = TT[el.type] ? 4 : MINH;
     if (hv.indexOf('w') >= 0) l = Math.min(snap(p.x, e), r - mw); if (hv.indexOf('e') >= 0) r = Math.max(snap(p.x, e), l + mw);
     if (hv.indexOf('n') >= 0) t = Math.min(snap(p.y, e), b - mh); if (hv.indexOf('s') >= 0) b = Math.max(snap(p.y, e), t + mh);
+    drag.guides = null;
+    if (!isDfd() && DOCK_T[el.type] && !e.altKey) { var rs = dockResize(D, el, { l: l, t: t, r: r, b: b }, hv, 10 / v.k); l = rs.l; t = rs.t; r = rs.r; b = rs.b; drag.guides = rs.g; }
     el.x = l; el.y = t; el.w = r - l; el.h = b - t; draw();
   } else if (drag.t === 'bend') {
     if (!drag.pushed) { push(); drag.pushed = true; var fb0 = flOf(D, drag.fid); if (fb0) fb0.manual = true; }
@@ -4229,7 +4389,7 @@ var HELP = {
     '<li>Seret panah biru ke <b>area kosong</b> untuk membuat elemen baru yang langsung tersambung (seperti Quick Link di EA).</li>' +
     '<li>Atau pilih jenis garis di Toolbox, klik elemen asal, lalu klik elemen tujuan.</li>' +
     '<li>Garis dirapikan otomatis setiap ada perubahan. Garis yang kamu atur sendiri tidak diubah. Matikan lewat Susun → Rapikan otomatis.</li></ul>' +
-    '<h4>Swimlane, pool, dan batas sistem</h4><ul><li>Partition (swimlane) baru otomatis menempel di samping partition sebelumnya. Lane yang ditaruh di dalam pool otomatis menyesuaikan lebar pool.</li><li>Geser bingkai lewat <b>judul atau tepinya</b>. Isi di dalamnya ikut berpindah.</li></ul>' +
+    '<h4>Swimlane, pool, dan batas sistem</h4><ul><li>Seperti di EA, tiap <b>partition</b> (swimlane) adalah elemen sendiri, bukan satu tabel. Klik di dekat partition lain untuk menaruh partition baru menempel di sampingnya.</li><li>Saat digeser atau diubah ukurannya, tepinya <b>menempel otomatis</b> ke partition lain (seperti opsi Dockable di EA). Tahan Alt untuk mematikan.</li><li>Klik kanan partition → <b>Rapatkan semua partition</b> untuk menjejerkan tanpa celah dan menyamakan tingginya. Klik kanan → Jadikan mendatar/tegak untuk mengubah arah.</li><li>Lane yang ditaruh di dalam pool otomatis menyesuaikan lebar pool.</li><li>Geser bingkai lewat <b>judul atau tepinya</b>. Isi di dalamnya ikut berpindah.</li></ul>' +
     '<h4>Ke Enterprise Architect</h4><ul><li><b>Buka .eap</b>: Berkas → Buka. Activity, Use Case, dan BPMN dibaca, diagram jenis lain dilewati.</li><li><b>Ekspor ke EA</b> (Ctrl+S) membuat berkas .xml (XMI) untuk diimpor ke EA. Langkahnya ditampilkan di jendela ekspor.</li><li>Untuk laporan: Berkas → Ekspor semua ke PDF atau PNG.</li></ul>',
   tentang: '<p><b>Alir</b> adalah editor diagram di browser: DFD yang bisa membuka dan menyimpan berkas <b>.pam</b> PowerDesigner 6, serta Activity, Use Case, dan BPMN yang bisa membuka <b>.eap</b> dan mengekspor ke Enterprise Architect.</p><p><b>Jangan jadikan Alir sebagai patokan.</b> Alir bukan produk resmi PowerDesigner, SAP, atau Sparx Systems. Selalu buka hasil akhir di aplikasi aslinya sebelum dikumpulkan.</p><p>Semua data tersimpan di browser masing-masing pengguna. Tidak ada yang dikirim ke server.</p>'
 };
