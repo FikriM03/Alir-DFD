@@ -1767,7 +1767,7 @@ TT.decision = T({ k: 'activity', label: 'Decision', name: '', ea: 'Decision', ge
 TT.merge = T({ k: 'activity', label: 'Merge', name: '', ea: 'MergeNode', geom: 'diamond', size: [30, 40], grow: false, font: ufont(false), icon: '<path d="M12 3l8 9-8 9-8-9z"/><path d="M8 12h8"/>',
   draw: function (e, st) { return diamond(e, st) + diaLabel(e, st, 'top'); } });
 TT.fork = T({ k: 'activity', label: 'Fork/Join (mendatar)', name: '', ea: 'Synchronization', size: [90, 7], fill: '#000000', font: ufont(false), icon: '<path d="M3 12h18" stroke-width="4"/>',
-  draw: function (e, st) { return '<rect x="' + e.x + '" y="' + e.y + '" width="' + e.w + '" height="' + e.h + '" rx="1.5" fill="' + st.fill + '" stroke="' + st.fill + '"' + shadowAttr() + '/>'; } });
+  draw: function (e, st) { return '<rect x="' + e.x + '" y="' + e.y + '" width="' + e.w + '" height="' + e.h + '" fill="' + st.fill + '" stroke="' + st.fill + '" stroke-width=".6"' + shadowAttr() + '/>'; } });
 TT.forkv = T({ k: 'activity', label: 'Fork/Join (tegak)', name: '', ea: 'Synchronization', size: [7, 90], fill: '#000000', font: ufont(false), icon: '<path d="M12 3v18" stroke-width="4"/>',
   draw: TT.fork.draw });
 TT.object = T({ k: 'activity', label: 'Object', name: 'Objek', ea: 'Object', size: [100, 40], icon: '<rect x="3.5" y="6.5" width="17" height="11"/>',
@@ -1778,22 +1778,25 @@ function laneHead(e, st, vert, band, open) {
   /* vert: judul di atas (swimlane tegak); kalau tidak, judul diputar di kiri.
      open: digambar seperti Activity Partition di EA, kotak judul + dua garis sejajar, ujungnya terbuka */
   var fl = st.fill === EA_FILL || st.fill === 'none' ? 'none' : st.fill, s;
+  /* EA: setiap garis partition/pool/lane punya garis abu-abu tipis di sebelah kiri/atasnya, jadi terlihat lebih tebal */
+  var gl = st.stroke === EA_LINE || st.stroke === '#000000' ? '#b4b4b4' : null;
+  function dup(path) { return (gl ? path.replace('stroke="' + st.stroke + '"', 'stroke="' + gl + '" transform="translate(-1 -1)"') : '') + path; }
   if (open) {
     s = '<rect x="' + e.x + '" y="' + e.y + '" width="' + e.w + '" height="' + e.h + '" fill="' + (fl === 'none' ? 'transparent' : fl) + '" stroke="none"/>';
-    s += vert ? '<path d="M' + e.x + ' ' + (e.y + e.h) + 'V' + e.y + 'H' + (e.x + e.w) + 'V' + (e.y + e.h) + '" fill="none" stroke="' + st.stroke + '"/>'
-      : '<path d="M' + (e.x + e.w) + ' ' + e.y + 'H' + e.x + 'V' + (e.y + e.h) + 'H' + (e.x + e.w) + '" fill="none" stroke="' + st.stroke + '"/>';
-  } else s = '<rect x="' + e.x + '" y="' + e.y + '" width="' + e.w + '" height="' + e.h + '" fill="' + fl + '" stroke="' + st.stroke + '"/>';
+    s += dup(vert ? '<path d="M' + e.x + ' ' + (e.y + e.h) + 'V' + e.y + 'H' + (e.x + e.w) + 'V' + (e.y + e.h) + '" fill="none" stroke="' + st.stroke + '"/>'
+      : '<path d="M' + (e.x + e.w) + ' ' + e.y + 'H' + e.x + 'V' + (e.y + e.h) + 'H' + (e.x + e.w) + '" fill="none" stroke="' + st.stroke + '"/>');
+  } else s = (fl !== 'none' ? '<rect x="' + e.x + '" y="' + e.y + '" width="' + e.w + '" height="' + e.h + '" fill="' + fl + '" stroke="none"/>' : '') + dup('<rect x="' + e.x + '" y="' + e.y + '" width="' + e.w + '" height="' + e.h + '" fill="none" stroke="' + st.stroke + '"/>');
   if (vert) {
-    s += '<path d="M' + e.x + ' ' + (e.y + band) + 'H' + (e.x + e.w) + '" stroke="' + st.stroke + '"/>';
+    s += dup('<path d="M' + e.x + ' ' + (e.y + band) + 'H' + (e.x + e.w) + '" stroke="' + st.stroke + '"/>');
     s += tblock(wrap(e.name, e.w - 10, st.font).slice(0, 2), e.x + e.w / 2, e.y + band / 2, st.font, st.text);
   } else {
-    s += '<path d="M' + (e.x + band) + ' ' + e.y + 'V' + (e.y + e.h) + '" stroke="' + st.stroke + '"/>';
+    s += dup('<path d="M' + (e.x + band) + ' ' + e.y + 'V' + (e.y + e.h) + '" stroke="' + st.stroke + '"/>');
     var cx = e.x + band / 2, cy = e.y + e.h / 2;
     s += '<g transform="rotate(-90 ' + cx + ' ' + cy + ')">' + tblock([e.name], cx, cy, st.font, st.text) + '</g>';
   }
   return s;
 }
-TT.partition = T({ k: 'activity', label: 'Partition (swimlane)', name: 'Partisi', ea: 'ActivityPartition', container: true, size: [230, 520], fill: 'none', head: 20, font: ufont(false),
+TT.partition = T({ k: 'activity', label: 'Partition (swimlane)', name: 'Partisi', ea: 'ActivityPartition', container: true, size: [230, 520], fill: 'none', head: 20, font: ufont(true),
   icon: '<rect x="3.5" y="3.5" width="17" height="17"/><path d="M3.5 8h17M12 3.5v17"/>',
   hit: function (e) { return e.horiz ? { x: e.x, y: e.y, w: 24, h: e.h } : { x: e.x, y: e.y, w: e.w, h: 24 }; },
   draw: function (e, st) { return laneHead(e, st, !e.horiz, 20, true); } });
@@ -1937,8 +1940,8 @@ function normEa(d) {
   var def = eaDefaults(); d.defaults = d.defaults || {};
   /* versi lama Alir menyimpan warna bawaan sendiri (krem, garis abu tua): ganti ke warna EA */
   var OLD = { fill: ['#f6dfbd', '#fffbe6', '#ffffff'], stroke: ['#3b3b3b'] };
-  Object.keys(d.defaults).forEach(function (k) { var o = d.defaults[k]; if (!o || k === 'flow' || !def[k]) return; if (OLD.fill.indexOf(String(o.fill).toLowerCase()) >= 0 || (o.fill === '#000000' && (k === 'final' || k === 'fork' || k === 'forkv'))) delete o.fill; if (OLD.stroke.indexOf(String(o.stroke).toLowerCase()) >= 0) delete o.stroke; if (o.font && ['partition', 'pool', 'lane'].indexOf(k) >= 0 && o.font.b && !d.themeV) o.font.b = false; });
-  d.themeV = 2;
+  Object.keys(d.defaults).forEach(function (k) { var o = d.defaults[k]; if (!o || k === 'flow' || !def[k]) return; if (OLD.fill.indexOf(String(o.fill).toLowerCase()) >= 0 || (o.fill === '#000000' && (k === 'final' || k === 'fork' || k === 'forkv'))) delete o.fill; if (OLD.stroke.indexOf(String(o.stroke).toLowerCase()) >= 0) delete o.stroke; if (o.font && ['pool', 'lane'].indexOf(k) >= 0 && o.font.b && !d.themeV) o.font.b = false; if (o.font && k === 'partition' && (d.themeV || 0) < 3) o.font.b = true; });
+  d.themeV = 3;
   Object.keys(def).forEach(function (k) { d.defaults[k] = Object.assign(def[k], d.defaults[k] || {}); });
   d.packages = d.packages && d.packages.length ? d.packages : [{ id: 'p1', name: d.name || 'Proyek EA', parent: null }];
   d.diagrams.forEach(function (x) {
@@ -1991,7 +1994,7 @@ function umlFlowMarkup(f, r, on, markers) {
 }
 function umlDefs() {
   return Object.keys(gradUsed).map(function (k) { return '<linearGradient id="eg' + k + '" x1="0" y1="0" x2="1" y2="0"><stop offset=".18" stop-color="#' + k + '"/><stop offset="1" stop-color="' + darkerL('#' + k, .094) + '"/></linearGradient>'; }).join('') +
-    '<filter id="eaSh" x="-10%" y="-10%" width="130%" height="140%"><feDropShadow dx="2.5" dy="2.5" stdDeviation=".9" flood-color="#000" flood-opacity=".2"/></filter>';
+    '<filter id="eaSh" x="-10%" y="-10%" width="130%" height="140%"><feDropShadow dx="2" dy="2" stdDeviation="1" flood-color="#000" flood-opacity=".42"/></filter>';
 }
 function zOrder(D) {
   var boxes = D.elements.filter(isContainer).sort(function (a, b) { return b.w * b.h - a.w * a.h; });
@@ -2672,14 +2675,14 @@ function renameDiagramModal() {
 }
 function umlDisplayPrefs() {
   var P = doc.prefs;
-  modal('Preferensi tampilan', '<div class="sec"><label class="cbx"><input type="checkbox" id="up-sh"' + (P.shadow !== false ? ' checked' : '') + '> Bayangan pada elemen (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-jp"' + (P.jumps !== false ? ' checked' : '') + '> Lompatan di persilangan garis (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-gr"' + (P.gradient !== false ? ' checked' : '') + '> Warna gradasi krem (seperti EA)</label></div>' +
+  modal('Preferensi tampilan', '<div class="sec"><label class="cbx"><input type="checkbox" id="up-sh"' + (P.shadow !== false ? ' checked' : '') + '> Bayangan pada elemen (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-jp"' + (P.jumps !== false ? ' checked' : '') + '> Lompatan di persilangan garis (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-fr"' + (P.frame !== false ? ' checked' : '') + '> Bingkai dan tab nama diagram saat ekspor gambar/PDF (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-gr"' + (P.gradient !== false ? ' checked' : '') + '> Warna gradasi krem (seperti EA)</label></div>' +
     '<div class="sec"><h3>Warna semua elemen</h3><div class="row"><button class="btn" data-pre="ea">Bawaan EA (krem)</button><button class="btn" data-pre="mono">Hitam putih (laporan)</button></div><p class="hint">Warna yang diatur per elemen lewat bilah Format tetap dipakai, kecuali kamu memilih salah satu tombol di atas.</p></div>',
     '<button class="btn" data-close>Batal</button><button class="btn pri" data-ok>Terapkan</button>', function (s, close) {
       var pre = null;
       s.addEventListener('click', function (e) { var b = e.target.closest('[data-pre]'); if (b) { pre = b.dataset.pre; $$('[data-pre]', s).forEach(function (x) { x.classList.toggle('pri', x === b); }); } });
       $('[data-ok]', s).addEventListener('click', function () {
         mutate(function () {
-          P.shadow = $('#up-sh', s).checked; P.gradient = $('#up-gr', s).checked; P.jumps = $('#up-jp', s).checked;
+          P.shadow = $('#up-sh', s).checked; P.gradient = $('#up-gr', s).checked; P.jumps = $('#up-jp', s).checked; P.frame = $('#up-fr', s).checked;
           if (pre) {
             doc.defaults = eaDefaults();
             if (pre === 'mono') Object.keys(TT).forEach(function (k) { var dd = doc.defaults[k]; if (dd.fill !== 'none' && dd.fill !== '#000000') dd.fill = '#ffffff'; dd.stroke = '#000000'; });
@@ -4875,10 +4878,18 @@ window.addEventListener('drop', function (e) { e.preventDefault(); var d = $('#d
 function exportSVG(D) {
   D = D || cur();
   var b = bbox(D); if (!b) return null;
-  var routes = routeAll(D), m = 24, sc = sceneMarkup(D, routes, new Set()), W = Math.ceil(b.w + m * 2), H = Math.ceil(b.h + m * 2);
+  /* diagram UML diberi bingkai seperti gambar dari EA: garis tepi tipis hitam dan tab nama di kiri atas ("act Nama Diagram") */
+  var fr = !isDfdDiagram(D) && doc.prefs.frame !== false, ft = fr ? eaFrameLabel(D) : '';
+  var routes = routeAll(D), m = 24, mt = fr ? 36 : m, sc = sceneMarkup(D, routes, new Set()), W = Math.ceil(b.w + m * 2), H = Math.ceil(b.h + m + mt);
+  var fsT = { family: 'Tahoma', size: 8, b: true }, tw = fr ? textW(ft, fontCss(fsT)) : 0;
+  if (fr) W = Math.max(W, Math.ceil(tw + 60));
   var body = sc.body.replace(/ data-(id|dec)="[^"]*"/g, '').replace(/ class="(el|fl|dec)"/g, '').replace(/<path class="hit"[^>]*\/>/g, '').replace(/<rect x="[^"]*" y="[^"]*" width="[^"]*" height="[^"]*" fill="transparent"\/>/g, '');
-  return { w: W, h: H, svg: '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">' + sc.defs + '<rect width="100%" height="100%" fill="#ffffff"/><g transform="translate(' + (m - b.x) + ' ' + (m - b.y) + ')">' + body + '</g></svg>' };
+  var frame = fr ? '<rect x=".5" y=".5" width="' + (W - 1) + '" height="' + (H - 1) + '" fill="none" stroke="#000" stroke-width="1"/><path d="M.5 18.5H' + (tw + 9).toFixed(1) + 'L' + (tw + 22).toFixed(1) + ' 5.5V.5" fill="none" stroke="#000" stroke-width="1"/>' +
+    '<text x="5" y="9.5" dominant-baseline="central" ' + fontAttr(fsT, '#000000') + '>' + esc(ft) + '</text>' : '';
+  return { w: W, h: H, svg: '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">' + sc.defs + '<rect width="100%" height="100%" fill="#ffffff"/><g transform="translate(' + (m - b.x) + ' ' + (mt - b.y) + ')">' + body + '</g>' + frame + '</svg>' };
 }
+function isDfdDiagram(D) { return !D.kind || D.kind === 'dfd' || !KINDS[D.kind]; }
+function eaFrameLabel(D) { var k = KINDS[D.kind]; return (k ? k.pre + ' ' : '') + (D.name || ''); }
 function diagTitle(D) {
   if (!D.parent) return rootsOf().length > 1 ? D.name : 'Level 0';
   var P = diag(D.parent.d), e = P && elOf(P, D.parent.e); return 'Level ' + depth(D) + (e ? ' - ' + e.num + ' ' + e.name : '');
