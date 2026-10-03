@@ -265,6 +265,20 @@ svg.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-widt
 .sclist { display: flex; flex-direction: column; gap: 2px; max-height: 260px; overflow: auto; border: 1px solid var(--bd); border-radius: 8px; padding: 6px 8px; }
 .scchk { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; line-height: 1.45; padding: 3px 0; cursor: pointer; }
 .scchk .mut { color: var(--mut); }
+.repview { background: #fff; color: #000; border: 1px solid var(--bd); border-radius: 8px; padding: 14px 16px; max-height: 52vh; overflow: auto; font: 12pt 'Times New Roman', serif; }
+.repview p { margin: 0 0 6px; } .repview ol { margin: 0 0 10px; padding-left: 26px; }
+.sharebox { width: 100%; font: 11.5px var(--f-mono); resize: vertical; word-break: break-all; }
+.histlist { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow: auto; }
+.histrow { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 10px; border: 1px solid var(--bd); border-radius: 8px; font-size: 13px; line-height: 1.45; }
+.histrow .mut, .histlist .mut { color: var(--mut); font-size: 12px; }
+#simbar { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 6; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; max-width: min(860px, calc(100% - 32px)); padding: 10px 12px; background: var(--panel); border: 1px solid var(--bd); border-radius: 12px; box-shadow: var(--shadow); font-size: 13px; }
+#simbar .simtxt { flex: 1 1 260px; min-width: 0; line-height: 1.45; }
+#simbar .simbtn { display: flex; gap: 6px; flex-wrap: wrap; }
+.simtrail { fill: none; stroke: #34a853; stroke-opacity: .55; pointer-events: none; }
+.simcur { fill: none; stroke: #1a73e8; pointer-events: none; }
+.simbad { fill: none; stroke: #d93025; pointer-events: none; }
+.simtok { fill: #1a73e8; stroke: #fff; pointer-events: none; }
+.ucbadge { pointer-events: none; }
 .xp-lead { margin: 0; font-size: 13.5px; line-height: 1.55; } .xp-warn { margin: 0; color: var(--bad); font-size: 13px; }
 ol.steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 7px; font-size: 13.5px; line-height: 1.5; }
 ol.steps code, ol.steps kbd { font: 600 12px var(--f-mono); padding: 1px 5px; border: 1px solid var(--bd); border-radius: 4px; background: var(--panel2); }
@@ -2103,8 +2117,10 @@ function umlCheck(D) {
       lp.forEach(function (a, i) { lp.slice(i + 1).forEach(function (b) { if (a.type !== b.type) return; var ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y); if (ox > 4 && oy > 4) items.push({ s: 'warn', t: (a.type === 'lane' ? 'Lane ' : 'Partition ') + nm(a) + ' dan ' + nm(b) + ' saling menumpuk. Di EA keduanya elemen terpisah, jadi elemen di area tumpukan bisa masuk ke yang salah. Geser atau klik kanan → Rapatkan.', ids: [a.id, b.id] }); }); });
       D.elements.forEach(function (e) { if (isContainer(e) || isNoteish(e)) return; var c = containerOf(D, e, ['partition', 'lane']); if (!c) return; var out = Math.max(c.x - e.x, 0) + Math.max(e.x + e.w - c.x - c.w, 0) + Math.max(c.y - e.y, 0) + Math.max(e.y + e.h - c.y - c.h, 0); if (out > 6) items.push({ s: 'warn', t: nm(e) + ' melewati batas ' + (c.type === 'lane' ? 'lane ' : 'partition ') + nm(c) + '. Di EA ia hanya masuk ke satu ' + (c.type === 'lane' ? 'lane' : 'partition') + ', geser supaya utuh di dalamnya.', ids: [e.id] }); });
     }
+    flowReach(D, items);
     if (D.kind === 'bpmn') D.flows.forEach(function (f) { var a = els.get(f.from), b = els.get(f.to); if (f.kind === 'seq' && a && b && poolOf(a) && poolOf(b) && poolOf(a) !== poolOf(b)) items.push({ s: 'bad', t: 'Sequence flow tidak boleh melintasi pool. Pakai Message Flow.', ids: [f.id] }); });
   } else if (D.kind === 'usecase') {
+    ucCheck(D, items);
     D.elements.forEach(function (e) {
       var any = D.flows.filter(function (f) { return f.from === e.id || f.to === e.id; });
       if (e.type === 'actor' && !any.length) items.push({ s: 'warn', t: 'Aktor ' + nm(e) + ' belum terhubung ke use case.', ids: [e.id] });
@@ -2691,6 +2707,7 @@ function modeUI() {
 }
 function storedDoc(key) { try { var raw = localStorage.getItem(key); if (!raw) return null; var j = JSON.parse(raw); return j && j.doc && Array.isArray(j.doc.diagrams) && j.doc.diagrams.length ? j : null; } catch (x) { return null; } }
 function useDoc(nd, act, label) {
+  if (doc && doc !== nd && doc.diagrams) histSnap('Sebelum membuka ' + String(label || 'proyek lain').replace(/^Dibuka: /, '')); if (sim) simStop();
   persistNow();
   doc = nd.kind === 'ea' ? normEa(nd) : normDoc(nd);
   if (isDfd()) pinImported();
@@ -3596,6 +3613,402 @@ function scFromClipboardEvent(e) {
   scenarioModal({ ucs: ucs, src: 'tempelan' }); return true;
 }
 
+/* ================= fitur tambahan: laporan, link, simulasi, riwayat, use case ↔ activity ================= */
+
+/* ---------- graf alur (Activity / BPMN) ---------- */
+function flowKinds(D) { return D.kind === 'bpmn' ? ['seq'] : ['control', 'object']; }
+function flowGraph(D) {
+  var fk = flowKinds(D), out = {}, inn = {};
+  D.flows.forEach(function (f) { if (fk.indexOf(f.kind) < 0) return; (out[f.from] = out[f.from] || []).push(f); (inn[f.to] = inn[f.to] || []).push(f); });
+  return { out: out, inn: inn };
+}
+function isStartT(e) { return e.type === 'initial' || e.type === 'start'; }
+function isEndT(e) { return e.type === 'final' || e.type === 'flowfinal' || e.type === 'end'; }
+function isStepT(e) { return e.type === 'action' || e.type === 'task' || e.type === 'object' || e.type === 'datastore' || e.type === 'intermediate'; }
+function isForkT(e) { return e.type === 'fork' || e.type === 'forkv' || (e.type === 'gateway' && e.gw === 'and'); }
+function laneOf(D, e) { var c = containerOf(D, e, ['partition', 'lane']); return c ? c.name : ''; }
+/* cek: elemen yang tidak bisa dicapai dari titik mulai, atau alurnya tidak pernah sampai ke titik selesai */
+function flowReach(D, items) {
+  var G = flowGraph(D), starts = D.elements.filter(isStartT), ends = D.elements.filter(isEndT);
+  if (!starts.length) return;
+  var seen = new Set(), st = starts.map(function (e) { return e.id; });
+  while (st.length) { var id = st.pop(); if (seen.has(id)) continue; seen.add(id); (G.out[id] || []).forEach(function (f) { st.push(f.to); }); }
+  var back = new Set(), q = ends.map(function (e) { return e.id; });
+  while (q.length) { var id2 = q.pop(); if (back.has(id2)) continue; back.add(id2); (G.inn[id2] || []).forEach(function (f) { q.push(f.from); }); }
+  D.elements.forEach(function (e) {
+    if (isContainer(e) || isNoteish(e) || isStartT(e)) return;
+    if (!seen.has(e.id) && (G.inn[e.id] || []).length) items.push({ s: 'warn', t: nm(e) + ' tidak bisa dicapai dari titik mulai. Alurnya tidak tersambung ke ' + (D.kind === 'bpmn' ? 'Start Event' : 'Initial') + '.', ids: [e.id] });
+    else if (seen.has(e.id) && ends.length && !back.has(e.id) && (G.out[e.id] || []).length) items.push({ s: 'warn', t: 'Dari ' + nm(e) + ' alurnya tidak pernah sampai ke titik selesai (berputar terus atau buntu).', ids: [e.id] });
+  });
+}
+
+/* ---------- 1. teks untuk laporan: narasi bernomor, tabel skenario, tabel alur DFD ---------- */
+function repPrefer(f) { var l = String(f.name || f.guard || '').trim(); return /^(ya|yes|y|benar|valid|lanjut|true|berhasil|sukses|ada)$/i.test(l) ? 0 : !l ? 1 : /^(tidak|no|batal|gagal|false|salah|kosong)\b/i.test(l) ? 3 : 2; }
+function repSentence(lane, t) {
+  t = String(t || '').trim(); if (!t) return '';
+  var w = t.split(' '), f = w[0];
+  if (lane && f.length > 1 && f !== f.toUpperCase()) w[0] = f.charAt(0).toLowerCase() + f.slice(1);
+  var s = (lane ? lane + ' ' : '') + w.join(' '); return /[.!?”"]$/.test(s) ? s : s + '.';
+}
+function repAltTitle(dec, f) {
+  var q = String((dec && dec.name) || '').replace(/\?\s*$/, '').trim(), l = String(f.name || f.guard || '').trim();
+  q = q.replace(/^apakah\s+/i, '');
+  if (q && /^tidak$/i.test(l)) { var w = q.split(' '); return (w.length > 1 && !/^(mau|ingin|akan|bisa|dapat|sudah|jadi|setuju|lanjut|ada|perlu|boleh)$/i.test(w[0]) ? w[0] + ' tidak ' + w.slice(1).join(' ') : 'Tidak ' + q).toUpperCase(); }
+  if (q && /^ya$/i.test(l)) return q.toUpperCase();
+  return ((q ? q + ' : ' : '') + (l || 'cabang lain')).toUpperCase();
+}
+function repWalk(D) {
+  var G = flowGraph(D), els = new Map(D.elements.map(function (e) { return [e.id, e]; })), num = new Map(), n = 0, pend = [], sections = [];
+  function outs(id) { return (G.out[id] || []).slice().sort(function (a, b) { return repPrefer(a) - repPrefer(b); }); }
+  function walk(from, list, stopTypes) {
+    var cur = from, guard = 0;
+    while (cur && guard++ < 500) {
+      var e = els.get(cur); if (!e) break;
+      if (num.has(cur)) { list.push({ ref: num.get(cur), lane: laneOf(D, e) }); return null; }
+      if (stopTypes && isForkT(e)) return cur;
+      if (isEndT(e)) { list.push({ end: true }); return null; }
+      var O = outs(cur);
+      if (isStepT(e)) { num.set(cur, ++n); list.push({ n: n, lane: laneOf(D, e), t: e.name || TT[e.type].label, id: e.id }); }
+      else if (!isStartT(e)) num.set(cur, n + 1);
+      if (!O.length) { list.push({ stuck: true }); return null; }
+      if (isForkT(e) && O.length > 1) {
+        var join = null;
+        O.forEach(function (f, i) { var j = walk(f.to, list, true); if (j) join = j; if (i === 0) list.push({ par: true }); });
+        if (!join) return null;
+        cur = (outs(join)[0] || {}).to; continue;
+      }
+      if ((e.type === 'decision' || e.type === 'gateway') && O.length > 1) O.slice(1).forEach(function (f) { pend.push({ dec: e, f: f }); });
+      cur = O[0].to;
+    }
+    return null;
+  }
+  var start = D.elements.find(isStartT) || D.elements.find(function (e) { return isStepT(e) && !(G.inn[e.id] || []).length; });
+  if (!start) return null;
+  var main = []; walk(start.id, main); sections.push({ title: 'NORMAL FLOW', steps: main });
+  for (var i = 0; i < pend.length && i < 60; i++) { var p = pend[i], L = []; walk(p.f.to, L); sections.push({ title: 'ALTERNATIVE FLOW : ' + repAltTitle(p.dec, p.f), steps: L, from: p.dec }); }
+  return sections;
+}
+function repSysLane(D) {
+  var ps = D.elements.filter(function (e) { return e.type === 'partition' || e.type === 'lane'; }), sys = ps.find(function (p) { return /sistem|system/i.test(p.name || ''); });
+  return { sys: sys ? sys.name : null, actors: ps.filter(function (p) { return p !== sys; }).map(function (p) { return p.name; }).filter(Boolean) };
+}
+var REP_SYS_VERB = /^(menampilkan|menyimpan|memvalidasi|mengirim|memproses|menghitung|memperbarui|menghapus|mengecek|memeriksa|membuat|sistem)\b/i;
+function repNarrative(D, secs) {
+  var h = '<p><b>' + esc(D.name || 'Diagram') + '</b></p>';
+  secs.forEach(function (s, i) {
+    h += '<p><b>' + esc(i ? 'Alternative Flow: ' + scCap(s.title.replace(/^ALTERNATIVE FLOW : /, '')) : 'Normal Flow') + '</b></p><ol style="margin-top:0">';
+    var lis = [];
+    s.steps.forEach(function (q) {
+      if (q.n) lis.push('<li value="' + q.n + '">' + esc(repSentence(q.lane, q.t)) + '</li>');
+      else if (q.ref) lis.push('<li style="list-style:none">Kembali ke langkah ' + q.ref + '.</li>');
+      else if (q.stuck) lis.push('<li style="list-style:none"><i>(alur berhenti di sini, belum ada lanjutan)</i></li>');
+    });
+    h += lis.join('') + '</ol>';
+  });
+  return h;
+}
+function repTable(D, secs) {
+  var L = repSysLane(D), td = 'border:1px solid #000;padding:5px 8px;vertical-align:top;font-family:\'Times New Roman\',serif;font-size:12pt;';
+  function full(t, bg, center) { return '<tr><td colspan="2" style="' + td + (bg ? 'background:' + bg + ';' : '') + (center ? 'text-align:center;' : '') + '">' + t + '</td></tr>'; }
+  var h = '<table style="border-collapse:collapse;width:100%">' + full('Nama Use Case : ' + esc(D.name || '')) + full('Aktor : ' + esc(L.actors.join(', ') || 'Aktor')) +
+    full('FLOW EVENT', '#ffe599', true) + '<tr><td style="' + td + 'text-align:center;width:50%">Aktor</td><td style="' + td + 'text-align:center;width:50%">Sistem</td></tr>';
+  secs.forEach(function (s, i) {
+    h += full(i ? esc(s.title) : 'NORMAL FLOW', i ? '#ea9999' : '#b6d7a8', true);
+    var lastSys = true;
+    s.steps.forEach(function (q) {
+      var txt = q.n ? q.n + '. ' + esc(q.t) : q.ref ? 'Kembali ke langkah ' + q.ref : q.stuck ? '<i>(belum ada lanjutan)</i>' : ''; if (!txt) return;
+      var sys = q.n ? (L.sys ? q.lane === L.sys : REP_SYS_VERB.test(q.t)) : lastSys;
+      if (q.n) lastSys = sys;
+      h += '<tr><td style="' + td + '">' + (sys ? '' : txt) + '</td><td style="' + td + '">' + (sys ? txt : '') + '</td></tr>';
+    });
+  });
+  return h + '</table>';
+}
+function repDfd(D) {
+  var els = new Map(D.elements.map(function (e) { return [e.id, e]; })), td = 'border:1px solid #000;padding:5px 8px;font-family:\'Times New Roman\',serif;font-size:12pt;';
+  function lbl(e) { return e ? (e.type === 'process' && e.num ? e.num + ' ' : '') + (e.name || '') : ''; }
+  var h = '<p><b>Daftar alur data – ' + esc(diagTitle(D)) + '</b></p><table style="border-collapse:collapse"><tr>' + ['No', 'Nama Alur Data', 'Dari', 'Ke'].map(function (x) { return '<th style="' + td + 'background:#d9d9d9">' + x + '</th>'; }).join('') + '</tr>';
+  D.flows.forEach(function (f, i) { h += '<tr><td style="' + td + 'text-align:center">' + (i + 1) + '</td><td style="' + td + '">' + esc(f.name || '-') + '</td><td style="' + td + '">' + esc(lbl(els.get(f.from))) + '</td><td style="' + td + '">' + esc(lbl(els.get(f.to))) + '</td></tr>'; });
+  h += '</table><p></p><p><b>Daftar simbol</b></p><table style="border-collapse:collapse"><tr>' + ['No', 'Jenis', 'Nama'].map(function (x) { return '<th style="' + td + 'background:#d9d9d9">' + x + '</th>'; }).join('') + '</tr>';
+  var JN = { process: 'Proses', entity: 'Entitas luar', store: 'Data store' };
+  D.elements.filter(function (e) { return JN[e.type]; }).forEach(function (e, i) { h += '<tr><td style="' + td + 'text-align:center">' + (i + 1) + '</td><td style="' + td + '">' + JN[e.type] + '</td><td style="' + td + '">' + esc(lbl(e)) + '</td></tr>'; });
+  return h + '</table>';
+}
+function repUseCase(D) {
+  var els = new Map(D.elements.map(function (e) { return [e.id, e]; })), td = 'border:1px solid #000;padding:5px 8px;font-family:\'Times New Roman\',serif;font-size:12pt;', rows = [];
+  D.flows.forEach(function (f) {
+    var a = els.get(f.from), b = els.get(f.to); if (!a || !b) return;
+    if (a.type === 'actor' && b.type === 'usecase') rows.push([a.name, b.name, '']);
+    else if (b.type === 'actor' && a.type === 'usecase') rows.push([b.name, a.name, '']);
+    else if (f.kind === 'include' || f.kind === 'extend') rows.push(['', a.name, '«' + f.kind + '» ' + b.name]);
+  });
+  var h = '<table style="border-collapse:collapse"><tr>' + ['No', 'Aktor', 'Use Case', 'Keterangan'].map(function (x) { return '<th style="' + td + 'background:#d9d9d9">' + x + '</th>'; }).join('') + '</tr>';
+  rows.forEach(function (r, i) { h += '<tr><td style="' + td + 'text-align:center">' + (i + 1) + '</td>' + r.map(function (c) { return '<td style="' + td + '">' + esc(c || '') + '</td>'; }).join('') + '</tr>'; });
+  return h + '</table>';
+}
+function copyHtml(html, okMsg) {
+  var plain = (function () { var d = document.createElement('div'); d.innerHTML = html.replace(/<\/(p|tr|li|h\d)>/g, '$&\n').replace(/<\/td>/g, '\t'); return d.textContent; })();
+  var p;
+  try { p = navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([plain], { type: 'text/plain' }) })]); } catch (e) { p = Promise.reject(e); }
+  p.then(function () { toast(okMsg); }).catch(function () {
+    var box = document.createElement('div'); box.contentEditable = 'true'; box.style.cssText = 'position:fixed;left:-9999px;top:0'; box.innerHTML = html; document.body.appendChild(box);
+    var r = document.createRange(); r.selectNodeContents(box); var s = getSelection(); s.removeAllRanges(); s.addRange(r);
+    var ok = false; try { ok = document.execCommand('copy'); } catch (x) { ok = false; } s.removeAllRanges(); box.remove();
+    toast(ok ? okMsg : 'Gagal menyalin. Blok teks di jendela ini lalu tekan Ctrl+C.');
+  });
+}
+function reportModal() {
+  var D = cur(); if (!D.elements.length) { toast('Diagram masih kosong.'); return; }
+  var tabs = [];
+  if (isDfd()) tabs.push(['Tabel alur data', repDfd(D)]);
+  else if (D.kind === 'usecase') tabs.push(['Tabel aktor & use case', repUseCase(D)]);
+  else {
+    var secs = repWalk(D); if (!secs) { toast('Belum ada titik mulai (Initial / Start Event) di diagram ini.'); return; }
+    tabs.push(['Tabel skenario', repTable(D, secs)], ['Narasi bernomor', repNarrative(D, secs)]);
+  }
+  var body = '<p class="xp-lead">Teks ini disusun dari diagram yang sedang dibuka. Klik <b>Salin</b>, lalu tekan ' + pasteKey() + ' di Google Docs atau Word. Tabelnya ikut rapi beserta warnanya.</p>' +
+    (tabs.length > 1 ? '<div class="htabs" role="tablist">' + tabs.map(function (t, i) { return '<button role="tab" data-rt="' + i + '" aria-selected="' + (i === 0) + '">' + t[0] + '</button>'; }).join('') + '</div>' : '') +
+    '<div class="repview" id="repview"></div>';
+  var curT = 0;
+  modal('Teks untuk laporan', body, '<button class="btn" data-close>Tutup</button><button class="btn pri" data-ok>Salin</button>', function (s) {
+    s.querySelector('.modal').classList.add('mid');
+    function show(i) { curT = i; $('#repview', s).innerHTML = tabs[i][1]; $$('[data-rt]', s).forEach(function (b) { b.setAttribute('aria-selected', +b.dataset.rt === i); }); }
+    s.addEventListener('click', function (e) { var b = e.target.closest('[data-rt]'); if (b) show(+b.dataset.rt); });
+    $('[data-ok]', s).addEventListener('click', function () { copyHtml(tabs[curT][1], tabs[curT][0] + ' tersalin. Tempel di Google Docs atau Word dengan ' + pasteKey() + '.'); });
+    show(0);
+  });
+}
+
+/* ---------- 2. bagikan lewat link (seluruh isi proyek dimampatkan ke dalam link, tanpa server) ---------- */
+var SHARE_BASE = 'https://fikrim03.github.io/Alir-DFD/';
+function b64u(u8) { var s = ''; for (var i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function unb64u(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; var b = atob(s), u = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
+async function packDoc(d) {
+  var bytes = new TextEncoder().encode(JSON.stringify({ format: d.kind === 'ea' ? 'alir-uml' : 'alir-dfd', v: 2, doc: d }));
+  var z = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer());
+  return b64u(z);
+}
+async function unpackDoc(s) {
+  var u = unb64u(s), t = await new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text();
+  return parseAny(t);
+}
+function shareBase() { return /^https?:$/.test(location.protocol) && /github\.io|localhost|127\.0\.0\.1/.test(location.hostname) ? location.origin + location.pathname : SHARE_BASE; }
+function shareModal() {
+  if (!window.CompressionStream) { toast('Browser ini belum mendukung link berbagi. Pakai Simpan proyek (.json) lalu kirim berkasnya.'); return; }
+  var D = cur(), only = !isDfd() && doc.diagrams.length > 1;
+  var body = '<p class="xp-lead">Seluruh isi diagram dimasukkan ke dalam link, jadi tidak perlu kirim berkas atau login. Siapa pun yang membuka link ini mendapat <b>salinannya sendiri</b>: perubahan mereka tidak mengubah punyamu.</p>' +
+    (only ? '<div class="htabs" role="tablist"><button role="tab" data-sh="all" aria-selected="true">Seluruh proyek (' + doc.diagrams.length + ' diagram)</button><button role="tab" data-sh="one" aria-selected="false">Diagram ini saja</button></div>' : '') +
+    '<textarea class="in sharebox" id="sharelink" readonly rows="3">Menyiapkan link…</textarea><p class="scmsg" id="sharemsg"></p>' +
+    '<div class="row"><a class="btn" id="sharewa" target="_blank" rel="noopener">Kirim lewat WhatsApp</a>' + (navigator.share ? '<button class="btn" id="sharenat">Bagikan…</button>' : '') + '</div>';
+  modal('Bagikan lewat link', body, '<button class="btn" data-close>Tutup</button><button class="btn pri" data-ok disabled>Salin link</button>', function (s) {
+    var link = '';
+    async function make(mode) {
+      $$('[data-sh]', s).forEach(function (b) { b.setAttribute('aria-selected', b.dataset.sh === mode); });
+      var d = doc;
+      if (mode === 'one') { d = JSON.parse(JSON.stringify(doc)); d.diagrams = d.diagrams.filter(function (x) { return x.id === D.id; }); d.name = D.name || d.name; }
+      try { link = shareBase() + '#alir=' + await packDoc(d); } catch (err) { $('#sharelink', s).value = 'Gagal membuat link: ' + (err && err.message); return; }
+      $('#sharelink', s).value = link; $('[data-ok]', s).disabled = false;
+      var kb = Math.round(link.length / 1024 * 10) / 10;
+      $('#sharemsg', s).textContent = 'Panjang link ' + kb + ' KB.' + (link.length > 60000 ? ' Link ini sangat panjang; kalau tidak bisa dibuka di HP, kirim berkas .json saja.' : link.length > 8000 ? ' Link panjang tetap bisa dibuka, tapi di beberapa aplikasi chat mungkin terpotong. Kalau begitu, kirim berkas .json.' : '');
+      $('#sharewa', s).href = 'https://wa.me/?text=' + encodeURIComponent('Diagram dari Alir: ' + link);
+    }
+    s.addEventListener('click', function (e) { var b = e.target.closest('[data-sh]'); if (b) make(b.dataset.sh); });
+    $('[data-ok]', s).addEventListener('click', function () {
+      var p; try { p = navigator.clipboard.writeText(link); } catch (x) { p = Promise.reject(x); }
+      p.then(function () { toast('Link tersalin. Tempel di chat untuk dibagikan.'); }).catch(function () { var t = $('#sharelink', s); t.focus(); t.select(); toast('Tekan Ctrl+C untuk menyalin link.'); });
+    });
+    var nb = $('#sharenat', s); if (nb) nb.addEventListener('click', function () { navigator.share({ title: 'Diagram Alir', url: link }).catch(function () { /* dibatalkan */ }); });
+    make('all');
+  });
+}
+window.addEventListener('hashchange', function () { if (/^#alir=/.test(location.hash)) shareBoot(); });
+function shareBoot() {
+  var m = /^#alir=([A-Za-z0-9_-]+)$/.exec(location.hash || ''); if (!m) return;
+  try { history.replaceState(null, '', location.pathname + location.search); } catch (x) { /* abaikan */ }
+  if (!window.DecompressionStream) { toast('Browser ini belum bisa membuka link berbagi. Perbarui browsermu.'); return; }
+  unpackDoc(m[1]).then(function (nd) { histSnap('Sebelum membuka link'); loadDoc(nd, 'link berbagi "' + (nd.name || 'Model') + '"'); }).catch(function () { toast('Link ini rusak atau terpotong. Minta pengirimnya mengirim ulang, atau kirim berkas .json.'); });
+}
+
+/* ---------- 3. jalankan alur (simulasi token seperti presentasi) ---------- */
+var sim = null;
+function simStart() {
+  var D = cur();
+  if (isDfd() || D.kind === 'usecase') { toast('Jalankan alur tersedia untuk Activity Diagram dan BPMN.'); return; }
+  var st = D.elements.filter(isStartT); if (!st.length) { toast('Belum ada titik mulai (Initial / Start Event).'); return; }
+  sim = { d: D.id, tokens: st.map(function (e) { return { at: e.id, k: 0 }; }), visits: {}, trail: {}, step: 0, wait: {}, msg: '', anim: null, choose: null, auto: false };
+  sel.clear(); panel(); syncBar();
+  st.forEach(function (e) { sim.trail[e.id] = 1; });
+  if (!$('#simbar')) { var b = document.createElement('div'); b.id = 'simbar'; b.setAttribute('role', 'region'); b.setAttribute('aria-label', 'Jalankan alur'); stage.appendChild(b); }
+  simMsg('Mulai dari ' + nm(st[0]) + '. Tekan Lanjut (atau Spasi) untuk bergerak.'); draw();
+}
+function simStop() { sim = null; var b = $('#simbar'); if (b) b.remove(); draw(); }
+function simEl(id) { return elOf(cur(), id); }
+function simMsg(m, opts) {
+  if (!sim) return; sim.msg = m; var b = $('#simbar'); if (!b) return;
+  var btns = '';
+  if (sim.choose) btns = sim.choose.opts.map(function (f, i) { var t = simEl(f.to); return '<button class="btn" data-simc="' + i + '">' + esc(f.name || f.guard || ('ke ' + (t ? t.name || TT[t.type].label : '?'))) + '</button>'; }).join('');
+  else if (!sim.done) btns = '<button class="btn pri" data-sim="next">Lanjut ▶</button><button class="btn" data-sim="auto">' + (sim.auto ? 'Jeda' : 'Putar otomatis') + '</button>';
+  b.innerHTML = '<span class="simtxt">' + (sim.step ? '<b>Langkah ' + sim.step + '</b> · ' : '') + esc(m) + '</span><span class="simbtn">' + btns + '<button class="btn" data-sim="reset">Ulang</button><button class="btn" data-sim="stop" aria-label="Tutup">✕</button></span>';
+  void opts;
+}
+function simAnimate(paths, done) {
+  var t0 = performance.now(), dur = 420;
+  sim.anim = { paths: paths, p: 0 };
+  (function tick(now) {
+    if (!sim || !sim.anim) return;
+    sim.anim.p = Math.min(1, (now - t0) / dur); draw();
+    if (sim.anim.p < 1) requestAnimationFrame(tick); else { sim.anim = null; done(); }
+  })(t0);
+}
+function simDesc(e) { var ln = laneOf(cur(), e); return (ln ? ln + ': ' : '') + (e.name || TT[e.type].label); }
+function simNext() {
+  if (!sim || sim.anim || sim.choose || sim.done) return;
+  var D = cur(), G = flowGraph(D), routes = routeAll(D);
+  /* pilih token yang bisa bergerak */
+  var i = sim.tokens.findIndex(function (t) { var e = simEl(t.at); return e && !isEndT(e) && !t.dead && !t.waiting; });
+  if (i < 0) {
+    var live = sim.tokens.filter(function (t) { return !t.dead; });
+    sim.done = true;
+    simMsg(live.length && live.every(function (t) { var e = simEl(t.at); return e && isEndT(e); }) ? 'Selesai. Alurnya sampai ke titik selesai dengan benar. ✓' : 'Alur berhenti: ada cabang yang menunggu di Join atau buntu. Cek garis yang belum tersambung.');
+    draw(); return;
+  }
+  var tk = sim.tokens[i], e = simEl(tk.at), O = G.out[e.id] || [];
+  if (!O.length) { tk.dead = true; sim.bad = e.id; simMsg('Buntu di ' + nm(e) + ': belum ada alur keluar. Tambahkan garis ke langkah berikutnya.'); sim.done = !sim.tokens.some(function (t) { return !t.dead && !isEndT(simEl(t.at)); }); draw(); return; }
+  function go(fls) {
+    var paths = fls.map(function (f) { var r = routes.get(f.id); return r ? r.pts : null; }).filter(Boolean);
+    simAnimate(paths, function () {
+      sim.step++;
+      var nt = fls.map(function (f) { return { at: f.to }; });
+      sim.tokens.splice.apply(sim.tokens, [i, 1].concat(nt));
+      var msgs = [];
+      nt.forEach(function (t) {
+        var x = simEl(t.at); if (!x) return; sim.trail[x.id] = 1; sim.visits[x.id] = (sim.visits[x.id] || 0) + 1;
+        if (isForkT(x) && (G.inn[x.id] || []).length > 1) {
+          sim.wait[x.id] = (sim.wait[x.id] || 0) + 1; t.waiting = true;
+          if (sim.wait[x.id] >= (G.inn[x.id] || []).length) { sim.tokens = sim.tokens.filter(function (o) { return o.at !== x.id; }); sim.tokens.push({ at: x.id }); sim.wait[x.id] = 0; msgs.push('Semua cabang paralel sudah sampai di Join, lanjut bersama.'); }
+          else msgs.push('Menunggu cabang paralel lain di Join.');
+        } else if (isEndT(x)) msgs.push('Sampai di titik selesai.');
+        else msgs.push(simDesc(x));
+        if (sim.visits[x.id] > 6) msgs.push('(langkah ini sudah diulang ' + sim.visits[x.id] + ' kali; pastikan ada jalan keluar dari perulangan)');
+      });
+      simMsg(msgs.join(' · ')); draw();
+      if (sim.auto) setTimeout(function () { if (sim && sim.auto) simNext(); }, 700);
+    });
+  }
+  if (isForkT(e) && O.length > 1) { go(O); return; }
+  if (O.length > 1) {
+    sim.choose = { opts: O.slice().sort(function (a, b) { return repPrefer(a) - repPrefer(b); }), go: go };
+    if (sim.auto) { var pick = sim.choose.opts[0]; sim.choose = null; go([pick]); return; }
+    simMsg((e.name ? e.name : 'Percabangan') + ' Pilih jalannya:'); draw(); return;
+  }
+  go([O[0]]);
+}
+function simOverlay(D, routes, k) {
+  if (!sim || sim.d !== D.id) return '';
+  var s = '';
+  Object.keys(sim.trail).forEach(function (id) { var e = elOf(D, id); if (e) s += '<rect class="simtrail" x="' + (e.x - 3 / k) + '" y="' + (e.y - 3 / k) + '" width="' + (e.w + 6 / k) + '" height="' + (e.h + 6 / k) + '" rx="' + 6 / k + '" style="stroke-width:' + 2 / k + 'px"/>'; });
+  if (sim.bad) { var be = elOf(D, sim.bad); if (be) s += '<rect class="simbad" x="' + (be.x - 5 / k) + '" y="' + (be.y - 5 / k) + '" width="' + (be.w + 10 / k) + '" height="' + (be.h + 10 / k) + '" rx="' + 7 / k + '" style="stroke-width:' + 3 / k + 'px"/>'; }
+  function dot(x, y) { return '<circle class="simtok" cx="' + x + '" cy="' + y + '" r="' + 7 / k + '" style="stroke-width:' + 2 / k + 'px"/>'; }
+  if (sim.anim) sim.anim.paths.forEach(function (P) {
+    var L = 0, seg = []; for (var i = 0; i < P.length - 1; i++) { var l = Math.hypot(P[i + 1].x - P[i].x, P[i + 1].y - P[i].y); seg.push(l); L += l; }
+    var d = L * sim.anim.p; for (var j = 0; j < seg.length; j++) { if (d <= seg[j] || j === seg.length - 1) { var t = seg[j] ? Math.min(1, d / seg[j]) : 1; s += dot(P[j].x + (P[j + 1].x - P[j].x) * t, P[j].y + (P[j + 1].y - P[j].y) * t); break; } d -= seg[j]; }
+  });
+  else sim.tokens.forEach(function (t) { var e = elOf(D, t.at); if (e) s += '<rect class="simcur" x="' + (e.x - 5 / k) + '" y="' + (e.y - 5 / k) + '" width="' + (e.w + 10 / k) + '" height="' + (e.h + 10 / k) + '" rx="' + 8 / k + '" style="stroke-width:' + 3 / k + 'px"/>' + dot(e.x + e.w / 2, e.y + e.h / 2); });
+  return s;
+}
+document.addEventListener('click', function (e) {
+  var b = e.target.closest('#simbar [data-sim], #simbar [data-simc]'); if (!b || !sim) return;
+  if (b.dataset.simc != null) { var c = sim.choose; sim.choose = null; c.go([c.opts[+b.dataset.simc]]); return; }
+  var a = b.dataset.sim;
+  if (a === 'next') simNext(); else if (a === 'stop') simStop(); else if (a === 'reset') { simStop(); simStart(); }
+  else if (a === 'auto') { sim.auto = !sim.auto; simMsg(sim.msg); if (sim.auto) simNext(); }
+});
+
+/* ---------- 4. riwayat versi otomatis (disimpan di browser ini, IndexedDB) ---------- */
+var histDbP = null, histLast = '', histLastT = 0, HIST_MAX = 60;
+function histDb() {
+  if (histDbP) return histDbP;
+  histDbP = new Promise(function (ok, bad) { try { var r = indexedDB.open('alir-riwayat', 1); r.onupgradeneeded = function () { r.result.createObjectStore('s', { keyPath: 'id', autoIncrement: true }); }; r.onsuccess = function () { ok(r.result); }; r.onerror = function () { bad(r.error); }; } catch (x) { bad(x); } });
+  return histDbP;
+}
+function strHash(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36) + ':' + s.length; }
+function histAll() { return histDb().then(function (db) { return new Promise(function (ok) { var out = [], c = db.transaction('s').objectStore('s').openCursor(null, 'prev'); c.onsuccess = function () { var r = c.result; if (r) { out.push(r.value); r.continue(); } else ok(out); }; c.onerror = function () { ok(out); }; }); }).catch(function () { return []; }); }
+function histSnap(why, d, force) {
+  d = d || doc; if (!d || !d.diagrams) return Promise.resolve(false);
+  var ne = d.diagrams.reduce(function (n, x) { return n + x.elements.length; }, 0); if (!ne && !force) return Promise.resolve(false);
+  var json = JSON.stringify({ format: d.kind === 'ea' ? 'alir-uml' : 'alir-dfd', v: 2, doc: d }), h = strHash(json);
+  if (h === histLast && !force) return Promise.resolve(false);
+  histLast = h; histLastT = Date.now();
+  var rec = { t: Date.now(), why: why, name: d.name || 'Model', kind: d.kind === 'ea' ? 'ea' : 'dfd', nd: d.diagrams.length, ne: ne, h: h, json: json };
+  return histDb().then(function (db) { return new Promise(function (ok) { var tx = db.transaction('s', 'readwrite'); tx.objectStore('s').add(rec); tx.oncomplete = function () { ok(true); histPrune(); }; tx.onerror = function () { ok(false); }; }); }).catch(function () { return false; });
+}
+function histPrune() { histDb().then(function (db) { var n = 0, tx = db.transaction('s', 'readwrite'), c = tx.objectStore('s').openCursor(null, 'prev'); c.onsuccess = function () { var r = c.result; if (!r) return; if (++n > HIST_MAX) r.delete(); r.continue(); }; }).catch(function () { /* abaikan */ }); }
+function histBoot() {
+  if (!window.indexedDB) return;
+  setTimeout(function () { histSnap('Saat dibuka'); }, 2500);
+  setInterval(function () { if (Date.now() - histLastT >= 10 * 60 * 1000) histSnap('Otomatis (tiap 10 menit)'); }, 60 * 1000);
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden' && Date.now() - histLastT >= 2 * 60 * 1000) histSnap('Saat ditinggal'); });
+}
+function fmtTime(t) { try { return new Date(t).toLocaleString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch (x) { return new Date(t).toLocaleString(); } }
+function histModal() {
+  if (!window.indexedDB) { toast('Browser ini tidak mendukung riwayat versi.'); return; }
+  var body = '<p class="xp-lead">Alir menyimpan salinan pekerjaanmu otomatis: saat dibuka, tiap 10 menit kalau ada perubahan, dan sebelum membuka berkas atau link lain. Simpanannya ada di <b>browser ini saja</b> (maksimal ' + HIST_MAX + ' versi terakhir).</p>' +
+    '<div class="row"><button class="btn" id="histnow">Simpan versi sekarang</button></div><div class="histlist" id="histlist">Memuat…</div>';
+  modal('Riwayat versi', body, '<button class="btn" data-close>Tutup</button>', function (s, close) {
+    s.querySelector('.modal').classList.add('mid');
+    var list = [];
+    function render() {
+      histAll().then(function (l) {
+        list = l;
+        $('#histlist', s).innerHTML = l.length ? l.map(function (r, i) { return '<div class="histrow"><div><b>' + esc(fmtTime(r.t)) + '</b> · ' + esc(r.name) + ' <span class="mut">(' + (r.kind === 'ea' ? 'EA' : 'DFD') + ', ' + r.nd + ' diagram, ' + r.ne + ' objek)</span><br><span class="mut">' + esc(r.why || '') + '</span></div><div class="row"><button class="btn" data-hr="' + i + '">Pulihkan</button><button class="btn" data-hd="' + i + '">Unduh .json</button></div></div>'; }).join('') : '<p class="mut">Belum ada versi tersimpan.</p>';
+      });
+    }
+    s.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-hr],[data-hd]'); if (!b) return;
+      var r = list[+(b.dataset.hr || b.dataset.hd)]; if (!r) return;
+      if (b.dataset.hd != null) { saveFile(safeName(r.name) + ' - ' + new Date(r.t).toISOString().slice(0, 16).replace(':', '.') + '.json', r.json); return; }
+      histSnap('Sebelum memulihkan versi lain').then(function () { close(); try { loadDoc(parseAny(r.json), 'versi ' + fmtTime(r.t)); } catch (err) { toast('Versi ini tidak bisa dibuka.'); } });
+    });
+    $('#histnow', s).addEventListener('click', function () { histSnap('Disimpan manual', null, true).then(function () { toast('Versi sekarang tersimpan.'); render(); }); });
+    render();
+  });
+}
+
+/* ---------- 5. use case ↔ activity diagram ---------- */
+function ucDiagram(e) {
+  if (!e || e.type !== 'usecase') return null;
+  return doc.diagrams.find(function (d) { return d.id === e.link && d.kind === 'activity'; }) || doc.diagrams.find(function (d) { return d.kind === 'activity' && norm(d.name) === norm(e.name); }) || null;
+}
+function ucOpen(id) {
+  var e = elOf(cur(), id), d = ucDiagram(e); if (!d) return false;
+  if (e.link !== d.id) e.link = d.id;
+  switchTo(d.id); umlToolbox(); toast('Membuka Activity Diagram "' + d.name + '". Kembali lewat tab di atas.'); return true;
+}
+function ucMakeAD(id) {
+  var D = cur(), e = elOf(D, id); if (!e) return;
+  var d = ucDiagram(e); if (d) { ucOpen(id); return; }
+  var actor = null; D.flows.forEach(function (f) { var a = elOf(D, f.from), b = elOf(D, f.to); if (a === e && b && b.type === 'actor') actor = b; if (b === e && a && a.type === 'actor') actor = a; });
+  var u = { name: e.name || 'Use case', actor: actor ? actor.name : 'Aktor', normal: [{ num: 1, t: 'Aktivitas aktor', lane: 'a' }, { num: 2, t: 'Aktivitas sistem', lane: 's' }], alts: [] };
+  var nd;
+  mutate(function () { nd = scMakeActivity(u, u.name); e.link = nd.id; active = nd.id; sel.clear(); views[nd.id] = { x: 0, y: 0, k: 1, fresh: true }; try { autoRoute(nd, {}); } catch (x) { /* nanti */ } });
+  umlToolbox(); setTool('select');
+  toast('Activity Diagram "' + u.name + '" dibuat dan tersambung ke use case-nya. Ganti nama dua aktivitas contoh, lalu tambahkan langkah lain.');
+}
+function ucBadges(D, k) {
+  if (D.kind !== 'usecase') return '';
+  var s = '';
+  D.elements.forEach(function (e) {
+    if (e.type !== 'usecase' || !ucDiagram(e)) return;
+    var x = e.x + e.w * .5 + e.w * .29, y = e.y + e.h * .5 + e.h * .29;
+    s += '<g class="ucbadge" transform="translate(' + x + ' ' + y + ') scale(' + 1 / k + ')"><title>Punya Activity Diagram. Klik dua kali use case untuk membukanya.</title><circle r="8" fill="#fff" stroke="#1a73e8"/><path d="M-4.5 0c0-2.2 2-2.2 4.5 0s4.5 2.2 4.5 0-2-2.2-4.5 0-4.5 2.2-4.5 0z" fill="none" stroke="#1a73e8" stroke-width="1.3"/></g>';
+  });
+  return s;
+}
+function ucCheck(D, items) {
+  var ucs = D.elements.filter(function (e) { return e.type === 'usecase'; }), linked = ucs.filter(ucDiagram);
+  if (linked.length && linked.length < ucs.length) ucs.forEach(function (e) { if (!ucDiagram(e)) items.push({ s: 'warn', t: 'Use case ' + nm(e) + ' belum punya Activity Diagram. Klik kanan → Buat Activity Diagram.', ids: [e.id] }); });
+}
+
 
 /* ---------- teks ---------- */
 var mctx = null;
@@ -3746,7 +4159,7 @@ function overlay(D, routes, v) {
     if (e.grp && sel.has(e.id)) { var g = gbox[e.grp] || (gbox[e.grp] = { l: 1e9, t: 1e9, r: -1e9, b: -1e9 }); g.l = Math.min(g.l, e.x); g.t = Math.min(g.t, e.y); g.r = Math.max(g.r, e.x + e.w); g.b = Math.max(g.b, e.y + e.h); }
   });
   Object.keys(gbox).forEach(function (gk2) { var g = gbox[gk2], m = 8 / k; s += '<rect class="grpbox" style="stroke-width:' + 1.4 / k + 'px;stroke-dasharray:' + 6 / k + ' ' + 3 / k + '" x="' + (g.l - m) + '" y="' + (g.t - m) + '" width="' + (g.r - g.l + 2 * m) + '" height="' + (g.b - g.t + 2 * m) + '"/>'; });
-  if (!isDfd()) s += labOverlay(D, routes, k);
+  if (!isDfd()) s += labOverlay(D, routes, k) + simOverlay(D, routes, k) + ucBadges(D, k);
   if (drag && drag.free) s += '<path class="pv" style="stroke-width:' + 1.4 / k + 'px;stroke-dasharray:' + 5 / k + ' ' + 4 / k + '" d="M' + drag.free.a.x + ' ' + drag.free.a.y + 'L' + drag.free.b.x + ' ' + drag.free.b.y + '"/>';
   if (drag && drag.guides) drag.guides.forEach(function (g) { s += '<path class="guide" style="stroke-width:' + 1.5 / k + 'px;stroke-dasharray:' + 5 / k + ' ' + 3 / k + '" d="M' + g[0] + ' ' + g[1] + 'L' + g[2] + ' ' + g[3] + '"/>'; });
   D.elements.forEach(function (e) {
@@ -3847,7 +4260,7 @@ function zoomAt(cx, cy, f) {
 function zoomCenter(f) { var s = stageBox(); zoomAt(s.l + s.w / 2, s.t + s.h / 2, f); }
 function setScale(k) { var s = stageBox(), v = view(); remember(); zoomAt(s.l + s.w / 2, s.t + s.h / 2, k / v.k); }
 function pt(e) { var s = stageBox(), v = view(); return { x: (e.clientX - s.l - v.x) / v.k, y: (e.clientY - s.t - v.y) / v.k }; }
-function switchTo(id) { if (id === active) return; active = id; sel.clear(); flowFrom = null; endRename(false); afterChange(); }
+function switchTo(id) { if (id === active) return; if (sim) simStop(); active = id; sel.clear(); flowFrom = null; endRename(false); afterChange(); }
 function procLabel(d) { var P = diag(d.parent.d), e = P && elOf(P, d.parent.e); return e ? e.num + ' ' + e.name : d.name; }
 function crumbs() {
   var D = cur(), c = $('#crumbs'), chain = [], x = D;
@@ -4561,9 +4974,9 @@ function item(label, act, key, opt) { return { l: label, a: act, k: key || '', o
 var HR = { hr: 1 };
 function menuItems(name) {
   var D = cur(), one = selEls().length === 1 ? selEls()[0] : null, proc = one && one.type === 'process' ? one : null, has = sel.size > 0, nE = selEls().length, f = selFlows()[0], st = curStyleOf();
-  if (name === 'file' && !isDfd()) return [item('Halaman mulai…', 'start'), item('Buka .eap / .xml / .json…', 'open', 'Ctrl+O'), item('Buat diagram dari skenario (.docx / tabel)…', 'scen'), HR, item('Ekspor ke Enterprise Architect…', 'exportea', 'Ctrl+S'), item('Simpan proyek Alir (.json)', 'saveproj'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar JPG', 'jpg'), item('Ekspor gambar SVG', 'svg'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Preferensi tampilan…', 'dispref')];
-  if (name === 'dict' && !isDfd()) return [{ hd: 'Diagram baru' }, item('Activity Diagram', 'newdiag:activity'), item('Use Case Diagram', 'newdiag:usecase'), item('BPMN (Business Process)', 'newdiag:bpmn'), item('Dari skenario use case (tabel / .docx)…', 'scen'), HR, item('Ganti nama diagram…', 'renamediag'), item('Hapus diagram ini', 'deldiag', '', { dis: doc.diagrams.length < 2 }), item('Paket (folder) baru', 'newpkg'), HR, item('Periksa diagram', 'check', 'F4')];
-  if (name === 'file') return [item('Halaman mulai…', 'start'), item('Model DFD baru', 'new'), item('Buka .pam / .json / .zip…', 'open', 'Ctrl+O'), HR, item('Simpan sebagai .pam', 'savepam', 'Ctrl+S'), item('Simpan proyek (.json)', 'savejson'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar JPG', 'jpg'), item('Ekspor gambar SVG', 'svg'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Opsi model…', 'modelopt'), item('Preferensi tampilan…', 'dispref')];
+  if (name === 'file' && !isDfd()) return [item('Halaman mulai…', 'start'), item('Buka .eap / .xml / .json…', 'open', 'Ctrl+O'), item('Buat diagram dari skenario (.docx / tabel)…', 'scen'), HR, item('Teks untuk laporan (narasi & tabel)…', 'report'), item('Bagikan lewat link…', 'share'), item('Riwayat versi…', 'hist'), HR, item('Ekspor ke Enterprise Architect…', 'exportea', 'Ctrl+S'), item('Simpan proyek Alir (.json)', 'saveproj'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar JPG', 'jpg'), item('Ekspor gambar SVG', 'svg'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Preferensi tampilan…', 'dispref')];
+  if (name === 'dict' && !isDfd()) return [{ hd: 'Diagram baru' }, item('Activity Diagram', 'newdiag:activity'), item('Use Case Diagram', 'newdiag:usecase'), item('BPMN (Business Process)', 'newdiag:bpmn'), item('Dari skenario use case (tabel / .docx)…', 'scen'), HR, item('Jalankan alur ▶', 'sim', '', { dis: !(D.kind === 'activity' || D.kind === 'bpmn') }), item('Teks untuk laporan…', 'report'), HR, item('Ganti nama diagram…', 'renamediag'), item('Hapus diagram ini', 'deldiag', '', { dis: doc.diagrams.length < 2 }), item('Paket (folder) baru', 'newpkg'), HR, item('Periksa diagram', 'check', 'F4')];
+  if (name === 'file') return [item('Halaman mulai…', 'start'), item('Model DFD baru', 'new'), item('Buka .pam / .json / .zip…', 'open', 'Ctrl+O'), HR, item('Teks untuk laporan (tabel alur data)…', 'report'), item('Bagikan lewat link…', 'share'), item('Riwayat versi…', 'hist'), HR, item('Simpan sebagai .pam', 'savepam', 'Ctrl+S'), item('Simpan proyek (.json)', 'savejson'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar JPG', 'jpg'), item('Ekspor gambar SVG', 'svg'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Opsi model…', 'modelopt'), item('Preferensi tampilan…', 'dispref')];
   if (name === 'edit') return [item('Urungkan', 'undo', 'Ctrl+Z', { dis: !undoS.length }), item('Ulangi', 'redo', 'Ctrl+Y', { dis: !redoS.length }), HR, item('Potong', 'cut', 'Ctrl+X', { dis: !has }), item('Salin', 'copy', 'Ctrl+C', { dis: !has }), item('Tempel', 'paste', 'Ctrl+V', { dis: !clipb }), item('Hapus', 'del', 'Del', { dis: !has }), HR, item('Pilih simbol terhubung', 'selconn', '', { dis: !has }), item('Pilih semua', 'selall', 'Ctrl+A'), item('Pilih beberapa (klik satu per satu)', 'multipick', '', { ck: multiPick }), item('Pilih semua yang sejenis', 'selsame', '', { dis: !has }), item('Cari elemen…', 'find', 'Ctrl+F'), HR, item('Kunci / buka kunci posisi', 'lock', '', { dis: !nE }), item('Kelompokkan', 'group', 'Ctrl+G', { dis: nE < 2 }), item('Pisahkan kelompok', 'ungroup', 'Ctrl+Shift+G', { dis: !nE }), HR, item('Duplikat', 'dup', 'Ctrl+D', { dis: !has }), item('Ubah nama', 'rename', 'F2', { dis: sel.size !== 1 })];
   if (name === 'dict') return [item('Properti model…', 'modelopt'), { hd: 'Sub-proses' }, item(proc && childOf(D, proc) ? 'Buka diagram turunan' : 'Dekomposisi proses terpilih', 'decomp', 'Alt+↓', { dis: !proc }), item('Naik satu level', 'up', 'Alt+↑', { dis: !D.parent }), item('Hapus dekomposisi', 'undecomp', '', { dis: !(proc && childOf(D, proc)) }), item('Pohon proses…', 'tree'), HR, item('Daftar objek…', 'objlist'), item('Urutkan ulang nomor objek', 'renum'), item('Auto-balance alur', 'autobal', '', { dis: !D.parent }), item('Migrasikan alur terpilih ke induk', 'migrate', '', { dis: !D.parent || !f }), HR, item('Periksa model…', 'check', 'F4')];
   if (name === 'arrange') return [item('Sesuaikan dengan teks', 'adjust', 'Ctrl+J', { dis: !nE }), item('Ukuran normal', 'normsize', '', { dis: !nE }), HR, { hd: 'Ratakan' }, item('Kiri', 'alL', '', { dis: nE < 2 }), item('Tengah (sumbu vertikal)', 'alC', '', { dis: nE < 2 }), item('Kanan', 'alR', '', { dis: nE < 2 }), item('Atas', 'alT', '', { dis: nE < 2 }), item('Tengah (sumbu horizontal)', 'alM', '', { dis: nE < 2 }), item('Bawah', 'alB', '', { dis: nE < 2 }), item('Samakan lebar', 'sameW', '', { dis: nE < 2 }), item('Samakan tinggi', 'sameH', '', { dis: nE < 2 }), HR, item('Sebar horizontal', 'distH', '', { dis: nE < 3 }), item('Sebar vertikal', 'distV', '', { dis: nE < 3 }), HR, { hd: 'Alur' }, item('Rapikan alur terpilih', 'tidy', 'Ctrl+L', { dis: !selFlows().length }), item('Rapikan semua alur… (pilih tampilan)', 'tidyall', 'Ctrl+Shift+L'), item('Rapikan otomatis setiap ada perubahan', 'autotidy', '', { ck: autoTidyOn() }), HR, { hd: 'Urutan' }, item('Bawa ke depan', 'front', 'Ctrl+]', { dis: !has }), item('Kirim ke belakang', 'back', 'Ctrl+[', { dis: !has }), item('Maju satu', 'fwd', '', { dis: !has }), item('Mundur satu', 'bwd', '', { dis: !has })];
@@ -4625,6 +5038,7 @@ function contextMenu(e, id) {
     if (o) {
       items.push(item('Ubah nama', 'rename', 'F2'), item('Potong', 'cut', 'Ctrl+X'), item('Salin', 'copy', 'Ctrl+C'), item('Salin sebagai gambar HD', 'copyselimg'), item('Duplikat', 'dup', 'Ctrl+D'), item('Hapus', 'del', 'Del'), HR, item(multiPick ? 'Selesai memilih' : 'Pilih beberapa (klik satu per satu)', 'multipick'), item('Pilih semua yang sejenis', 'selsame'), item('Pilih yang terhubung', 'selconn'), HR);
       if (o.type) items.push(item(o.locked ? 'Buka kunci' : 'Kunci posisi', 'lock'), HR);
+      if (o.type === 'usecase') items.push(item(ucDiagram(o) ? 'Buka Activity Diagram-nya' : 'Buat Activity Diagram untuk use case ini', 'ucad'), HR);
       if (o.type) { if (!isContainer(o)) items.push(item('Sesuaikan dengan teks', 'adjust', 'Ctrl+J'), item('Ukuran normal', 'normsize')); if (o.type === 'partition') items.push(item(o.horiz ? 'Jadikan partition tegak' : 'Jadikan partition mendatar', 'porient')); if (o.type === 'partition' || o.type === 'lane') items.push(item('Rapatkan semua ' + (o.type === 'lane' ? 'lane' : 'partition'), 'dockall'), HR); items.push(item('Warna garis…', 'pop:stroke'), item('Warna isi…', 'pop:fill'), item('Warna teks…', 'pop:text')); }
       else {
         var ks = linkKinds(elOf(D, o.from), elOf(D, o.to), D.kind); if (ks.indexOf(o.kind) < 0) ks.unshift(o.kind);
@@ -4635,7 +5049,7 @@ function contextMenu(e, id) {
       if (labHasMoved(o)) items.push(HR, item('Kembalikan posisi label', 'labreset'));
       items.push(HR, item('Bawa ke depan', 'front'), item('Kirim ke belakang', 'back'));
     } else {
-      items.push(item('Tempel', 'paste', 'Ctrl+V', { dis: !clipb }), item('Salin diagram sebagai gambar HD', 'copyimg', 'Ctrl+Alt+C'), item('Pilih semua', 'selall', 'Ctrl+A'), item(multiPick ? 'Selesai memilih' : 'Pilih beberapa (klik satu per satu)', 'multipick'), item('Cari elemen…', 'find', 'Ctrl+F'), HR, item('Rapikan semua garis…', 'tidyall', 'Ctrl+Shift+L'), item('Tampilan global', 'fit', 'F8'), HR, item('Ganti nama diagram…', 'renamediag'), item('Diagram baru…', 'newdiag'), item('Periksa diagram', 'check', 'F4'));
+      items = items.concat([item('Tempel', 'paste', 'Ctrl+V', { dis: !clipb }), item('Salin diagram sebagai gambar HD', 'copyimg', 'Ctrl+Alt+C'), item('Pilih semua', 'selall', 'Ctrl+A'), item(multiPick ? 'Selesai memilih' : 'Pilih beberapa (klik satu per satu)', 'multipick'), item('Cari elemen…', 'find', 'Ctrl+F'), HR, item('Rapikan semua garis…', 'tidyall', 'Ctrl+Shift+L'), item('Tampilan global', 'fit', 'F8')].concat(D.kind === 'activity' || D.kind === 'bpmn' ? [item('Jalankan alur ▶', 'sim')] : []).concat([HR, item('Ganti nama diagram…', 'renamediag'), item('Diagram baru…', 'newdiag'), item('Periksa diagram', 'check', 'F4')]));
     }
     renderMenu(items, e.clientX, e.clientY); return;
   }
@@ -4699,6 +5113,11 @@ function run(a, btn) {
     case 'png': doPNG(); break;
     case 'copyimg': copyImage(null); break;
     case 'scen': scenarioModal(); break;
+    case 'report': reportModal(); break;
+    case 'share': shareModal(); break;
+    case 'hist': histModal(); break;
+    case 'sim': simStart(); break;
+    case 'ucad': ucMakeAD(Array.from(sel)[0]); break;
     case 'copyselimg': copyImage(new Set(sel)); break;
     case 'jpg': doImg(true); break;
     case 'pdf': doPDF(); break;
@@ -4975,7 +5394,7 @@ cv.addEventListener('pointerdown', function (e) {
   var g = e.target.closest('[data-id]'), gid = g && g.dataset.id, hd = e.target.closest('[data-h]');
   var now = Date.now(), dbl = gid && !hd && !e.ctrlKey && !e.metaKey && lastDown.id === gid && now - lastDown.t < 450 && Math.hypot(e.clientX - lastDown.x, e.clientY - lastDown.y) < 6;
   lastDown = { id: gid, t: dbl ? 0 : now, x: e.clientX, y: e.clientY };
-  if (dbl && tool === 'select' && !multiPick) { drag = null; startRename(gid); return; }
+  if (dbl && tool === 'select' && !multiPick) { drag = null; if (!isDfd() && ucOpen(gid)) return; startRename(gid); return; }
   if (tool === 'select') {
     var labG = !isDfd() && !multiPick && !hd && gid && !e.shiftKey && !e.ctrlKey && !e.metaKey && e.target.closest('[data-lab]');
     if (labG && labDown(e, D, p, gid, labG.dataset.lab)) return;
@@ -5159,6 +5578,8 @@ window.addEventListener('keydown', function (e) {
   var tg = e.target; if (tg && tg.matches && tg.matches('input,textarea,select')) return;
   if (menuEl && menuEl.contains(tg)) return;
   var mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+  if (sim && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); simNext(); return; }
+  if (sim && e.key === 'Escape') { simStop(); return; }
   var fk = { F1: 'help', F4: 'check', F5: 'z100', F6: 'zin', F7: 'zout', F8: 'fit', F9: 'prevview' }[e.key];
   if (fk) { e.preventDefault(); run(fk); return; }
   if (e.altKey && e.key === 'ArrowUp') { e.preventDefault(); upLevel(); return; }
@@ -5305,7 +5726,7 @@ function pinImported() {
 }
 function loadDoc(nd, label) {
   if (nd.kind === 'ea' || !isDfd()) { useDoc(nd, null, 'Dibuka: ' + label); return; }
-  push(); doc = normDoc(nd); pinImported(); bumpSeq(); views = {}; active = doc.diagrams[0].id; sel.clear(); flowFrom = null; buildRail(); setTool('select');
+  histSnap('Sebelum membuka ' + label); push(); doc = normDoc(nd); pinImported(); bumpSeq(); views = {}; active = doc.diagrams[0].id; sel.clear(); flowFrom = null; buildRail(); setTool('select');
   afterChange(); toast('Dibuka: ' + label + ' (' + summary(doc) + ')');
 }
 function mergeDocs(docs) {
@@ -5518,7 +5939,7 @@ var HELP = {
     '<li>Seret panah biru ke <b>area kosong</b> untuk membuat elemen baru yang langsung tersambung (seperti Quick Link di EA).</li>' +
     '<li>Atau pilih jenis garis di Toolbox, klik elemen asal, lalu klik elemen tujuan.</li>' +
     '<li>Garis dirapikan otomatis setiap ada perubahan. Garis yang kamu atur sendiri tidak diubah. Matikan lewat Susun → Rapikan otomatis.</li></ul><h4>Mengatur garis (seperti EA)</h4><ul><li><b>Seret garisnya langsung</b> ke mana saja: naik-turun dan kiri-kanan sekaligus. Tahan <b>Shift</b> untuk mengunci ke satu arah. Berlaku juga di DFD. Kalau ruas di ujung digeser keluar dari objek, tikungan kecil dibuat sendiri; kalau dikembalikan, garis lurus lagi.</li><li>Garis <b>Direct</b> yang lurus digeser sejajar (naik-turun atau kiri-kanan), ujungnya ikut menyusuri tepi objek seperti di EA. Tahan Alt sambil menyeret untuk membuat tikungan.</li><li><b>Label bisa digeser</b>: nama decision, merge, gateway, initial/final, nama garis, [guard], dan «include». Saat dipilih muncul kotak dan garis bantu putus-putus seperti EA. Label ikut bergerak bersama objek atau garisnya, dan posisinya ikut terbawa ke EA. Klik kanan → Kembalikan posisi label untuk mengembalikannya.</li><li><b>Ctrl+klik</b> di garis menambah titik (kotak kecil). Seret titiknya untuk membuat tikungan. Ctrl+klik titiknya untuk menghapus.</li><li>Kotak di <b>ujung garis</b> bisa digeser menyusuri tepi objek. Tarik menjauh dari objek untuk memindah sambungan ke objek lain; lepas di tempat kosong untuk membatalkan.</li><li>Bentuk garis sama seperti EA: Direct / Custom Line, Orthogonal - Square, Orthogonal - Rounded, Tree Style (vertikal/horizontal), dan Lateral (vertikal/horizontal). Pilih di panel kanan atau klik kanan garis.</li><li>Garis yang bersilangan diberi lompatan kecil seperti EA (bisa dimatikan di Format → Preferensi tampilan).</li><li>Tarik panah biru ke tempat kosong: elemen baru muncul tepat di titik kamu melepasnya.</li></ul>' +
-    '<h4>Dari skenario use case</h4><ul><li>Salin tabel skenario (kolom Aktor dan Sistem, Normal Flow, Alternative Flow) dari Google Docs atau Word, lalu tekan <b>Ctrl+V di kanvas</b>. Bisa juga buka berkas <b>.docx</b> laporan (Berkas → Buat diagram dari skenario). Tiap use case langsung jadi Activity Diagram: partition aktor dan sistem, initial, aktivitas, decision Ya/Tidak untuk alur alternatif, dan final.</li><li>Nomor langkah di alur alternatif menentukan letak decision. Kalau langkah terakhirnya sama dengan langkah di Normal Flow (misalnya kembali ke form), garisnya dikembalikan ke langkah itu.</li><li>Bisa sekaligus membuat Use Case Diagram dari semua skenario.</li></ul><h4>Swimlane, pool, dan batas sistem</h4><ul><li>Seperti di EA, tiap <b>partition</b> (swimlane) adalah elemen sendiri, bukan satu tabel. Klik di dekat partition lain untuk menaruh partition baru menempel di sampingnya.</li><li>Saat digeser atau diubah ukurannya, tepinya <b>menempel otomatis</b> ke partition lain (seperti opsi Dockable di EA). Tahan Alt untuk mematikan.</li><li>Klik kanan partition → <b>Rapatkan semua partition</b> untuk menjejerkan tanpa celah dan menyamakan tingginya. Klik kanan → Jadikan mendatar/tegak untuk mengubah arah.</li><li>Lane yang ditaruh di dalam pool otomatis menyesuaikan lebar pool.</li><li>Geser bingkai lewat <b>judul atau tepinya</b>. Isi di dalamnya ikut berpindah.</li></ul>' +
+    '<h4>Dari skenario use case</h4><ul><li>Salin tabel skenario (kolom Aktor dan Sistem, Normal Flow, Alternative Flow) dari Google Docs atau Word, lalu tekan <b>Ctrl+V di kanvas</b>. Bisa juga buka berkas <b>.docx</b> laporan (Berkas → Buat diagram dari skenario). Tiap use case langsung jadi Activity Diagram: partition aktor dan sistem, initial, aktivitas, decision Ya/Tidak untuk alur alternatif, dan final.</li><li>Nomor langkah di alur alternatif menentukan letak decision. Kalau langkah terakhirnya sama dengan langkah di Normal Flow (misalnya kembali ke form), garisnya dikembalikan ke langkah itu.</li><li>Bisa sekaligus membuat Use Case Diagram dari semua skenario.</li></ul><h4>Fitur pembantu tugas</h4><ul><li><b>Teks untuk laporan</b> (Berkas): tabel skenario Aktor/Sistem dan narasi bernomor disusun dari activity diagram, tabel alur data dari DFD, tabel aktor dan use case dari use case diagram. Klik Salin lalu tempel di Google Docs/Word.</li><li><b>Jalankan alur ▶</b> (menu Diagram atau klik kanan kanvas): titik biru berjalan mengikuti alur; di decision kamu memilih cabangnya. Spasi = lanjut, Esc = berhenti. Cocok untuk presentasi dan menemukan alur buntu.</li><li><b>Bagikan lewat link</b> (Berkas): seluruh diagram dimasukkan ke dalam link, kirim lewat WhatsApp. Penerima mendapat salinannya sendiri.</li><li><b>Riwayat versi</b> (Berkas): salinan otomatis saat dibuka, tiap 10 menit, dan sebelum membuka berkas lain. Bisa dipulihkan atau diunduh.</li><li><b>Use case ↔ Activity</b>: klik dua kali use case yang punya activity diagram untuk membukanya (ada tanda ∞ kecil). Klik kanan use case → Buat Activity Diagram.</li></ul><h4>Swimlane, pool, dan batas sistem</h4><ul><li>Seperti di EA, tiap <b>partition</b> (swimlane) adalah elemen sendiri, bukan satu tabel. Klik di dekat partition lain untuk menaruh partition baru menempel di sampingnya.</li><li>Saat digeser atau diubah ukurannya, tepinya <b>menempel otomatis</b> ke partition lain (seperti opsi Dockable di EA). Tahan Alt untuk mematikan.</li><li>Klik kanan partition → <b>Rapatkan semua partition</b> untuk menjejerkan tanpa celah dan menyamakan tingginya. Klik kanan → Jadikan mendatar/tegak untuk mengubah arah.</li><li>Lane yang ditaruh di dalam pool otomatis menyesuaikan lebar pool.</li><li>Geser bingkai lewat <b>judul atau tepinya</b>. Isi di dalamnya ikut berpindah.</li></ul>' +
     '<h4>Ke Enterprise Architect</h4><ul><li><b>Buka .eap</b>: Berkas → Buka. Activity, Use Case, dan BPMN dibaca, diagram jenis lain dilewati.</li><li><b>Ekspor ke EA</b> (Ctrl+S) membuat berkas .xml (XMI) untuk diimpor ke EA. Langkahnya ditampilkan di jendela ekspor.</li><li><b>Ke Google Docs / Word</b>: klik <b>Salin gambar</b> di bilah atas (atau Ctrl+Alt+C), lalu Ctrl+V di dokumen. Gambarnya HD (4x), tetap tajam saat diperbesar, lengkap dengan bingkai dan nama diagram seperti hasil ekspor. Ctrl+C pada objek terpilih juga langsung bisa ditempel sebagai gambar.</li><li>Untuk laporan: Berkas → Ekspor semua ke PDF atau PNG.</li></ul>',
   tentang: '<p><b>Alir</b> adalah editor diagram di browser: DFD yang bisa membuka dan menyimpan berkas <b>.pam</b> PowerDesigner 6, serta Activity, Use Case, dan BPMN yang bisa membuka <b>.eap</b> dan mengekspor ke Enterprise Architect.</p><p><b>Jangan jadikan Alir sebagai patokan.</b> Alir bukan produk resmi PowerDesigner, SAP, atau Sparx Systems. Selalu buka hasil akhir di aplikasi aslinya sebelum dikumpulkan.</p><p>Semua data tersimpan di browser masing-masing pengguna. Tidak ada yang dikirim ke server.</p>'
 };
@@ -5554,6 +5975,7 @@ if (window.ResizeObserver) new ResizeObserver(function () { if (view().fresh) fi
   if (first && !SAMPLE) setTimeout(startPage, 50);
   else if (!seen) setTimeout(function () { toast('Baru di Alir? Buka menu Bantuan → Cara pakai (atau tekan F1).'); }, 900);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { draw(); });
+  histBoot(); shareBoot();
 })();
 })();
 
