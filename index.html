@@ -1159,7 +1159,7 @@ function routeAll(D) {
     }
     var tr = (!isDfd() && fs(f).route >= 3) ? treeRoute(f, RA, RB, fs(f).route) : null;
     var ep = tr || ((!isDfd() && fs(f).route > 0) ? eaPathRoute(f, RA, RB) : null);
-    var eo = (!ep && !isDfd() && fs(f).route > 0 && f.bends && f.bends.length) ? eaOrthoRoute(f, RA, RB) : null;
+    var eo = (!ep && (!isDfd() || f.manual) && fs(f).route > 0 && f.bends && f.bends.length) ? eaOrthoRoute(f, RA, RB) : null;
     var pts = ep || (eo && eo.pts) || ((!isDfd() && auto(f) && fs(f).route > 0) ? eaAutoRoute(D, A, B, off) : routeOne(f, RA, RB, off, e1, e2));
     if (!isDfd()) eaNoteSides(f, pts, RA, RB);
     if (!isDfd() && !ep && !eo && fs(f).route > 0 && (f.sa || f.ta) && pts.length > 2) {
@@ -2181,7 +2181,7 @@ function umlPanel() {
       if (f.kind === 'assoc') h += '<label class="cbx"><input type="checkbox" data-f="nav"' + (f.nav ? ' checked' : '') + '> Tampilkan panah arah</label>';
       h += '<div class="kv"><span>Arah</span><b style="font-family:var(--f-body)">' + esc(a.name || TT[a.type] && TT[a.type].label) + ' → ' + esc(b.name || TT[b.type] && TT[b.type].label) + '</b></div></div>';
       h += '<div class="sec"><h2>Gaya garis</h2><div class="field"><label for="p-route">Bentuk</label><select class="in" id="p-route" data-f="route">' + routeNames().map(function (r, i) { return '<option value="' + i + '"' + (st.route === i ? ' selected' : '') + '>' + r + '</option>'; }).join('') + '</select></div>';
-      h += '<p class="hint">Seperti di EA: <b>seret garisnya langsung</b> untuk menggeser ruas (tikungan dibuat sendiri kalau perlu). <b>Ctrl+klik</b> di garis untuk menambah titik, Ctrl+klik titiknya untuk menghapus. Kotak di ujung bisa digeser menyusuri tepi objek, atau ditarik menjauh untuk menyambung ke objek lain.</p>';
+      h += '<p class="hint">Seperti di EA: <b>seret garisnya langsung</b> ke mana saja, naik-turun dan kiri-kanan sekaligus (tahan Shift untuk mengunci ke satu arah). <b>Ctrl+klik</b> di garis untuk menambah titik, Ctrl+klik titiknya untuk menghapus. Kotak di ujung bisa digeser menyusuri tepi objek, atau ditarik menjauh untuk menyambung ke objek lain.</p>';
       h += '<div class="row"><button class="btn" data-act="flip">Balik arah</button><button class="btn" data-act="tidy">Rapikan garis</button></div></div>';
       h += '<button class="btn danger block" data-act="del">Hapus garis</button>';
     }
@@ -3059,7 +3059,7 @@ function lnDown(e, D, p, gid, hd) {
     toast('Titik ditambahkan. Seret kotak kecilnya untuk membuat tikungan. Ctrl+klik titiknya untuk menghapus.');
     return true;
   }
-  if (e.shiftKey || multiPick) return false;
+  if (multiPick || (e.shiftKey && !(sel.size === 1 && sel.has(gid)))) return false;
   sel = new Set([gid]); panel(); syncBar(); draw();
   drag = { t: 'lnSeg', fid: gid, i: best.i, P0: P, p0: p, sx: e.clientX, sy: e.clientY, moved: false, ortho: lnOrtho(f) };
   return true;
@@ -3080,8 +3080,19 @@ function lnMove(e, D, p) {
   if (d.t === 'lnSeg') {
     var a = d.P0[d.i], b = d.P0[d.i + 1];
     if (d.ortho && (lnHz(a, b) || lnVt(a, b))) {
-      var hz = lnHz(a, b), c = snap(hz ? a.y + (p.y - d.p0.y) : a.x + (p.x - d.p0.x), e);
-      P = lnDragSeg(d.P0, d.i, c, RA, RB);
+      /* ruas digeser bebas ke dua arah sekaligus (seperti EA): tegak lurus = ruas ini pindah,
+         searah ruas = ruas tetangganya ikut bergeser. Tahan Shift untuk mengunci ke satu arah saja. */
+      var hz = lnHz(a, b), mx = p.x - d.p0.x, my = p.y - d.p0.y;
+      if (e.shiftKey) { if (!d.ax) d.ax = Math.abs(mx) >= Math.abs(my) ? 'x' : 'y'; if (d.ax === 'x') my = 0; else mx = 0; }
+      else if (Math.hypot(mx, my) * view().k < 6) d.ax = null;
+      var perp = hz ? my : mx, para = hz ? mx : my, ii = d.i, P1 = d.P0.map(function (q) { return { x: q.x, y: q.y, pin: q.pin }; });
+      if (Math.abs(para) >= .5) {
+        var nb = function (j, base) { if (j < 0 || j > P1.length - 2) return; var u = P1[j], w = P1[j + 1]; if (hz ? !lnVt(u, w) : !lnHz(u, w)) return; var L0 = P1.length; P1 = lnDragSeg(P1, j, snap(base + para, e), RA, RB, true); return P1.length - L0; };
+        nb(ii + 1, hz ? P1[ii + 1].x : P1[ii + 1].y);
+        var add = nb(ii - 1, hz ? P1[ii].x : P1[ii].y); if (add) ii += add;
+      }
+      var c = Math.abs(perp) < .5 ? (hz ? P1[ii].y : P1[ii].x) : snap((hz ? a.y : a.x) + perp, e);
+      P = lnDragSeg(P1, ii, c, RA, RB);
     } else if (d.P0.length === 2 && !e.altKey) {
       /* garis Direct (lurus tanpa tikungan): seperti EA, garis digeser sejajar (naik-turun / kiri-kanan),
          kedua ujungnya ikut menyusuri tepi objek. Alt+seret = buat tikungan (Custom Line). */
@@ -3099,6 +3110,7 @@ function lnMove(e, D, p) {
     lnStore(f, P, RA, RB);
   } else if (d.t === 'lnCorner') {
     var x = snap(p.x, e), y = snap(p.y, e);
+    if (e.shiftKey) { var c0 = d.P0[d.i]; if (Math.abs(p.x - c0.x) >= Math.abs(p.y - c0.y)) y = c0.y; else x = c0.x; }
     if (d.ortho) P = lnDragCorner(d.P0, d.i, x, y, RA, RB);
     else { P = d.P0.map(function (q) { return { x: q.x, y: q.y, pin: q.pin }; }); P[d.i] = { x: x, y: y, pin: 1 }; }
     lnStore(f, P, RA, RB);
@@ -3155,7 +3167,7 @@ function lnUp(d) {
   if (!d.moved) { draw(); return; }
   if (d.t === 'lnEnd' && f) {
     var s0 = d.snap, bad = !d.target;
-    if (!bad && (f.from !== s0.from || f.to !== s0.to)) {
+    if (!bad && !isDfd() && (f.from !== s0.from || f.to !== s0.to)) {
       var A = elOf(D, f.from), B = elOf(D, f.to), ks = linkKinds(A, B, D.kind);
       if (!ks.length) { bad = true; toast('Garis ini tidak bisa disambung ke sana.'); }
       else if (ks.indexOf(f.kind) < 0) f.kind = ks[0];
@@ -3434,8 +3446,8 @@ function overlay(D, routes, v) {
       s += '<rect class="handle" data-h="' + h[0] + '" style="stroke-width:' + sw + 'px;cursor:' + h[3] + '" x="' + (h[1] - hs) + '" y="' + (h[2] - hs) + '" width="' + hs * 2 + '" height="' + hs * 2 + '"/>';
     });
     var f = flOf(D, id), r = f && routes.get(id);
-    if (r && !isDfd()) s += lnHandles(f, r, k);
-    else if (r) {
+    if (r) s += lnHandles(f, r, k);
+    else if (false) { /* pegangan lama DFD, diganti sistem garis seperti EA */
       var P = r.pts, ortho = fs(f).route > 0, hb = 3.6 / k;
       if (ortho) {
         for (var i = 0; i < P.length - 1; i++) {
@@ -3615,7 +3627,7 @@ function panel() {
       h += '<div class="kv"><span>Arah</span><b style="font-family:var(--f-body)">' + esc(a.name) + ' → ' + esc(b.name) + '</b></div></div>';
       h += '<div class="sec"><h2>Gaya garis</h2><div class="field"><label for="p-route">Bentuk</label><select class="in" id="p-route" data-f="route">' + routeNames().map(function (r, i) { return '<option value="' + i + '"' + (st.route === i ? ' selected' : '') + '>' + r + '</option>'; }).join('') + '</select></div>';
       h += '<div class="row"><button class="btn" data-act="flip" title="Tukar asal dan tujuan alur">Balik arah</button><button class="btn" data-act="tidy" title="Hapus tikungan dan titik tempel, lalu hitung ulang jalur otomatis (Ctrl+L)"' + (((f.bends || []).length || f.sa || f.ta) ? '' : ' disabled') + '>Rapikan garis</button></div>';
-      h += '<p class="hint">' + (st.route > 0 ? 'Seret <b>kotak biru di ujung</b> untuk memindah titik tempel ke sisi lain, atau ke objek lain. Seret <b>pegangan di tengah ruas</b> untuk menggeser ruas itu.' : 'Seret <b>kotak biru di ujung</b> untuk memindah titik tempel. Seret titik kecil di tengah garis untuk membuat tikungan, klik dua kali tikungan untuk menghapusnya.') + '</p></div>';
+      h += '<p class="hint">' + 'Seret <b>garisnya langsung</b> ke mana saja (tahan Shift untuk mengunci ke satu arah). <b>Ctrl+klik</b> di garis menambah titik, Ctrl+klik titiknya untuk menghapus. Kotak di ujung bisa digeser menyusuri tepi objek atau ditarik ke objek lain.' + '</p></div>';
       if (D.parent) h += '<button class="btn block" data-act="migrate">Migrasikan ke induk</button>';
       h += '<button class="btn danger block" data-act="del">Hapus alur</button>';
       h += '<datalist id="dl-p">' + flowSuggest(D, f).map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>';
@@ -4647,7 +4659,7 @@ cv.addEventListener('pointerdown', function (e) {
       D.elements.forEach(function (x) { if (sel.has(x.id) && !x.locked) grp[x.id] = { x: x.x, y: x.y, w: x.w, h: x.h }; });
       drag = { t: 'resize', id: lead.id, h: hd.dataset.h, pushed: false, o: { x: lead.x, y: lead.y, w: lead.w, h: lead.h }, grp: grp }; return;
     }
-    if (!isDfd() && lnDown(e, D, p, gid, hd)) return;
+    if (lnDown(e, D, p, gid, hd)) return;
     if (hd && sel.size === 1) {
       var id = Array.from(sel)[0], hv = hd.dataset.h;
       if (hv.indexOf('bend:') === 0) { drag = { t: 'bend', fid: id, i: +hv.slice(5), pushed: false }; return; }
@@ -5149,7 +5161,7 @@ var HELP = {
     '<h4>Menyambung elemen</h4><ul><li>Pilih elemen, lalu <b>seret panah biru</b> di sisinya ke elemen lain. Kalau ada beberapa jenis hubungan (misalnya «include», «extend», Generalization), Alir menanyakan jenisnya.</li>' +
     '<li>Seret panah biru ke <b>area kosong</b> untuk membuat elemen baru yang langsung tersambung (seperti Quick Link di EA).</li>' +
     '<li>Atau pilih jenis garis di Toolbox, klik elemen asal, lalu klik elemen tujuan.</li>' +
-    '<li>Garis dirapikan otomatis setiap ada perubahan. Garis yang kamu atur sendiri tidak diubah. Matikan lewat Susun → Rapikan otomatis.</li></ul><h4>Mengatur garis (seperti EA)</h4><ul><li><b>Seret garisnya langsung</b> untuk menggeser ruas. Kalau ruas di ujung digeser keluar dari objek, tikungan kecil dibuat sendiri; kalau dikembalikan, garis lurus lagi.</li><li>Garis <b>Direct</b> yang lurus digeser sejajar (naik-turun atau kiri-kanan), ujungnya ikut menyusuri tepi objek seperti di EA. Tahan Alt sambil menyeret untuk membuat tikungan.</li><li><b>Label bisa digeser</b>: nama decision, merge, gateway, initial/final, nama garis, [guard], dan «include». Saat dipilih muncul kotak dan garis bantu putus-putus seperti EA. Label ikut bergerak bersama objek atau garisnya, dan posisinya ikut terbawa ke EA. Klik kanan → Kembalikan posisi label untuk mengembalikannya.</li><li><b>Ctrl+klik</b> di garis menambah titik (kotak kecil). Seret titiknya untuk membuat tikungan. Ctrl+klik titiknya untuk menghapus.</li><li>Kotak di <b>ujung garis</b> bisa digeser menyusuri tepi objek. Tarik menjauh dari objek untuk memindah sambungan ke objek lain; lepas di tempat kosong untuk membatalkan.</li><li>Bentuk garis sama seperti EA: Direct / Custom Line, Orthogonal - Square, Orthogonal - Rounded, Tree Style (vertikal/horizontal), dan Lateral (vertikal/horizontal). Pilih di panel kanan atau klik kanan garis.</li><li>Garis yang bersilangan diberi lompatan kecil seperti EA (bisa dimatikan di Format → Preferensi tampilan).</li><li>Tarik panah biru ke tempat kosong: elemen baru muncul tepat di titik kamu melepasnya.</li></ul>' +
+    '<li>Garis dirapikan otomatis setiap ada perubahan. Garis yang kamu atur sendiri tidak diubah. Matikan lewat Susun → Rapikan otomatis.</li></ul><h4>Mengatur garis (seperti EA)</h4><ul><li><b>Seret garisnya langsung</b> ke mana saja: naik-turun dan kiri-kanan sekaligus. Tahan <b>Shift</b> untuk mengunci ke satu arah. Berlaku juga di DFD. Kalau ruas di ujung digeser keluar dari objek, tikungan kecil dibuat sendiri; kalau dikembalikan, garis lurus lagi.</li><li>Garis <b>Direct</b> yang lurus digeser sejajar (naik-turun atau kiri-kanan), ujungnya ikut menyusuri tepi objek seperti di EA. Tahan Alt sambil menyeret untuk membuat tikungan.</li><li><b>Label bisa digeser</b>: nama decision, merge, gateway, initial/final, nama garis, [guard], dan «include». Saat dipilih muncul kotak dan garis bantu putus-putus seperti EA. Label ikut bergerak bersama objek atau garisnya, dan posisinya ikut terbawa ke EA. Klik kanan → Kembalikan posisi label untuk mengembalikannya.</li><li><b>Ctrl+klik</b> di garis menambah titik (kotak kecil). Seret titiknya untuk membuat tikungan. Ctrl+klik titiknya untuk menghapus.</li><li>Kotak di <b>ujung garis</b> bisa digeser menyusuri tepi objek. Tarik menjauh dari objek untuk memindah sambungan ke objek lain; lepas di tempat kosong untuk membatalkan.</li><li>Bentuk garis sama seperti EA: Direct / Custom Line, Orthogonal - Square, Orthogonal - Rounded, Tree Style (vertikal/horizontal), dan Lateral (vertikal/horizontal). Pilih di panel kanan atau klik kanan garis.</li><li>Garis yang bersilangan diberi lompatan kecil seperti EA (bisa dimatikan di Format → Preferensi tampilan).</li><li>Tarik panah biru ke tempat kosong: elemen baru muncul tepat di titik kamu melepasnya.</li></ul>' +
     '<h4>Swimlane, pool, dan batas sistem</h4><ul><li>Seperti di EA, tiap <b>partition</b> (swimlane) adalah elemen sendiri, bukan satu tabel. Klik di dekat partition lain untuk menaruh partition baru menempel di sampingnya.</li><li>Saat digeser atau diubah ukurannya, tepinya <b>menempel otomatis</b> ke partition lain (seperti opsi Dockable di EA). Tahan Alt untuk mematikan.</li><li>Klik kanan partition → <b>Rapatkan semua partition</b> untuk menjejerkan tanpa celah dan menyamakan tingginya. Klik kanan → Jadikan mendatar/tegak untuk mengubah arah.</li><li>Lane yang ditaruh di dalam pool otomatis menyesuaikan lebar pool.</li><li>Geser bingkai lewat <b>judul atau tepinya</b>. Isi di dalamnya ikut berpindah.</li></ul>' +
     '<h4>Ke Enterprise Architect</h4><ul><li><b>Buka .eap</b>: Berkas → Buka. Activity, Use Case, dan BPMN dibaca, diagram jenis lain dilewati.</li><li><b>Ekspor ke EA</b> (Ctrl+S) membuat berkas .xml (XMI) untuk diimpor ke EA. Langkahnya ditampilkan di jendela ekspor.</li><li>Untuk laporan: Berkas → Ekspor semua ke PDF atau PNG.</li></ul>',
   tentang: '<p><b>Alir</b> adalah editor diagram di browser: DFD yang bisa membuka dan menyimpan berkas <b>.pam</b> PowerDesigner 6, serta Activity, Use Case, dan BPMN yang bisa membuka <b>.eap</b> dan mengekspor ke Enterprise Architect.</p><p><b>Jangan jadikan Alir sebagai patokan.</b> Alir bukan produk resmi PowerDesigner, SAP, atau Sparx Systems. Selalu buka hasil akhir di aplikasi aslinya sebelum dikumpulkan.</p><p>Semua data tersimpan di browser masing-masing pengguna. Tidak ada yang dikirim ke server.</p>'
