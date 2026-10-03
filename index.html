@@ -148,6 +148,8 @@ svg.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-widt
 #findl .fi span { color: #6b7684; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
 #findl .fmore { color: #6b7684; font-size: 12px; padding: 4px 8px; }
 .grpbox { fill: none; stroke: #7b5cd6; pointer-events: none; }
+.labsel { fill: none; stroke: #000; pointer-events: none; }
+.flab, .elab { cursor: move; }
 .lockb { pointer-events: none; }
 #app.ea .fl .hit { cursor: move; }
 .handle.lnc { fill: #fff; stroke: #000; }
@@ -1183,6 +1185,7 @@ function flowLabel(D, f, mig) {
 }
 /* letak label: posisi bawaan dulu; kalau menabrak label/objek lain, geser sepanjang garis */
 function placeLabels(D, out) {
+  if (!isDfd()) return umlPlaceLabels(D, out);
   var mig = isDfd() ? migratedInfo(D).set : null, placed = [], segs = [];
   var boxes = D.elements.filter(function (e) { return !isContainer(e); }).map(function (e) { return { l: e.x - 2, t: e.y - 2, r: e.x + e.w + 2, b: e.y + e.h + 2 }; });
   out.forEach(function (r, id) { for (var i = 0; i < r.pts.length - 1; i++) segs.push({ id: id, a: r.pts[i], b: r.pts[i + 1] }); });
@@ -1734,20 +1737,24 @@ function leftText(lines, x, ytop, f, color) { var lh = f.size * 4 / 3 * 1.2; ret
 function topText(e, w, f, color, pad) { var lines = wrap(e.name, w, f), lh = f.size * 4 / 3 * 1.2, hh = lines.length * lh, cy = hh + (pad || 7) * 2 <= e.h ? e.y + (pad || 7) + hh / 2 : e.y + e.h / 2; return tblock(lines, e.x + e.w / 2, cy, f, color); }
 /* label decision/gateway: kalau sudut atas/bawah dipakai garis, label digeser ke samping supaya tidak ditimpa garis (EA juga begitu) */
 var diaUsed = {}, LBL_OUT = { decision: 1, merge: 1, gateway: 1, initial: 1, final: 1, flowfinal: 1, start: 1, intermediate: 1, end: 1 };
-function diaLabel(e, st, pos) {
+/* letak label di luar objek. e.lo = posisi kotak label yang digeser pengguna, relatif ke pojok kiri atas objek
+   (sama dengan OX/OY di LBL= milik EA, jadi posisinya ikut terbawa ke EA) */
+function labPos(e) { return e.type === 'decision' || e.type === 'merge' ? 'top' : 'bottom'; }
+function elLabGeom(e, st, pos) {
+  if (!e.name) return null;
+  st = st || es(e); pos = pos || labPos(e);
+  var f = st.font, lh = f.size * 4 / 3 * 1.2, lines = wrap(e.name, Math.max(90, e.w * 2.4), f), w = Math.max.apply(null, lines.map(function (l) { return textW(l, fontCss(f)); })), h = lh * lines.length, cx, cy;
+  if (e.lo) { var bx = e.x + e.lo.x, by = e.y + e.lo.y; return { lines: lines, f: f, x: bx, y: by, w: w + 2, h: h, cx: bx + (w + 2) / 2, cy: by + h / 2 }; }
   var u = diaUsed[e.id] || {}, side = pos === 'top' ? 'n' : 's';
-  if (!e.name || !u[side]) return outsideLabel(e, st, pos);
-  var f = st.font, lh = f.size * 4 / 3 * 1.2, lines = wrap(e.name, Math.max(90, e.w * 2.4), f), w = Math.max.apply(null, lines.map(function (l) { return textW(l, fontCss(f)); }));
-  var cx = e.x + e.w / 2 - 8 - w / 2, cy = pos === 'top' ? e.y - 2 - lh * lines.length / 2 : e.y + e.h + 2 + lh * lines.length / 2;
-  return tblock(lines, cx, cy, f, st.text);
+  if (u[side]) { cx = e.x + e.w / 2 - 8 - w / 2; cy = pos === 'top' ? e.y - 2 - h / 2 : e.y + e.h + 2 + h / 2; }
+  else { cx = e.x + e.w / 2; cy = pos === 'top' ? e.y - 4 - h / 2 : e.y + e.h + 4 + lh * .5 + (lines.length - 1) * lh / 2; }
+  return { lines: lines, f: f, x: cx - w / 2 - 1, y: cy - h / 2, w: w + 2, h: h, cx: cx, cy: cy };
 }
-function outsideLabel(e, st, pos) {
-  if (!e.name) return '';
-  var f = st.font, lh = f.size * 4 / 3 * 1.2, lines = wrap(e.name, Math.max(90, e.w * 2.4), f), cx = e.x + e.w / 2;
-  var cy = pos === 'top' ? e.y - 4 - (lines.length - .5) * lh : e.y + e.h + 4 + lh * .5 + (lines.length - 1) * lh / 2;
-  if (pos === 'top') cy = e.y - 4 - lh * lines.length / 2;
-  return tblock(lines, cx, cy, f, st.text);
+function diaLabel(e, st, pos) {
+  var G = elLabGeom(e, st, pos); if (!G) return '';
+  return '<g class="elab" data-lab="el"><rect class="labhit" x="' + G.x.toFixed(1) + '" y="' + G.y.toFixed(1) + '" width="' + G.w.toFixed(1) + '" height="' + G.h.toFixed(1) + '" fill="none" pointer-events="all"/>' + tblock(G.lines, G.cx, G.cy, G.f, st.text) + '</g>';
 }
+function outsideLabel(e, st, pos) { return diaLabel(e, st, pos); }
 /* ---------- tipe elemen ---------- */
 /* nama elemen bawaan tidak tebal (lebih ringan dibaca); judul partition tetap tebal. Bisa diubah di Preferensi tampilan. */
 var BOLD_NAMES = ['action', 'object', 'datastore', 'usecase', 'actor'];
@@ -1984,6 +1991,48 @@ function umlMarkers(set) {
   });
   return s;
 }
+/* ---------- label garis seperti EA ----------
+   EA punya beberapa slot label per garis. Yang dipakai di sini (hasil pengukuran di EA 12):
+   rt = dekat ujung tujuan (nama Control/Object/Sequence Flow), mt = tengah atas (nama garis lain),
+   mb = tengah bawah ([guard], «include»/«extend»). "Tengah" = titik tengah ruas ke-floor(jumlah ruas / 2).
+   f.lo[slot] = geseran label dari posisi bawaan EA, sama persis dengan OX/OY yang disimpan EA. */
+function flowSlots(f) {
+  var c = CT[f.kind], out = [];
+  if (!c || f.kind === 'notelink') return out;
+  if (c.ea === 'ControlFlow' || c.ea === 'ObjectFlow') {
+    if (f.name) out.push({ k: 'rt', t: f.name });
+    if (f.guard) out.push({ k: 'mb', t: '[' + f.guard + ']' });
+  } else {
+    if (f.name) out.push({ k: 'mt', t: f.name });
+    if (c.stereo === 'include' || c.stereo === 'extend') out.push({ k: 'mb', t: '«' + c.stereo + '»' });
+  }
+  return out;
+}
+function flowMid(P) { var i = Math.floor((P.length - 1) / 2), a = P[i], b = P[i + 1]; return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; }
+function slotBase(k, P, tw, fpx) {
+  var s = fpx / 10.667, n = P.length;
+  if (k === 'rt') {
+    var E = P[n - 1], Q = P[n - 2], dx = E.x - Q.x, dy = E.y - Q.y;
+    if (Math.abs(dy) >= Math.abs(dx)) return { x: E.x - 9 * s - tw / 2, y: dy > 0 ? E.y - 11 * s : E.y + 11 * s, ref: E };
+    return { x: dx > 0 ? E.x - 4 * s - tw / 2 : E.x + 4 * s + tw / 2, y: E.y - 11 * s, ref: E };
+  }
+  var M = flowMid(P);
+  return { x: M.x, y: k === 'mt' ? M.y - 8 * s : M.y + 8 * s, ref: M };
+}
+function umlPlaceLabels(D, out) {
+  D.flows.forEach(function (f) {
+    var r = out.get(f.id); if (!r) return;
+    r.text = ''; r.labs = [];
+    var L = r.lab; L.tx = L.x; L.ty = L.y;
+    var st = fs(f), fpx = st.font.size * 4 / 3, P = r.pts; if (!P || P.length < 2) return;
+    flowSlots(f).forEach(function (q, i) {
+      var tw = textW(q.t, fontCss(st.font)), b = slotBase(q.k, P, tw, fpx), o = f.lo && f.lo[q.k];
+      var lb = { k: q.k, t: q.t, x: b.x + (o ? o.x : 0), y: b.y + (o ? o.y : 0), w: tw + 4, h: fpx * 1.25, ref: b.ref, moved: !!o };
+      r.labs.push(lb);
+      if (i === 0) { L.tx = lb.x; L.ty = lb.y; }
+    });
+  });
+}
 function umlFlowMarkup(f, r, on, markers) {
   var st = fs(f), c = CT[f.kind], col = st.stroke, d = pathD(r.pts, st.route === 2), dash = DASHARR[st.dash] || '', dv = r.jumps && st.route !== 2 ? lnJumpPath(r.pts, r.jumps) : d;
   var attrs = ' stroke="' + col + '" stroke-width="' + (on ? 1.6 : 1) + '"' + (dash ? ' stroke-dasharray="' + dash + '"' : '');
@@ -1993,6 +2042,9 @@ function umlFlowMarkup(f, r, on, markers) {
   if (tail) { markers.add(tail + '|' + col); attrs += ' marker-start="url(#' + mkId(tail, col) + ')"'; }
   var s = '<g class="fl" data-id="' + f.id + '"><path class="hit" d="' + d + '"/>' + (on ? '<path class="halo" d="' + d + '" fill="none" stroke="#1a73e8" stroke-opacity=".28" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>' : '') + '<path d="' + dv + '" fill="none" stroke-linejoin="round"' + attrs + '/>';
   if (r.text) s += '<text x="' + r.lab.tx.toFixed(1) + '" y="' + r.lab.ty.toFixed(1) + '" text-anchor="middle" dominant-baseline="central" ' + fontAttr(st.font, st.text).replace('style="', 'style="paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round;') + '>' + esc(r.text) + '</text>';
+  (r.labs || []).forEach(function (lb) {
+    s += '<g class="flab" data-lab="' + lb.k + '"><rect class="labhit" x="' + (lb.x - lb.w / 2).toFixed(1) + '" y="' + (lb.y - lb.h / 2).toFixed(1) + '" width="' + lb.w.toFixed(1) + '" height="' + lb.h.toFixed(1) + '" fill="none" pointer-events="all"/><text x="' + lb.x.toFixed(1) + '" y="' + lb.y.toFixed(1) + '" text-anchor="middle" dominant-baseline="central" ' + fontAttr(st.font, st.text).replace('style="', 'style="paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round;') + '>' + esc(lb.t) + '</text></g>';
+  });
   return s + '</g>';
 }
 function umlDefs() {
@@ -2291,6 +2343,7 @@ function eaKindMenu(from, to, side, x, y) {
 /* ---------- impor dari EA (.eap dan XMI 1.1) ---------- */
 function colorFromRef(v) { v = Number(v); if (!(v >= 0) || isNaN(v)) return null; var r = v & 255, g = (v >> 8) & 255, b = (v >> 16) & 255; return '#' + [r, g, b].map(function (x) { return x.toString(16).padStart(2, '0'); }).join(''); }
 function colorToRef(c) { if (!c || c === 'none' || c[0] !== '#') return -1; var n = parseInt(c.slice(1), 16); return ((n & 255) << 16) | (n & 0xff00) | ((n >> 16) & 255); }
+function labKV(s) { if (!s) return null; var o = {}; String(s).split(':').forEach(function (p) { var i = p.indexOf('='); if (i > 0) o[p.slice(0, i)] = p.slice(i + 1); }); return o; }
 function styleKV(s) { var o = {}; String(s || '').split(';').forEach(function (p) { var i = p.indexOf('='); if (i > 0) o[p.slice(0, i)] = p.slice(i + 1); }); return o; }
 function eaTypeOf(o, kind, w, h) {
   var t = o.type, st = String(o.stereo || '').replace(/^BPMN2\.0::/, ''), n = Number(o.ntype || 0);
@@ -2354,7 +2407,8 @@ function buildEaDoc(M, name) {
       if (fill) e.style.fill = fill; if (line) e.style.stroke = line; if (fc) e.style.text = fc;
       if (type === 'gateway') { var gt = String(o.props.gatewayType || '').split('#')[0]; e.gw = gt === 'Parallel' ? 'and' : gt === 'Inclusive' ? 'or' : gt === 'Event' ? 'ev' : /true/.test(o.props.markerVisible || '') ? 'xorx' : 'xor'; }
       if (type === 'start' || type === 'intermediate' || type === 'end') { var ed = String(o.props.eventDefinition || '').split('#')[0]; e.ev = ed === 'Message' ? 'message' : ed === 'Timer' ? 'timer' : 'none'; }
-      if (type === 'partition' && ds.VPartition !== '1') e.horiz = true; /* di EA partition tanpa VPartition=1 = mendatar */
+      if (type === 'partition' && ds.VPartition !== '1') e.horiz = true;
+      var lbo = labKV(ds.LBL); if (lbo && LBL_OUT[type] && (+lbo.OX || +lbo.OY)) e.lo = { x: +lbo.OX || 0, y: +lbo.OY || 0 }; /* di EA partition tanpa VPartition=1 = mendatar */
       idm[go.oid] = e.id; D.elements.push(e);
     });
     g.links.forEach(function (gl) {
@@ -2363,6 +2417,7 @@ function buildEaDoc(M, name) {
       if (!kd || !a || !b) { skipped.links++; return; }
       var f = { id: 'f' + (++n), kind: kd, from: a, to: b, name: c.name || '', bends: [], style: {}, guid: c.guid };
       if (c.guard) f.guard = c.guard;
+      var gk0 = styleKV(gl.geometry), lmap = { LMT: 'mt', LMB: 'mb', LRT: 'rt' }; Object.keys(lmap).forEach(function (sk) { var q = labKV(gk0[sk]); if (q && (+q.OX || +q.OY)) { f.lo = f.lo || {}; f.lo[lmap[sk]] = { x: +q.OX || 0, y: +q.OY || 0 }; } });
       var gs = styleKV(gl.style), pts = parsePath(styleKV(gl.geometry).Path);
       f.manual = true; f.bends = pts;
       var gk2 = styleKV(gl.geometry); if (gk2.SX != null) f.eaSE = { g: 'SX=' + gk2.SX + ';SY=' + gk2.SY + ';EX=' + gk2.EX + ';EY=' + gk2.EY + ';' + (gk2.EDGE ? 'EDGE=' + gk2.EDGE + ';' : ''), b: JSON.stringify(pts), a: f.from, z: f.to }; f.style.route = ({ OS: 1, OR: 2, V: 3, H: 4, LV: 5, LH: 6 })[(String(gl.style || '').match(/TREE=([A-Z]+)/) || [])[1]] || 0; if (f.style.route >= 3) f.bends = [];
@@ -2385,7 +2440,7 @@ function eapToModel(u8) {
   var props = {};
   tab('t_objectproperties').forEach(function (p) { (props[p.Object_ID] = props[p.Object_ID] || {})[p.Property] = p.Value; });
   tab('t_object').forEach(function (o) { M.objects[o.Object_ID] = { type: o.Object_Type, stereo: o.Stereotype, ntype: o.NType, name: o.Name, note: o.Note, guid: o.ea_guid, back: o.Backcolor, border: o.Bordercolor, font: o.Fontcolor, props: props[o.Object_ID] || {} }; });
-  tab('t_connector').forEach(function (c) { M.conns[c.Connector_ID] = { type: c.Connector_Type, stereo: c.Stereotype, sub: c.SubType, name: c.Name, src: c.Start_Object_ID, dst: c.End_Object_ID, guid: c.ea_guid, color: c.LineColor, nav: c.DestIsNavigable && c.Connector_Type === 'Association' && c.Direction === 'Source -> Destination' }; });
+  tab('t_connector').forEach(function (c) { M.conns[c.Connector_ID] = { type: c.Connector_Type, stereo: c.Stereotype, sub: c.SubType, name: c.Name, src: c.Start_Object_ID, dst: c.End_Object_ID, guid: c.ea_guid, color: c.LineColor, nav: c.DestIsNavigable && c.Connector_Type === 'Association' && c.Direction === 'Source -> Destination', guard: (c.Connector_Type === 'ControlFlow' || c.Connector_Type === 'ObjectFlow') && c.PDATA2 ? String(c.PDATA2) : '' }; });
   var dobj = tab('t_diagramobjects'), dl = tab('t_diagramlinks');
   tab('t_diagram').forEach(function (g) {
     M.diagrams.push({ id: g.Diagram_ID, name: g.Name, type: g.Diagram_Type, styleex: g.StyleEx, pkg: g.Package_ID === root ? null : g.Package_ID, guid: g.ea_guid,
@@ -2419,6 +2474,7 @@ function xmiToModel(text) {
       var src = e.getAttribute('source') || e.getAttribute('client') || e.getAttribute('subtype'), dst = e.getAttribute('target') || e.getAttribute('supplier') || e.getAttribute('supertype');
       if (ln === 'Association') { var ends = e.getElementsByTagName('*'), tp = []; Array.prototype.forEach.call(ends, function (x) { if (x.localName === 'AssociationEnd') tp.push(x.getAttribute('type')); }); src = tp[0]; dst = tp[1]; }
       M.conns[id] = { type: tv.ea_type, stereo: tv.stereotype, sub: tv.subtype, name: e.getAttribute('name') || '', src: src, dst: dst, guid: id, color: tv.linecolor, nav: tv.dst_isNavigable === 'true' && tv.ea_type === 'Association' && /Source -> Dest/.test(tv.direction || '') };
+      if (ln === 'Transition') { var gx = Array.prototype.find.call(e.getElementsByTagName('*'), function (x) { return x.localName === 'BooleanExpression'; }); var gv = tv.privatedata2 || tv.guard || (gx && gx.getAttribute('body')) || ''; if (gv) M.conns[id].guard = gv; }
       return;
     }
     if (ln === 'EANoteLink') { M.conns[id] = { type: 'NoteLink', src: e.getAttribute('source'), dst: e.getAttribute('target'), guid: id }; return; }
@@ -2490,12 +2546,18 @@ function eaXmi(d, only) {
     }
     return { tag: tag, xml: head + body + ind + '</UML:' + tag + '>\n' };
   }
+  /* posisi label yang digeser: OX/OY di slot label EA (LMT, LMB, LRT), relatif ke posisi bawaan EA */
+  function labSlots(r) {
+    var m = {}; (r.labs || []).forEach(function (lb) { if (lb.moved) m[lb.k] = lb; });
+    function sl(k) { var lb = m[k]; if (!lb) return ''; var b = slotBase(k, r.pts, lb.w - 4, lb.h / 1.25); return 'CX=' + Math.round(lb.w) + ':CY=13:OX=' + Math.round(lb.x - b.x) + ':OY=' + Math.round(lb.y - b.y) + ':HDN=0:BLD=0:ITA=0:UND=0:CLR=-1:ALN=1:DIR=0:ROT=0'; }
+    return '$LLB=;LLT=;LMT=' + sl('mt') + ';LMB=' + sl('mb') + ';LRT=' + sl('rt') + ';LRB=;';
+  }
   function connXml(f, D, ind) {
     var c = CT[f.kind], A = elOf(D, f.from), B = elOf(D, f.to), g = f.guid, id = xid(g), st = c.stereo || '';
     if (f.kind === 'dassoc') st = A && (A.type === 'dataobject' || A.type === 'bstore') ? 'DataInputAssociation' : 'DataOutputAssociation';
     var tv = { style: '3', ea_type: c.ea, direction: f.kind === 'assoc' && !f.nav ? 'Unspecified' : 'Source -> Destination', linemode: '3', linecolor: String(f.style.stroke ? colorToRef(f.style.stroke) : -1), linewidth: '0', seqno: '0', stereotype: st || null, headStyle: '0', lineStyle: '0', ea_localid: String(lid(f)),
       ea_sourceName: A.name, ea_targetName: B.name, ea_sourceType: TT[A.type].ea, ea_targetType: TT[B.type].ea, ea_sourceID: String(lid(A)), ea_targetID: String(lid(B)), src_visibility: 'Public', src_aggregation: '0', src_isOrdered: 'false', src_isNavigable: 'false', dst_visibility: 'Public', dst_aggregation: '0', dst_isOrdered: 'false', dst_isNavigable: f.kind === 'assoc' && !f.nav ? 'false' : 'true', subtype: c.sub || null, virtualInheritance: '0' };
-    if (f.guard) tv.guard = f.guard;
+    if (f.guard) tv.privatedata2 = f.guard; /* EA membaca guard dari sini (Transition.guard saja diabaikan saat impor) */
     if (st) tv.$ea_xref_property = xref(g, st, true);
     var nm = f.name ? ' name="' + xa(f.name) + '"' : '', inner = stereoXml(st, ind + '\t') + TVs(tv, ind + '\t');
     if (c.ea === 'ControlFlow' || c.ea === 'ObjectFlow') return { trans: true, xml: ind + '<UML:Transition xmi.id="' + id + '"' + nm + ' visibility="public" source="' + xid(A.guid) + '" target="' + xid(B.guid) + '">\n' + inner + (f.guard ? ind + '\t<UML:Transition.guard>\n' + ind + '\t\t<UML:Guard>\n' + ind + '\t\t\t<UML:Guard.expression>\n' + ind + '\t\t\t\t<UML:BooleanExpression body="' + xa(f.guard) + '"/>\n' + ind + '\t\t\t</UML:Guard.expression>\n' + ind + '\t\t</UML:Guard>\n' + ind + '\t</UML:Transition.guard>\n' : '') + ind + '</UML:Transition>\n' };
@@ -2546,6 +2608,7 @@ function eaXmi(d, only) {
       if (e.style.text) st += 'BFol=' + colorToRef(e.style.text) + ';';
       if (isContainer(e)) st = 'Dockable=on;' + st;
       if (e.type === 'partition' && !e.horiz) st += 'VPartition=1;';
+      if (e.lo && LBL_OUT[e.type]) { var LG = elLabGeom(e); if (LG) st += 'LBL=CX=' + Math.round(LG.w + 4) + ':CY=' + Math.round(LG.h) + ':OX=' + (Math.round(e.lo.x) || (Math.round(e.lo.y) ? 0 : 1)) + ':OY=' + Math.round(e.lo.y) + ':HDN=0:BLD=0:ITA=0:UND=0:CLR=-1:ALN=1:ALT=0:ROT=0;'; }
       s += '\t\t\t\t<UML:DiagramElement geometry="Left=' + Math.round(e.x + ox) + ';Top=' + Math.round(e.y + oy) + ';Right=' + Math.round(e.x + e.w + ox) + ';Bottom=' + Math.round(e.y + e.h + oy) + ';" subject="' + xid(e.guid) + '" seqno="' + (++seq) + '" style="' + st + '"/>\n';
     });
     var routes = routeAll(D);
@@ -2561,7 +2624,7 @@ function eaXmi(d, only) {
       /* EDGE = arah ruas pertama keluar dari sumber (1 atas, 2 kanan, 3 bawah, 4 kiri), seperti yang disimpan EA */
       var e1x = P[1].x - S.x, e1y = P[1].y - S.y, edge = Math.abs(e1x) >= Math.abs(e1y) ? (e1x > 0 ? 2 : 4) : (e1y > 0 ? 3 : 1);
       var col = f.style.stroke ? colorToRef(f.style.stroke) : -1;
-      s += '\t\t\t\t<UML:DiagramElement geometry="' + (keep ? f.eaSE.g + (/EDGE=/.test(f.eaSE.g) ? '' : 'EDGE=' + edge + ';') : 'SX=' + sx + ';SY=' + sy + ';EX=' + ex + ';EY=' + ey + ';EDGE=' + edge + ';') + '$LLB=;LLT=;LMT=;LMB=;LRT=;LRB=;IRHS=;ILHS=;Path=' + path + ';" subject="' + xid(f.guid) + '" style="Mode=3;EOID=' + duid[B.id] + ';SOID=' + duid[A.id] + ';Color=' + col + ';LWidth=0;' + (ortho ? 'TREE=' + ({ 1: 'OS', 2: 'OR', 3: 'V', 4: 'H', 5: 'LV', 6: 'LH' })[fs(f).route] + ';' : '') + 'Hidden=0;"/>\n';
+      s += '\t\t\t\t<UML:DiagramElement geometry="' + (keep ? f.eaSE.g + (/EDGE=/.test(f.eaSE.g) ? '' : 'EDGE=' + edge + ';') : 'SX=' + sx + ';SY=' + sy + ';EX=' + ex + ';EY=' + ey + ';EDGE=' + edge + ';') + labSlots(r) + 'IRHS=;ILHS=;Path=' + path + ';" subject="' + xid(f.guid) + '" style="Mode=3;EOID=' + duid[B.id] + ';SOID=' + duid[A.id] + ';Color=' + col + ';LWidth=0;' + (ortho ? 'TREE=' + ({ 1: 'OS', 2: 'OR', 3: 'V', 4: 'H', 5: 'LV', 6: 'LH' })[fs(f).route] + ';' : '') + 'Hidden=0;"/>\n';
     });
     return s + '\t\t\t</UML:Diagram.element>\n\t\t</UML:Diagram>\n';
   }
@@ -3019,8 +3082,17 @@ function lnMove(e, D, p) {
     if (d.ortho && (lnHz(a, b) || lnVt(a, b))) {
       var hz = lnHz(a, b), c = snap(hz ? a.y + (p.y - d.p0.y) : a.x + (p.x - d.p0.x), e);
       P = lnDragSeg(d.P0, d.i, c, RA, RB);
+    } else if (d.P0.length === 2 && !e.altKey) {
+      /* garis Direct (lurus tanpa tikungan): seperti EA, garis digeser sejajar (naik-turun / kiri-kanan),
+         kedua ujungnya ikut menyusuri tepi objek. Alt+seret = buat tikungan (Custom Line). */
+      var a0 = d.P0[0], b0 = d.P0[1], vx = b0.x - a0.x, vy = b0.y - a0.y, L = Math.hypot(vx, vy) || 1, nx = -vy / L, ny = vx / L;
+      var dd = (p.x - d.p0.x) * nx + (p.y - d.p0.y) * ny, sA = lnSideAt(RA, a0), sB = lnSideAt(RB, b0);
+      var mv = function (R, s, q) { var c = horizS(s) ? q.y + ny * dd : q.x + nx * dd; return lnPort(R, s, lnClamp(R, s, snap(c, e))); };
+      P = [mv(RA, sA, a0), mv(RB, sB, b0)];
+      f.bends = []; f.sa = { s: sA, p: lnP(RA, sA, P[0]) }; f.ta = { s: sB, p: lnP(RB, sB, P[1]) }; f.manual = true; delete f.eaSE;
+      draw(); return;
     } else {
-      /* garis lurus/custom: menyeret garis membuat titik belok baru di tempat yang diseret */
+      /* garis custom: menyeret garis membuat titik belok baru di tempat yang diseret */
       P = d.P0.map(function (q) { return { x: q.x, y: q.y, pin: q.pin }; });
       P.splice(d.i + 1, 0, { x: snap(p.x, e), y: snap(p.y, e), pin: 1 });
     }
@@ -3141,6 +3213,54 @@ function lnJumpPath(P, J) {
     });
     s += 'L' + b.x.toFixed(1) + ' ' + b.y.toFixed(1);
   }
+  return s;
+}
+
+/* ---------- label yang bisa digeser (seperti EA) ----------
+   Label decision/merge/gateway/initial/final/event dan label garis (nama, [guard], «include») bisa diseret.
+   Saat label dipilih tampil kotak putus-putus dan garis bantu putus-putus ke pemiliknya, sama seperti EA.
+   Posisinya disimpan relatif (ke objek / ke posisi bawaan di garis) sehingga ikut bergerak saat objek atau garis dipindah. */
+var labSel = null;
+function labDown(e, D, p, id, k) {
+  var o;
+  if (k === 'el') { var el = elOf(D, id); if (!el || el.locked) return false; var G = elLabGeom(el); if (!G) return false; o = { x: G.x - el.x, y: G.y - el.y }; }
+  else { var f = flOf(D, id); if (!f) return false; var c = f.lo && f.lo[k]; o = c ? { x: c.x, y: c.y } : { x: 0, y: 0 }; }
+  sel = new Set([id]); labSel = { id: id, k: k }; panel(); syncBar(); draw();
+  drag = { t: 'lab', id: id, k: k, p0: p, o: o, sx: e.clientX, sy: e.clientY, moved: false };
+  return true;
+}
+function labMove(e, D, p) {
+  var d = drag;
+  if (!d.moved) { if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 3) return; push(); d.moved = true; }
+  var nx = Math.round(d.o.x + p.x - d.p0.x), ny = Math.round(d.o.y + p.y - d.p0.y);
+  if (d.k === 'el') { var el = elOf(D, d.id); if (el) el.lo = { x: nx, y: ny }; }
+  else { var f = flOf(D, d.id); if (f) { f.lo = f.lo || {}; if (!nx && !ny) delete f.lo[d.k]; else f.lo[d.k] = { x: nx, y: ny }; if (!Object.keys(f.lo).length) delete f.lo; } }
+  draw();
+}
+function labHasMoved(o) { return !!(o && o.lo && (o.type ? true : Object.keys(o.lo).length)); }
+function labReset(ids) {
+  var D = cur();
+  mutate(function () { ids.forEach(function (id) { var o = elOf(D, id) || flOf(D, id); if (o) delete o.lo; }); });
+  toast('Label dikembalikan ke posisi bawaan.');
+}
+function labOverlay(D, routes, k) {
+  if (!labSel || !sel.has(labSel.id) || sel.size !== 1) return '';
+  var box = null, ref = null, el = elOf(D, labSel.id);
+  if (labSel.k === 'el') {
+    if (!el) return ''; var G = elLabGeom(el); if (!G) return '';
+    box = { x: G.x, y: G.y, w: G.w, h: G.h }; var c = { x: G.x + G.w / 2, y: G.y + G.h / 2 };
+    ref = { x: Math.min(el.x + el.w, Math.max(el.x, c.x)), y: Math.min(el.y + el.h, Math.max(el.y, c.y)) };
+    if (ref.x > el.x && ref.x < el.x + el.w && ref.y > el.y && ref.y < el.y + el.h) ref = { x: el.x + el.w / 2, y: el.y + el.h / 2 };
+  } else {
+    var r = routes.get(labSel.id), lb = r && (r.labs || []).find(function (q) { return q.k === labSel.k; }); if (!lb) return '';
+    box = { x: lb.x - lb.w / 2, y: lb.y - lb.h / 2, w: lb.w, h: lb.h }; ref = lb.ref;
+  }
+  var m = 2 / k, cx = box.x + box.w / 2, cy = box.y + box.h / 2;
+  /* garis bantu dari tepi kotak label ke pemiliknya */
+  var dx = ref.x - cx, dy = ref.y - cy, tx = dx ? (box.w / 2 + m) / Math.abs(dx) : Infinity, ty = dy ? (box.h / 2 + m) / Math.abs(dy) : Infinity, t = Math.min(tx, ty, 1);
+  var st = 'stroke-width:' + 1 / k + 'px;stroke-dasharray:' + 3 / k + ' ' + 2 / k;
+  var s = '<rect class="labsel" style="' + st + '" x="' + (box.x - m) + '" y="' + (box.y - m) + '" width="' + (box.w + 2 * m) + '" height="' + (box.h + 2 * m) + '"/>';
+  if (t < 1) s += '<path class="labsel" style="' + st + '" d="M' + (cx + dx * t) + ' ' + (cy + dy * t) + 'L' + ref.x + ' ' + ref.y + '"/>';
   return s;
 }
 
@@ -3294,6 +3414,7 @@ function overlay(D, routes, v) {
     if (e.grp && sel.has(e.id)) { var g = gbox[e.grp] || (gbox[e.grp] = { l: 1e9, t: 1e9, r: -1e9, b: -1e9 }); g.l = Math.min(g.l, e.x); g.t = Math.min(g.t, e.y); g.r = Math.max(g.r, e.x + e.w); g.b = Math.max(g.b, e.y + e.h); }
   });
   Object.keys(gbox).forEach(function (gk2) { var g = gbox[gk2], m = 8 / k; s += '<rect class="grpbox" style="stroke-width:' + 1.4 / k + 'px;stroke-dasharray:' + 6 / k + ' ' + 3 / k + '" x="' + (g.l - m) + '" y="' + (g.t - m) + '" width="' + (g.r - g.l + 2 * m) + '" height="' + (g.b - g.t + 2 * m) + '"/>'; });
+  if (!isDfd()) s += labOverlay(D, routes, k);
   if (drag && drag.free) s += '<path class="pv" style="stroke-width:' + 1.4 / k + 'px;stroke-dasharray:' + 5 / k + ' ' + 4 / k + '" d="M' + drag.free.a.x + ' ' + drag.free.a.y + 'L' + drag.free.b.x + ' ' + drag.free.b.y + '"/>';
   if (drag && drag.guides) drag.guides.forEach(function (g) { s += '<path class="guide" style="stroke-width:' + 1.5 / k + 'px;stroke-dasharray:' + 5 / k + ' ' + 3 / k + '" d="M' + g[0] + ' ' + g[1] + 'L' + g[2] + ' ' + g[3] + '"/>'; });
   D.elements.forEach(function (e) {
@@ -3373,7 +3494,9 @@ function bbox(D) {
     r.pts.forEach(function (p) { add(p.x, p.y); });
     var f = flOf(D, id), st = fs(f), hw = r.text ? textW(r.text, fontCss(st.font)) / 2 + 4 : 0;
     if (hw) { add(r.lab.tx - hw, r.lab.ty - 10); add(r.lab.tx + hw, r.lab.ty + 10); }
+    (r.labs || []).forEach(function (lb) { add(lb.x - lb.w / 2, lb.y - lb.h / 2); add(lb.x + lb.w / 2, lb.y + lb.h / 2); });
   });
+  if (!isDfd()) D.elements.forEach(function (e) { if (!LBL_OUT[e.type]) return; var G = elLabGeom(e); if (G) { add(G.x, G.y); add(G.x + G.w, G.y + G.h); } });
   return isFinite(x0) ? { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } : null;
 }
 function remember() { var v = view(); prevView = { d: active, x: v.x, y: v.y, k: v.k }; }
@@ -4161,6 +4284,7 @@ function contextMenu(e, id) {
       item('Samakan lebar', 'sameW'), item('Samakan tinggi', 'sameH'), item('Sebar horizontal', 'distH', '', { dis: mE.length < 3 }), item('Sebar vertikal', 'distV', '', { dis: mE.length < 3 }));
     if (!isDfd() && mE.every(function (x) { return x.type === mE[0].type && (x.type === 'partition' || x.type === 'lane'); })) items.push(HR, item('Rapatkan ' + (mE[0].type === 'lane' ? 'lane' : 'partition') + ' terpilih', 'dockall'));
     items.push(HR, item('Warna garis…', 'pop:stroke'), item('Warna isi…', 'pop:fill'), item('Warna teks…', 'pop:text'), HR, item('Bawa ke depan', 'front'), item('Kirim ke belakang', 'back'));
+    if (!isDfd() && Array.from(sel).some(function (x) { return labHasMoved(elOf(D, x) || flOf(D, x)); })) items.push(HR, item('Kembalikan posisi label', 'labreset'));
     renderMenu(items, e.clientX, e.clientY); return;
   }
   if (!isDfd()) {
@@ -4174,6 +4298,7 @@ function contextMenu(e, id) {
         items.push({ hd: 'Bentuk garis' }); routeNames().forEach(function (r, i) { items.push(item(r, 'route:' + i, '', { ck: fs(o).route === i })); });
         items.push(item('Rapikan garis', 'tidy', 'Ctrl+L'), item('Balik arah', 'flip'), item('Warna garis…', 'pop:stroke'));
       }
+      if (labHasMoved(o)) items.push(HR, item('Kembalikan posisi label', 'labreset'));
       items.push(HR, item('Bawa ke depan', 'front'), item('Kirim ke belakang', 'back'));
     } else {
       items.push(item('Tempel', 'paste', 'Ctrl+V', { dis: !clipb }), item('Pilih semua', 'selall', 'Ctrl+A'), item(multiPick ? 'Selesai memilih' : 'Pilih beberapa (klik satu per satu)', 'multipick'), item('Cari elemen…', 'find', 'Ctrl+F'), HR, item('Rapikan semua garis…', 'tidyall', 'Ctrl+Shift+L'), item('Tampilan global', 'fit', 'F8'), HR, item('Ganti nama diagram…', 'renamediag'), item('Diagram baru…', 'newdiag'), item('Periksa diagram', 'check', 'F4'));
@@ -4277,6 +4402,7 @@ function run(a, btn) {
     case 'check': checkModal(); break;
     case 'adjust': adjustToText(); break;
     case 'normsize': normalSize(); break;
+    case 'labreset': labReset(Array.from(sel)); break;
     case 'dockall': dockAll(Array.from(sel).filter(function (x) { return x[0] === 'e'; })); break;
     case 'porient': { var po = elOf(D, id); if (po && po.type === 'partition') mutate(function () { if (po.horiz) delete po.horiz; else po.horiz = true; }); break; }
     case 'alL': case 'alC': case 'alR': case 'alT': case 'alM': case 'alB': case 'sameW': case 'sameH': align(a); break;
@@ -4464,6 +4590,7 @@ cv.addEventListener('contextmenu', function (e) {
   e.preventDefault();
   var g = e.target.closest('[data-id]'), he = e.target.closest('[data-e]'), id = (g && g.dataset.id) || (he && he.dataset.e) || (e.target.closest('.handle') && sel.size === 1 ? Array.from(sel)[0] : null);
   if (id && !sel.has(id)) { sel = new Set([id]); draw(); panel(); syncBar(); }
+  var lg = !isDfd() && g && e.target.closest('[data-lab]'); labSel = lg ? { id: g.dataset.id, k: lg.dataset.lab } : null; if (lg) draw();
   contextMenu(e, id || (sel.size === 1 ? Array.from(sel)[0] : null));
 });
 /* Kontrol seperti Figma: scroll = geser (touchpad dua jari juga geser ke segala arah), Ctrl/Cmd + scroll atau cubit touchpad = zoom.
@@ -4506,12 +4633,15 @@ cv.addEventListener('pointerdown', function (e) {
   try { cv.setPointerCapture(e.pointerId); } catch (x) { /* abaikan */ }
   if (e.button === 1 || spaceDown || tool === 'hand') { var v = view(); drag = { t: 'pan', sx: e.clientX, sy: e.clientY, vx: v.x, vy: v.y }; draw(); return; }
   if (e.button !== 0) return;
+  labSel = null;
   var decB = e.target.closest('[data-dec]'); if (decB && tool === 'select') { decompose(decB.dataset.dec); return; }
   var g = e.target.closest('[data-id]'), gid = g && g.dataset.id, hd = e.target.closest('[data-h]');
   var now = Date.now(), dbl = gid && !hd && !e.ctrlKey && !e.metaKey && lastDown.id === gid && now - lastDown.t < 450 && Math.hypot(e.clientX - lastDown.x, e.clientY - lastDown.y) < 6;
   lastDown = { id: gid, t: dbl ? 0 : now, x: e.clientX, y: e.clientY };
   if (dbl && tool === 'select' && !multiPick) { drag = null; startRename(gid); return; }
   if (tool === 'select') {
+    var labG = !isDfd() && !multiPick && !hd && gid && !e.shiftKey && !e.ctrlKey && !e.metaKey && e.target.closest('[data-lab]');
+    if (labG && labDown(e, D, p, gid, labG.dataset.lab)) return;
     if (hd && hd.dataset.e && elOf(D, hd.dataset.e)) {
       var lead = elOf(D, hd.dataset.e), grp = {};
       D.elements.forEach(function (x) { if (sel.has(x.id) && !x.locked) grp[x.id] = { x: x.x, y: x.y, w: x.w, h: x.h }; });
@@ -4572,6 +4702,7 @@ cv.addEventListener('pointermove', function (e) {
   var D = cur(), p = pt(e); lastPt = p;
   if (!drag) { if (tool === 'flow' && flowFrom) draw(); return; }
   var v = view();
+  if (drag.t === 'lab') { labMove(e, D, p); return; }
   if (drag.t === 'pan') { v.x = drag.vx + e.clientX - drag.sx; v.y = drag.vy + e.clientY - drag.sy; v.fresh = false; draw(); }
   else if (drag.t.indexOf('ln') === 0) lnMove(e, D, p);
   else if (drag.t === 'move') {
@@ -4667,6 +4798,7 @@ function endPointer(e) {
     return;
   }
   if (d.t === 'move' && !d.moved && d.unpick) { grpMembers(d.unpick).forEach(function (x) { sel.delete(x); }); panel(); draw(); syncBar(); mpUpdate(); return; }
+  if (d.t === 'lab') { if (d.moved) afterChange(); else draw(); return; }
   if ((d.t === 'move' && d.moved) || ((d.t === 'resize' || d.t === 'bend' || d.t === 'end' || d.t === 'seg') && d.pushed)) afterChange();
   else if (d.t === 'marquee') { grpExpand(sel); panel(); draw(); syncBar(); mpUpdate(); } else draw();
 }
@@ -5017,7 +5149,7 @@ var HELP = {
     '<h4>Menyambung elemen</h4><ul><li>Pilih elemen, lalu <b>seret panah biru</b> di sisinya ke elemen lain. Kalau ada beberapa jenis hubungan (misalnya «include», «extend», Generalization), Alir menanyakan jenisnya.</li>' +
     '<li>Seret panah biru ke <b>area kosong</b> untuk membuat elemen baru yang langsung tersambung (seperti Quick Link di EA).</li>' +
     '<li>Atau pilih jenis garis di Toolbox, klik elemen asal, lalu klik elemen tujuan.</li>' +
-    '<li>Garis dirapikan otomatis setiap ada perubahan. Garis yang kamu atur sendiri tidak diubah. Matikan lewat Susun → Rapikan otomatis.</li></ul><h4>Mengatur garis (seperti EA)</h4><ul><li><b>Seret garisnya langsung</b> untuk menggeser ruas. Kalau ruas di ujung digeser keluar dari objek, tikungan kecil dibuat sendiri; kalau dikembalikan, garis lurus lagi.</li><li><b>Ctrl+klik</b> di garis menambah titik (kotak kecil). Seret titiknya untuk membuat tikungan. Ctrl+klik titiknya untuk menghapus.</li><li>Kotak di <b>ujung garis</b> bisa digeser menyusuri tepi objek. Tarik menjauh dari objek untuk memindah sambungan ke objek lain; lepas di tempat kosong untuk membatalkan.</li><li>Bentuk garis sama seperti EA: Direct / Custom Line, Orthogonal - Square, Orthogonal - Rounded, Tree Style (vertikal/horizontal), dan Lateral (vertikal/horizontal). Pilih di panel kanan atau klik kanan garis.</li><li>Garis yang bersilangan diberi lompatan kecil seperti EA (bisa dimatikan di Format → Preferensi tampilan).</li><li>Tarik panah biru ke tempat kosong: elemen baru muncul tepat di titik kamu melepasnya.</li></ul>' +
+    '<li>Garis dirapikan otomatis setiap ada perubahan. Garis yang kamu atur sendiri tidak diubah. Matikan lewat Susun → Rapikan otomatis.</li></ul><h4>Mengatur garis (seperti EA)</h4><ul><li><b>Seret garisnya langsung</b> untuk menggeser ruas. Kalau ruas di ujung digeser keluar dari objek, tikungan kecil dibuat sendiri; kalau dikembalikan, garis lurus lagi.</li><li>Garis <b>Direct</b> yang lurus digeser sejajar (naik-turun atau kiri-kanan), ujungnya ikut menyusuri tepi objek seperti di EA. Tahan Alt sambil menyeret untuk membuat tikungan.</li><li><b>Label bisa digeser</b>: nama decision, merge, gateway, initial/final, nama garis, [guard], dan «include». Saat dipilih muncul kotak dan garis bantu putus-putus seperti EA. Label ikut bergerak bersama objek atau garisnya, dan posisinya ikut terbawa ke EA. Klik kanan → Kembalikan posisi label untuk mengembalikannya.</li><li><b>Ctrl+klik</b> di garis menambah titik (kotak kecil). Seret titiknya untuk membuat tikungan. Ctrl+klik titiknya untuk menghapus.</li><li>Kotak di <b>ujung garis</b> bisa digeser menyusuri tepi objek. Tarik menjauh dari objek untuk memindah sambungan ke objek lain; lepas di tempat kosong untuk membatalkan.</li><li>Bentuk garis sama seperti EA: Direct / Custom Line, Orthogonal - Square, Orthogonal - Rounded, Tree Style (vertikal/horizontal), dan Lateral (vertikal/horizontal). Pilih di panel kanan atau klik kanan garis.</li><li>Garis yang bersilangan diberi lompatan kecil seperti EA (bisa dimatikan di Format → Preferensi tampilan).</li><li>Tarik panah biru ke tempat kosong: elemen baru muncul tepat di titik kamu melepasnya.</li></ul>' +
     '<h4>Swimlane, pool, dan batas sistem</h4><ul><li>Seperti di EA, tiap <b>partition</b> (swimlane) adalah elemen sendiri, bukan satu tabel. Klik di dekat partition lain untuk menaruh partition baru menempel di sampingnya.</li><li>Saat digeser atau diubah ukurannya, tepinya <b>menempel otomatis</b> ke partition lain (seperti opsi Dockable di EA). Tahan Alt untuk mematikan.</li><li>Klik kanan partition → <b>Rapatkan semua partition</b> untuk menjejerkan tanpa celah dan menyamakan tingginya. Klik kanan → Jadikan mendatar/tegak untuk mengubah arah.</li><li>Lane yang ditaruh di dalam pool otomatis menyesuaikan lebar pool.</li><li>Geser bingkai lewat <b>judul atau tepinya</b>. Isi di dalamnya ikut berpindah.</li></ul>' +
     '<h4>Ke Enterprise Architect</h4><ul><li><b>Buka .eap</b>: Berkas → Buka. Activity, Use Case, dan BPMN dibaca, diagram jenis lain dilewati.</li><li><b>Ekspor ke EA</b> (Ctrl+S) membuat berkas .xml (XMI) untuk diimpor ke EA. Langkahnya ditampilkan di jendela ekspor.</li><li>Untuk laporan: Berkas → Ekspor semua ke PDF atau PNG.</li></ul>',
   tentang: '<p><b>Alir</b> adalah editor diagram di browser: DFD yang bisa membuka dan menyimpan berkas <b>.pam</b> PowerDesigner 6, serta Activity, Use Case, dan BPMN yang bisa membuka <b>.eap</b> dan mengekspor ke Enterprise Architect.</p><p><b>Jangan jadikan Alir sebagai patokan.</b> Alir bukan produk resmi PowerDesigner, SAP, atau Sparx Systems. Selalu buka hasil akhir di aplikasi aslinya sebelum dikumpulkan.</p><p>Semua data tersimpan di browser masing-masing pengguna. Tidak ada yang dikirim ke server.</p>'
