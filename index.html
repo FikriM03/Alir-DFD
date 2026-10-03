@@ -1749,7 +1749,9 @@ function outsideLabel(e, st, pos) {
   return tblock(lines, cx, cy, f, st.text);
 }
 /* ---------- tipe elemen ---------- */
-function T(o) { return Object.assign({ geom: 'rect', size: [110, 45], grow: true, font: ufont(true) }, o); }
+/* nama elemen bawaan tidak tebal (lebih ringan dibaca); judul partition tetap tebal. Bisa diubah di Preferensi tampilan. */
+var BOLD_NAMES = ['action', 'object', 'datastore', 'usecase', 'actor'];
+function T(o) { return Object.assign({ geom: 'rect', size: [110, 45], grow: true, font: ufont(false) }, o); }
 TT.action = T({ k: 'activity', label: 'Activity', name: 'Aktivitas', ea: 'Activity', icon: '<rect x="3.5" y="6.5" width="17" height="11" rx="4"/>',
   draw: function (e, st) { var r = Math.min(15, e.h / 2.6, e.w / 4); return '<rect x="' + e.x + '" y="' + e.y + '" width="' + e.w + '" height="' + e.h + '" rx="' + r + '" fill="' + fillOf(st) + '" stroke="' + st.stroke + '"' + shadowAttr() + '/>' + topText(e, e.w - 8, st.font, st.text); } });
 TT.initial = T({ k: 'activity', label: 'Initial', name: 'Mulai', ea: 'StateNode', nType: 100, geom: 'dot', size: [20, 20], grow: false, fill: '#000000', font: ufont(false), lpos: 'bottom', icon: '<circle cx="12" cy="12" r="6" fill="currentColor"/>',
@@ -1803,7 +1805,7 @@ TT.partition = T({ k: 'activity', label: 'Partition (swimlane)', name: 'Partisi'
 TT.note = T({ k: 'any', label: 'Note', name: 'Catatan', ea: 'Note', size: [130, 60], font: ufont(false), icon: '<path d="M5 3.5h10l4 4v13H5z"/><path d="M15 3.5v4h4"/>',
   draw: function (e, st) { var c = 10; return '<path d="M' + e.x + ' ' + e.y + 'H' + (e.x + e.w - c) + 'L' + (e.x + e.w) + ' ' + (e.y + c) + 'V' + (e.y + e.h) + 'H' + e.x + 'z" fill="' + st.fill + '" stroke="' + st.stroke + '"/><path d="M' + (e.x + e.w - c) + ' ' + e.y + 'V' + (e.y + c) + 'H' + (e.x + e.w) + '" fill="none" stroke="' + st.stroke + '"/>' + leftText(wrap(e.name, e.w - 22, st.font), e.x + 6, e.y + 6, st.font, st.text); } });
 /* use case */
-TT.actor = T({ k: 'usecase', label: 'Actor', name: 'Aktor', ea: 'Actor', size: [34, 66], grow: false, font: ufont(true), icon: '<circle cx="12" cy="5.5" r="2.6"/><path d="M12 8v7M7 11h10M12 15l-4 6M12 15l4 6"/>',
+TT.actor = T({ k: 'usecase', label: 'Actor', name: 'Aktor', ea: 'Actor', size: [34, 66], grow: false, font: ufont(false), icon: '<circle cx="12" cy="5.5" r="2.6"/><path d="M12 8v7M7 11h10M12 15l-4 6M12 15l4 6"/>',
   draw: function (e, st) {
     /* seperti EA: orang-orangan di bagian atas kotak, nama di bagian bawah kotak */
     var cx = e.x + e.w / 2, y0 = e.y + e.h * .13, y1 = e.y + e.h * .7, fh = y1 - y0, hw = e.w * .34, hr = Math.min(fh * .17, e.w * .2), hy = y0 + hr, arm = y0 + fh * .42, hip = y0 + fh * .66, sw = 1;
@@ -1941,7 +1943,8 @@ function normEa(d) {
   /* versi lama Alir menyimpan warna bawaan sendiri (krem, garis abu tua): ganti ke warna EA */
   var OLD = { fill: ['#f6dfbd', '#fffbe6', '#ffffff'], stroke: ['#3b3b3b'] };
   Object.keys(d.defaults).forEach(function (k) { var o = d.defaults[k]; if (!o || k === 'flow' || !def[k]) return; if (OLD.fill.indexOf(String(o.fill).toLowerCase()) >= 0 || (o.fill === '#000000' && (k === 'final' || k === 'fork' || k === 'forkv'))) delete o.fill; if (OLD.stroke.indexOf(String(o.stroke).toLowerCase()) >= 0) delete o.stroke; if (o.font && ['pool', 'lane'].indexOf(k) >= 0 && o.font.b && !d.themeV) o.font.b = false; if (o.font && k === 'partition' && (d.themeV || 0) < 3) o.font.b = true; });
-  d.themeV = 3;
+  if ((d.themeV || 0) < 4) BOLD_NAMES.forEach(function (k) { var o = d.defaults[k]; if (o && o.font && o.font.b) o.font.b = false; });
+  d.themeV = 4;
   Object.keys(def).forEach(function (k) { d.defaults[k] = Object.assign(def[k], d.defaults[k] || {}); });
   d.packages = d.packages && d.packages.length ? d.packages : [{ id: 'p1', name: d.name || 'Proyek EA', parent: null }];
   d.diagrams.forEach(function (x) {
@@ -2675,14 +2678,14 @@ function renameDiagramModal() {
 }
 function umlDisplayPrefs() {
   var P = doc.prefs;
-  modal('Preferensi tampilan', '<div class="sec"><label class="cbx"><input type="checkbox" id="up-sh"' + (P.shadow !== false ? ' checked' : '') + '> Bayangan pada elemen (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-jp"' + (P.jumps !== false ? ' checked' : '') + '> Lompatan di persilangan garis (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-fr"' + (P.frame !== false ? ' checked' : '') + '> Bingkai dan tab nama diagram saat ekspor gambar/PDF (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-gr"' + (P.gradient !== false ? ' checked' : '') + '> Warna gradasi krem (seperti EA)</label></div>' +
+  modal('Preferensi tampilan', '<div class="sec"><label class="cbx"><input type="checkbox" id="up-sh"' + (P.shadow !== false ? ' checked' : '') + '> Bayangan pada elemen (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-jp"' + (P.jumps !== false ? ' checked' : '') + '> Lompatan di persilangan garis (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-fr"' + (P.frame !== false ? ' checked' : '') + '> Bingkai dan tab nama diagram saat ekspor gambar/PDF (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-bn"' + (doc.defaults.action && doc.defaults.action.font && doc.defaults.action.font.b ? ' checked' : '') + '> Nama activity, object, use case, dan aktor tebal (persis EA)</label><label class="cbx"><input type="checkbox" id="up-bp"' + (doc.defaults.partition && doc.defaults.partition.font && doc.defaults.partition.font.b ? ' checked' : '') + '> Judul partition tebal</label><label class="cbx"><input type="checkbox" id="up-gr"' + (P.gradient !== false ? ' checked' : '') + '> Warna gradasi krem (seperti EA)</label></div>' +
     '<div class="sec"><h3>Warna semua elemen</h3><div class="row"><button class="btn" data-pre="ea">Bawaan EA (krem)</button><button class="btn" data-pre="mono">Hitam putih (laporan)</button></div><p class="hint">Warna yang diatur per elemen lewat bilah Format tetap dipakai, kecuali kamu memilih salah satu tombol di atas.</p></div>',
     '<button class="btn" data-close>Batal</button><button class="btn pri" data-ok>Terapkan</button>', function (s, close) {
       var pre = null;
       s.addEventListener('click', function (e) { var b = e.target.closest('[data-pre]'); if (b) { pre = b.dataset.pre; $$('[data-pre]', s).forEach(function (x) { x.classList.toggle('pri', x === b); }); } });
       $('[data-ok]', s).addEventListener('click', function () {
         mutate(function () {
-          P.shadow = $('#up-sh', s).checked; P.gradient = $('#up-gr', s).checked; P.jumps = $('#up-jp', s).checked; P.frame = $('#up-fr', s).checked;
+          P.shadow = $('#up-sh', s).checked; P.gradient = $('#up-gr', s).checked; P.jumps = $('#up-jp', s).checked; P.frame = $('#up-fr', s).checked; var bn = $('#up-bn', s).checked; BOLD_NAMES.forEach(function (k) { if (doc.defaults[k]) doc.defaults[k].font = Object.assign({}, doc.defaults[k].font, { b: bn }); }); if (doc.defaults.partition) doc.defaults.partition.font = Object.assign({}, doc.defaults.partition.font, { b: $('#up-bp', s).checked });
           if (pre) {
             doc.defaults = eaDefaults();
             if (pre === 'mono') Object.keys(TT).forEach(function (k) { var dd = doc.defaults[k]; if (dd.fill !== 'none' && dd.fill !== '#000000') dd.fill = '#ffffff'; dd.stroke = '#000000'; });
