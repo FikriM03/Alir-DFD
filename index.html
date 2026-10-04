@@ -1829,7 +1829,7 @@ function layoutRadial(D, I, core, stores, left, right, col) {
   return true;
 }
 function arrange(D, mode, opt) {
-  if (mode === 'prop') { propLayout(D); var rr = autoRoute(D, opt); propPost(D); return rr; }
+  if (mode === 'prop') { adRouted = null; propLayout(D); if (adRouted === D.id) { adRouted = null; return null; } var rr = autoRoute(D, opt); propPost(D); return rr; }
   if (mode && mode !== 'keep') {
     var sz = D.elements.map(function (e) { return [e, e.w, e.h]; });
     layoutDiagram(D, mode);
@@ -3923,16 +3923,17 @@ function scMakeActivity(u, name) {
 }
 function scMakeUseCase(list) {
   var D = newDiagram('usecase'); D.name = 'Use Case Diagram';
-  var actors = []; list.forEach(function (u) { if (actors.indexOf(u.actor) < 0) actors.push(u.actor); });
-  var uw = 160, uh = 60, gap = 24, per = Math.ceil(list.length / 2), bx = 220, by = 40, bw = uw * 2 + 90, bh = per * (uh + gap) + 60;
-  var bnd = { id: uid('e'), type: 'boundary', name: 'Sistem', x: bx, y: by, w: bw, h: bh, style: {} }, els = [bnd], flows = [], am = {};
-  actors.forEach(function (a, i) { var e = { id: uid('e'), type: 'actor', name: a, x: 80, y: Math.round(by + (bh / (actors.length + 1)) * (i + 1) - 40), w: 34, h: 66, style: {} }; am[a] = e; els.push(e); });
-  list.forEach(function (u, i) {
-    var col = i < per ? 0 : 1, r = i < per ? i : i - per;
-    var e = { id: uid('e'), type: 'usecase', name: u.name, x: bx + 30 + col * (uw + 30), y: by + 40 + r * (uh + gap), w: uw, h: uh, style: {} };
-    els.push(e); flows.push({ id: uid('f'), kind: 'assoc', from: am[u.actor].id, to: e.id, name: '', bends: [], style: {} });
+  var bnd = { id: uid('e'), type: 'boundary', name: 'Sistem', x: 220, y: 40, w: 400, h: 400, style: {} }, els = [bnd], flows = [], am = {}, um = {};
+  list.forEach(function (u) {
+    if (!am[u.actor]) { var a = { id: uid('e'), type: 'actor', name: u.actor, x: 80, y: 80, w: 34, h: 66, style: {} }; am[u.actor] = a; els.push(a); }
+    /* use case bernama sama (mis. dipakai dua aktor) cukup satu elips */
+    var k = String(u.name).toLowerCase().trim(), e = um[k];
+    if (!e) { e = um[k] = { id: uid('e'), type: 'usecase', name: u.name, x: 260, y: 80, w: 150, h: 60, style: {} }; els.push(e); }
+    if (!flows.some(function (f) { return f.from === am[u.actor].id && f.to === e.id; })) flows.push({ id: uid('f'), kind: 'assoc', from: am[u.actor].id, to: e.id, name: '', bends: [], style: { route: 0 } });
   });
-  D.elements = els; D.flows = flows; return D;
+  D.elements = els; D.flows = flows;
+  try { ucLayout(D); } catch (err) { /* susunan awal */ }
+  return D;
 }
 function scGenerate(list, withUc) {
   var made = [], seen = {};
@@ -3940,7 +3941,7 @@ function scGenerate(list, withUc) {
     list.forEach(function (u) {
       var nm = u.name; if (seen[nm]) nm += ' (' + u.actor + ')'; while (seen[nm]) nm += ' 2'; seen[nm] = 1;
       var D = scMakeActivity(u, nm); made.push(D);
-      try { autoRoute(D, {}); propPost(D); } catch (err) { /* garis dirapikan otomatis nanti */ }
+      try { if (adRouted !== D.id) { autoRoute(D, {}); propPost(D); } adRouted = null; } catch (err) { /* garis dirapikan otomatis nanti */ }
     });
     if (withUc && list.length) made.unshift(scMakeUseCase(list));
     if (made.length) { active = made[made.length > 1 && withUc ? 1 : 0].id; sel.clear(); made.forEach(function (D) { views[D.id] = { x: 0, y: 0, k: 1, fresh: true }; }); }
@@ -4495,7 +4496,7 @@ function propTextW(e, maxW) { var f = propFont(e), L = wrap(e.name || '', maxW, 
 function flowLabelsW(D, ids) { var m = 0; D.flows.forEach(function (f) { if (ids && !ids(f)) return; var t = f.name || ''; if (t) m = Math.max(m, textW(t, fontCss(fs(f).font))); }); return m; }
 
 /* ---------- Activity ---------- */
-function adLayout(D, opt) {
+function adLayout1(D, opt) {
   opt = opt || {};
   var nodes = D.elements.filter(function (e) { return !isContainer(e) && !isNoteish(e); }); if (!nodes.length) return false;
   var lanes = opt.lanes || D.elements.filter(function (e) { return e.type === 'partition' && !e.horiz; }).sort(function (a, b) { return a.x - b.x; });
@@ -4577,6 +4578,9 @@ function adLayout(D, opt) {
   adPost = { d: D.id, rank: rank, ry: ry, rh: rh, back: Array.from(back), laneIx: laneIx, lanes: lanes.map(function (p) { return p.id; }), x0: x0, laneW: laneW, nL: nL };
   return true;
 }
+/* versi baru (layout2.js) dicoba dulu; kalau gagal, cara lama */
+var adRouted = null;
+function adLayout(D, opt) { adRouted = null; try { if (!window.AD2_OFF && adLayout2(D, opt)) { adRouted = D.id; return true; } } catch (err) { if (window.console) console.error(err); } return adLayout1(D, opt); }
 /* garis kembali (perulangan) di lane yang sama dibuat lewat jalur luar lane, tidak menyelip di antara kotak */
 var adPost = null;
 function propPost(D) {
@@ -4617,7 +4621,8 @@ function propPost(D) {
 }
 
 /* ---------- DFD ---------- */
-function dfdLayout(D) {
+function dfdLayout1(D, PP) {
+  PP = PP || {}; var VG = PP.vg || 1, EG = PP.eg || 1, FL = PP.flip || {}, HUB = PP.hub || {};
   var procs = D.elements.filter(function (e) { return e.type === 'process'; }), ents = D.elements.filter(function (e) { return e.type === 'entity' || e.type === 'offpage' || e.type === 'spmg'; }), stores = D.elements.filter(function (e) { return e.type === 'store'; });
   if (!procs.length) return false;
   procs.sort(function (a, b) { var x = String(a.num || ''), y = String(b.num || ''); return x.localeCompare(y, undefined, { numeric: true }) || a.y - b.y; });
@@ -4630,13 +4635,15 @@ function dfdLayout(D) {
   stores.forEach(function (s) { var t = propTextW(s, 160); s.w = Math.max(120, Math.min(190, Math.round(t.w + 60))); s.h = Math.max(30, Math.round(t.n * t.lh + 14)); });
   /* data store: di bawah proses yang paling sering dihubunginya */
   var band = procs.map(function () { return []; });
-  stores.forEach(function (s) { var bi = 0, bn = -1; procs.forEach(function (p, i) { var n = nb[s.id][p.id] || 0; if (n > bn) { bn = n; bi = i; } }); band[bi].push(s); });
+  /* data store yang dipakai banyak proses (HUB): di kolom samping proses, setinggi rata-rata proses yang memakainya */
+  var hubL = [], hubR = [];
+  stores.forEach(function (s) { if (HUB[s.id]) { (HUB[s.id] < 0 ? hubL : hubR).push(s); return; } var bi = 0, bn = -1; procs.forEach(function (p, i) { var n = nb[s.id][p.id] || 0; if (n > bn) { bn = n; bi = i; } }); band[bi].push(s); });
   var PW = Math.max.apply(null, procs.map(function (p) { return p.w; })), stGap = 30;
   var rows = [], y = 0;
   procs.forEach(function (p, i) {
     var bw = band[i].reduce(function (s, e) { return s + e.w + stGap; }, -stGap), bh = band[i].length ? Math.max.apply(null, band[i].map(function (e) { return e.h; })) : 0;
     var deg = Object.keys(nb[p.id]).length;
-    rows.push({ p: p, y: y, bw: bw }); y += p.h + (bh ? 70 + bh + 60 : 90) + Math.max(0, deg - 5) * 6;
+    rows.push({ p: p, y: y, bw: bw }); y += p.h + (bh ? 70 * VG + bh + 60 * VG : 90 * VG) + Math.max(0, deg - 5) * 6;
   });
   var total = y - 90;
   /* entitas kiri / kanan seimbang; yang lebih banyak mengirim data ke kiri */
@@ -4645,18 +4652,27 @@ function dfdLayout(D) {
     var out = 0, inn = 0; D.flows.forEach(function (f) { if (f.from === e.id) out++; if (f.to === e.id) inn++; });
     var pref = out >= inn ? -1 : 1;
     if (pref < 0 && left.length > right.length) pref = 1; else if (pref > 0 && right.length > left.length) pref = -1;
+    if (FL[e.id]) pref = -pref;
     (pref < 0 ? left : right).push(e);
   });
   function bary(e) { var s = 0, n = 0; rows.forEach(function (r) { var k = nb[e.id][r.p.id] || 0; s += k * (r.y + r.p.h / 2); n += k; }); return n ? s / n : total / 2; }
   var lw = flowLabelsW(D, function (f) { return left.some(function (e) { return e.id === f.from || e.id === f.to; }); }), rw = flowLabelsW(D, function (f) { return right.some(function (e) { return e.id === f.from || e.id === f.to; }); });
   var maxBand = Math.max.apply(null, rows.map(function (r) { return r.bw; }).concat([0]));
   var LW = left.length ? Math.max.apply(null, left.map(function (e) { return e.w; })) : 0;
-  var xP = LW ? LW + Math.max(120, lw + 70) : 0, cP = xP + Math.max(PW, maxBand) / 2;
-  var xR = cP + Math.max(PW, maxBand) / 2 + Math.max(120, rw + 70);
+  var hW = function (L) { return L.length ? Math.max.apply(null, L.map(function (e) { return e.w; })) : 0; }, hLW = hW(hubL), hRW = hW(hubR), gH = Math.max(110 * EG, flowLabelsW(D, function (f) { return stores.some(function (e) { return HUB[e.id] && (e.id === f.from || e.id === f.to); }); }) + 50);
+  var xP = (LW ? LW + Math.max(120 * EG, lw + 70) : 0) + (hLW ? hLW + gH : 0), cP = xP + Math.max(PW, maxBand) / 2;
+  var xR = cP + Math.max(PW, maxBand) / 2 + (hRW ? gH + hRW : 0) + Math.max(120 * EG, rw + 70);
   rows.forEach(function (r) {
     r.p.x = Math.round(cP - r.p.w / 2); r.p.y = Math.round(r.y);
     var x = cP - r.bw / 2; band[procs.indexOf(r.p)].forEach(function (s) { s.x = Math.round(x); s.y = Math.round(r.y + r.p.h + 70); x += s.w + stGap; });
   });
+  function hubCol(L, cx) {
+    var it = L.map(function (e) { return { e: e, c: bary(e) }; }).sort(function (a, b) { return a.c - b.c; });
+    it.forEach(function (q) { q.y = q.c - q.e.h / 2; });
+    for (var k = 0; k < 40; k++) { var mv = false; for (var i = 1; i < it.length; i++) { var need = it[i - 1].y + it[i - 1].e.h + 40 - it[i].y; if (need > 0) { it[i - 1].y -= need / 2; it[i].y += need / 2; mv = true; } } if (!mv) break; }
+    it.forEach(function (q) { q.e.x = Math.round(cx - q.e.w / 2); q.e.y = Math.round(q.y); });
+  }
+  hubCol(hubL, cP - Math.max(PW, maxBand) / 2 - gH - hLW / 2); hubCol(hubR, cP + Math.max(PW, maxBand) / 2 + gH + hRW / 2);
   function column(list, xFor) {
     var it = list.map(function (e) { var w = 0; Object.keys(nb[e.id]).forEach(function (k) { w += nb[e.id][k]; }); return { e: e, c: bary(e), w: w }; }).sort(function (a, b) { return a.c - b.c; }), gap = 40;
     /* entitas dengan ketinggian sama: yang alurnya paling banyak di tengah, supaya garisnya lurus */
@@ -4672,15 +4688,648 @@ function dfdLayout(D) {
   D.flows.forEach(function (f) { f.bends = []; delete f.sa; delete f.ta; delete f.manual; });
   return true;
 }
-function propLayout(D) { return isDfd() ? dfdLayout(D) : (D.kind === 'activity' ? adLayout(D) : false); }
+/* DFD: beberapa susunan dicoba (jarak antarbaris, jarak entitas, entitas ditukar kiri/kanan), garis dirute, lalu dinilai */
+/* rute DFD dengan perute berbobot (layout2.js): tiap garis memilih sisi & titik tempel yang tidak bertumpuk/bersilang */
+function dfdRoute(D, fast) {
+  var els = D.elements.filter(function (e) { return !isDeco(e); }).map(function (e) { return { id: e.id, type: e.type, x: e.x, y: e.y, w: e.w, h: e.h }; });
+  var xs = [], ys = []; els.forEach(function (b) { xs.push(b.x - 18, b.x + b.w + 18, b.x + b.w / 2); ys.push(b.y - 18, b.y + b.h + 18, b.y + b.h / 2); });
+  var rt = orRouter(els, { tracksX: xs, tracksY: ys, maxTracks: fast ? 10 : 0, w: { cross: 700, bend: 40, side: 60 },
+    offs: function (e, s) { var L = orH(s) ? e.h : e.w; if (fast) return L >= 40 ? [0, -Math.round(L / 5), Math.round(L / 5)] : [0]; if (e.type === 'store' && !orH(s)) return [0, -Math.round(e.w / 4), Math.round(e.w / 4), -Math.round(e.w / 8), Math.round(e.w / 8)]; return L >= 60 ? [0, -Math.round(L / 6), Math.round(L / 6), -Math.round(L / 3.2), Math.round(L / 3.2)] : L >= 40 ? [0, -Math.round(L / 5), Math.round(L / 5)] : [0]; },
+    sides: function (e) { return e.type === 'offpage' || e.type === 'spmg' ? ['n', 's', 'e', 'w'] : ['n', 's', 'e', 'w']; } });
+  var by = {}; els.forEach(function (e) { by[e.id] = e; });
+  var list = D.flows.filter(function (f) { return by[f.from] && by[f.to] && f.from !== f.to; });
+  /* garis pendek dulu (antar objek bertetangga), yang jauh belakangan */
+  list.sort(function (a, b) { function d(f) { var A = by[f.from], B = by[f.to]; return Math.abs(A.x + A.w / 2 - B.x - B.w / 2) + Math.abs(A.y + A.h / 2 - B.y - B.h / 2); } return d(a) - d(b); });
+  var out = {}; list.forEach(function (f) { var r = rt.route({ id: f.id, from: f.from, to: f.to, label: !!(f.name || '').trim() }); if (r) out[f.id] = r.P; });
+  return { routes: out, total: rt.total() };
+}
+function dfdApplyRoutes(D, RR) {
+  var byE = {}; D.elements.forEach(function (e) { byE[e.id] = e; });
+  D.flows.forEach(function (f) { var P = RR.routes[f.id]; if (!P) return; var RA = rect(byE[f.from]), RB = rect(byE[f.to]);
+    f.bends = P.slice(1, -1).map(function (q) { return { x: Math.round(q.x), y: Math.round(q.y) }; }); f.sa = lnAnchor(RA, P[0]); f.ta = lnAnchor(RB, P[P.length - 1]); f.manual = true; f.style = f.style || {}; f.style.route = 1; });
+}
+function dfdScore(D) {
+  if (DFD_V2) { var RR = dfdRoute(D, true), b0 = 0; dfdEvals++; var bb0 = D.elements.reduce(function (m, e) { return { l: Math.min(m.l, e.x), t: Math.min(m.t, e.y), r: Math.max(m.r, e.x + e.w), b: Math.max(m.b, e.y + e.h) }; }, { l: 1e9, t: 1e9, r: -1e9, b: -1e9 }); return RR.total + (bb0.r - bb0.l) * (bb0.b - bb0.t) * .002; }
+  autoRoute(D, { ortho: true, gap: 24 });
+  var R = routeAll(D), list = Array.from(R.values()), x = 0, hits = 0, len = 0, obs = obstaclesOf(D);
+  for (var i = 0; i < list.length; i++) for (var j = i + 1; j < list.length; j++) x += crossings(list[i].pts, list[j].pts);
+  D.flows.forEach(function (f) { var r = R.get(f.id); if (!r) return; var sk = {}; sk[f.from] = 1; sk[f.to] = 1; hits += routeHits(r.pts, obs, sk); len += polyLen(r.pts); });
+  var b = bbox(D, R); return x * 600 + hits * 4000 + len * .25 + (b ? b.w * b.h * .002 : 0);
+}
+function dfdLayout(D) {
+  var ents = D.elements.filter(function (e) { return e.type === 'entity'; });
+  if (D.elements.length > 70) return dfdLayout1(D, {});
+  var keep = D.flows.map(function (f) { return [f, JSON.stringify({ b: f.bends, sa: f.sa, ta: f.ta, m: f.manual })]; });
+  var best = null;
+  dfdEvals = 0; var T0 = Date.now();
+  function tryP(PP) { if (best && (dfdEvals >= 40 || Date.now() - T0 > 2500)) return null; if (!dfdLayout1(D, PP)) return null; var sc = dfdScore(D); if (!best || sc < best.sc) best = { sc: sc, PP: PP }; return sc; }
+  [[1, 1], [.75, 1], [1, .8], [.75, .8], [.6, .7]].forEach(function (q) { tryP({ vg: q[0], eg: q[1], flip: {} }); });
+  if (!best) return false;
+  var procIds = {}; D.elements.forEach(function (e) { if (e.type === 'process') procIds[e.id] = 1; });
+  var multi = D.elements.filter(function (e) { if (e.type !== 'store') return false; var ps = {}; D.flows.forEach(function (f) { if (f.from === e.id && procIds[f.to]) ps[f.to] = 1; if (f.to === e.id && procIds[f.from]) ps[f.from] = 1; }); return Object.keys(ps).length >= 2; });
+  function withP(o) { return { vg: best.PP.vg, eg: best.PP.eg, flip: Object.assign({}, best.PP.flip), hub: Object.assign({}, best.PP.hub || {}), o: o }; }
+  for (var pass = 0; pass < 3; pass++) {
+    var improved = false;
+    multi.forEach(function (st) { [1, -1, 0].forEach(function (sd) { var q = withP(); if (sd) q.hub[st.id] = sd; else delete q.hub[st.id]; var b0 = best.sc; tryP(q); if (best.sc < b0) improved = true; }); });
+    ents.forEach(function (e) { var q = withP(); if (q.flip[e.id]) delete q.flip[e.id]; else q.flip[e.id] = 1; var b0 = best.sc; tryP(q); if (best.sc < b0) improved = true; });
+    [[1, 1], [.75, 1], [.75, .8], [.6, .7]].forEach(function (g) { var q = withP(); q.vg = g[0]; q.eg = g[1]; var b0 = best.sc; tryP(q); if (best.sc < b0) improved = true; });
+    if (!improved) break;
+  }
+  keep.forEach(function (q) { var o = JSON.parse(q[1]); q[0].bends = o.b || []; if (o.sa) q[0].sa = o.sa; else delete q[0].sa; if (o.ta) q[0].ta = o.ta; else delete q[0].ta; if (o.m) q[0].manual = o.m; else delete q[0].manual; });
+  dfdLast = { sc: Math.round(best.sc), PP: best.PP, evals: dfdEvals, ms: Date.now() - T0 };
+  var ok = dfdLayout1(D, best.PP);
+  if (ok && DFD_V2) { dfdApplyRoutes(D, dfdRoute(D)); adRouted = D.id; }
+  return ok;
+}
+var dfdLast = null, DFD_V2 = true, dfdEvals = 0;
+function propLayout(D) { if (isDfd()) return dfdLayout(D); if (D.kind === 'activity') return adLayout(D); if (D.kind === 'usecase') { adRouted = D.id; return ucLayout(D); } if (D.kind === 'bpmn') { adRouted = D.id; return bpmnLayout(D); } return false; }
 function relayout() {
   var D = cur();
-  if (!isDfd() && D.kind !== 'activity') { toast('Rapikan tata letak saat ini untuk Activity Diagram dan DFD.'); return; }
+  if (!isDfd() && ['activity', 'usecase', 'bpmn'].indexOf(D.kind) < 0) { toast('Diagram jenis ini belum bisa dirapikan otomatis.'); return; }
   if (!D.elements.length) { toast('Diagram masih kosong.'); return; }
-  mutate(function () { propLayout(D); autoRoute(D, isDfd() ? { ortho: true, gap: 24 } : {}); propPost(D); });
+  mutate(function () { propLayout(D); if (adRouted !== D.id) { autoRoute(D, isDfd() ? { ortho: true, gap: 24 } : {}); propPost(D); } adRouted = null; });
   fit(); toast('Tata letak dirapikan: objek dipindah supaya seimbang dan garis lebih lurus. Ctrl+Z untuk membatalkan.');
 }
-function umlTidyModes() { var D = cur(); return D && D.kind === 'activity' ? [['prop', 'Proporsional (pindahkan objek)', 'Alur utama lurus di tengah lane, pindah lane dibuat sebaris, cabang di samping, lebar lane sama.']] : []; }
+function umlTidyModes() { var D = cur(); if (!D) return []; if (D.kind === 'activity') return [['prop', 'Ringkas gaya EA (pindahkan objek)', 'Alur utama lurus di tengah lane, kotak ringkas, lane selebar isinya, cabang di samping decision, garis siku tanpa silang bila bisa.']]; if (D.kind === 'usecase') return [['prop', 'Rapikan Use Case (pindahkan objek)', 'Aktor di kiri/kanan, use case berjajar di dalam batas sistem, garis lurus tanpa silang.']]; if (D.kind === 'bpmn') return [['prop', 'Rapikan BPMN (pindahkan objek)', 'Alur kiri ke kanan di dalam lane, gateway sebaris, garis siku.']]; return []; }
+
+/* ================= Perapian v2: tata letak ringkas gaya EA + perute garis siku berbobot =================
+   Prinsip (dari contoh EA yang disukai pemilik):
+   - kotak aktivitas ringkas (lebar tetap ±130, teks panjang menambah tinggi, bukan lebar)
+   - alur utama lurus di TENGAH lane-nya; lane selebar isinya saja (tidak ada lane kosong melebar)
+   - perpindahan lane: mendatar kalau bisa, kalau tidak bentuk L (turun dari bawah kotak, masuk dari samping)
+   - cabang decision di kolom samping, sebaris dengan decision-nya; sisi kiri/kanan dipilih otomatis
+   - beberapa susunan dicoba lalu dinilai (silang garis, tikungan, garis menembus kotak, luas, keseimbangan);
+     yang nilainya terbaik dipakai. Rute garis disimpan sebagai titik belok + titik tempel (manual), jadi
+     ekspor ke EA tetap memakai format yang sama. */
+var OR_NRM = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] };
+function orH(s) { return s === 'e' || s === 'w'; }
+function orBox(e) { return { l: e.x, t: e.y, r: e.x + e.w, b: e.y + e.h, cx: e.x + e.w / 2, cy: e.y + e.h / 2 }; }
+function orPort(e, s, off) {
+  off = off || 0;
+  if (s === 'n') return { x: e.x + e.w / 2 + off, y: e.y };
+  if (s === 's') return { x: e.x + e.w / 2 + off, y: e.y + e.h };
+  if (s === 'e') return { x: e.x + e.w, y: e.y + e.h / 2 + off };
+  return { x: e.x, y: e.y + e.h / 2 + off };
+}
+/* ruas sejajar sumbu menembus kotak (diperkecil pad) */
+function orSegHit(a, b, B, pad) {
+  var l = B.l + pad, r = B.r - pad, t = B.t + pad, bt = B.b - pad;
+  if (Math.abs(a.y - b.y) < .5) { var x0 = Math.min(a.x, b.x), x1 = Math.max(a.x, b.x); return a.y > t && a.y < bt && x1 > l && x0 < r; }
+  var y0 = Math.min(a.y, b.y), y1 = Math.max(a.y, b.y); return a.x > l && a.x < r && y1 > t && y0 < bt;
+}
+function orClean(P) {
+  var o = [];
+  P.forEach(function (q) { var l = o[o.length - 1]; if (l && Math.abs(l.x - q.x) < .5 && Math.abs(l.y - q.y) < .5) return; o.push({ x: Math.round(q.x), y: Math.round(q.y) }); });
+  for (var i = o.length - 2; i >= 1; i--) { var a = o[i - 1], b = o[i], c = o[i + 1]; if ((a.x === b.x && b.x === c.x) || (a.y === b.y && b.y === c.y)) o.splice(i, 1); }
+  return o;
+}
+/* Perute: kotak (els), garis (edges: {id, from, to, back?, label?}), opt {sides(e) → sisi yang boleh, tracksX, tracksY}
+   Tiap garis dicoba banyak bentuk (lurus, L, Z, U, memutar) lalu dipilih biaya terendah terhadap garis yang sudah dipasang. */
+function orRouter(els, opt) {
+  opt = opt || {};
+  var byId = {}, segs = [], used = {}, total = 0;
+  els.forEach(function (e) { byId[e.id] = e; used[e.id] = {}; });
+  var W = { len: .5, bend: 34, hit: 6000, cross: 600, over: 2500, near: 140, side: 160, port: 2400, up: 0.6, shortLab: 220 };
+  if (opt.w) Object.keys(opt.w).forEach(function (k) { W[k] = opt.w[k]; });
+  var pen = 0;
+  var boxes = els.map(function (e) { return { id: e.id, B: orBox(e) }; });
+  function sidesOf(e) { return opt.sides ? opt.sides(e) : ['n', 's', 'e', 'w']; }
+  function offsOf(e, s) { return opt.offs ? opt.offs(e, s) : [0]; }
+  function cost(P, A, Bn, ed, lim) {
+    var c = 0, n = P.length;
+    for (var i0 = 0; i0 < n - 1; i0++) c += (Math.abs(P[i0].x - P[i0 + 1].x) + Math.abs(P[i0].y - P[i0 + 1].y)) * W.len;
+    c += (n - 2) * W.bend; var geo = c; if (c > lim) return c;
+    for (var i = 0; i < n - 1; i++) {
+      var a = P[i], b = P[i + 1];
+      if (c > lim) return c;
+      if (ed && !ed.back && b.y < a.y - .5) c += (a.y - b.y) * W.up;
+      for (var k = 0; k < boxes.length; k++) {
+        var q = boxes[k];
+        if (q.id === A.id && i === 0) continue; if (q.id === Bn.id && i === n - 2) continue;
+        if (orSegHit(a, b, q.B, q.id === A.id || q.id === Bn.id ? 1 : -4)) c += W.hit;
+      }
+      var hz = Math.abs(a.y - b.y) < .5;
+      for (var j = 0; j < segs.length; j++) {
+        var s = segs[j], shz = Math.abs(s.a.y - s.b.y) < .5;
+        if (hz === shz) {
+          /* sejajar: tumpuk (garis berimpit) atau terlalu dekat */
+          var d = hz ? Math.abs(a.y - s.a.y) : Math.abs(a.x - s.a.x);
+          if (d < 12) {
+            var lo = hz ? Math.max(Math.min(a.x, b.x), Math.min(s.a.x, s.b.x)) : Math.max(Math.min(a.y, b.y), Math.min(s.a.y, s.b.y));
+            var hi = hz ? Math.min(Math.max(a.x, b.x), Math.max(s.a.x, s.b.x)) : Math.min(Math.max(a.y, b.y), Math.max(s.a.y, s.b.y));
+            if (hi - lo > 1) { var same = s.to === Bn.id && d < 1; c += same ? 260 + (hi - lo) * .3 : d < 3 ? W.over + (hi - lo) * 4 : W.near; }
+          }
+        } else {
+          var H = hz ? [a, b] : [s.a, s.b], V = hz ? [s.a, s.b] : [a, b];
+          var x0 = Math.min(H[0].x, H[1].x), x1 = Math.max(H[0].x, H[1].x), y0 = Math.min(V[0].y, V[1].y), y1 = Math.max(V[0].y, V[1].y);
+          if (V[0].x > x0 + .5 && V[0].x < x1 - .5 && H[0].y > y0 + .5 && H[0].y < y1 - .5) {
+            c += s.to === Bn.id || s.from === A.id ? W.cross * .5 : W.cross;
+            /* silang dekat pangkal garis berlabel (Ya/Tidak) menutupi labelnya */
+            var X = V[0].x, Y = H[0].y;
+            if (s.lab && Math.abs(X - s.src.x) + Math.abs(Y - s.src.y) < 50) c += W.cross;
+            if (ed && ed.label && Math.abs(X - P[0].x) + Math.abs(Y - P[0].y) < 50) c += W.cross;
+          }
+        }
+      }
+    }
+    pen = c - geo;
+    if (ed && ed.label && n >= 2) { var f0 = Math.abs(P[1].x - P[0].x) + Math.abs(P[1].y - P[0].y); if (f0 < 28) c += W.shortLab; }
+    return c;
+  }
+  function ahead(p, s, q, m) { var N = OR_NRM[s]; return (q.x - p.x) * N[0] + (q.y - p.y) * N[1] >= m; }
+  function candidates(A, sA, oA, Bn, sB, oB, full) {
+    var S = orPort(A, sA, oA), T = orPort(Bn, sB, oB), out = [], m = 14, NA = OR_NRM[sA], NB = OR_NRM[sB];
+    var S1 = { x: S.x + NA[0] * m, y: S.y + NA[1] * m }, T1 = { x: T.x + NB[0] * m, y: T.y + NB[1] * m };
+    var hA = orH(sA), hB = orH(sB);
+    /* lurus */
+    if (hA && hB && Math.abs(S.y - T.y) < .5 && ahead(S, sA, T, m) && ahead(T, sB, S, m)) out.push([S, T]);
+    if (!hA && !hB && Math.abs(S.x - T.x) < .5 && ahead(S, sA, T, m) && ahead(T, sB, S, m)) out.push([S, T]);
+    /* L */
+    if (hA !== hB) { var c = hA ? { x: T.x, y: S.y } : { x: S.x, y: T.y }; if (ahead(S, sA, c, m) && ahead(T, sB, c, m)) out.push([S, c, T]); }
+    var xs = [(S1.x + T1.x) / 2], ys = [(S1.y + T1.y) / 2];
+    if (full) {
+      var X0 = Math.min(S.x, T.x) - 160, X1 = Math.max(S.x, T.x) + 160, Y0 = Math.min(S.y, T.y) - 120, Y1 = Math.max(S.y, T.y) + 120;
+      var fx = (opt.tracksX || []).filter(function (x) { return x > X0 && x < X1; }), fy = (opt.tracksY || []).filter(function (y) { return y > Y0 && y < Y1; });
+      if (opt.maxTracks) {
+        var mx = (S.x + T.x) / 2, my = (S.y + T.y) / 2;
+        fx = fx.sort(function (a, b) { return Math.abs(a - mx) - Math.abs(b - mx); }).slice(0, opt.maxTracks);
+        fy = fy.sort(function (a, b) { return Math.abs(a - my) - Math.abs(b - my); }).slice(0, opt.maxTracks);
+      }
+      xs = xs.concat([S1.x, T1.x], fx); ys = ys.concat([S1.y, T1.y], fy);
+    }
+    /* Z / U lewat jalur bantu */
+    if (hA && hB) xs.forEach(function (x) { var p1 = { x: x, y: S.y }, p2 = { x: x, y: T.y }; if (ahead(S, sA, p1, m) && ahead(T, sB, p2, m)) out.push([S, p1, p2, T]); });
+    if (!hA && !hB) ys.forEach(function (y) { var p1 = { x: S.x, y: y }, p2 = { x: T.x, y: y }; if (ahead(S, sA, p1, m) && ahead(T, sB, p2, m)) out.push([S, p1, p2, T]); });
+    /* tiga tikungan (memutar) */
+    if (hA !== hB && full) {
+      var nx = 0;
+      if (hA) xs.forEach(function (x) { if (!ahead(S, sA, { x: x, y: S.y }, m)) return; ys.forEach(function (y) { if (!ahead(T, sB, { x: T.x, y: y }, m) || nx++ > 220) return; out.push([S, { x: x, y: S.y }, { x: x, y: y }, { x: T.x, y: y }, T]); }); });
+      else ys.forEach(function (y) { if (!ahead(S, sA, { x: S.x, y: y }, m)) return; xs.forEach(function (x) { if (!ahead(T, sB, { x: x, y: T.y }, m) || nx++ > 220) return; out.push([S, { x: S.x, y: y }, { x: x, y: y }, { x: x, y: T.y }, T]); }); });
+    }
+    return out;
+  }
+  function route(ed) {
+    var A = byId[ed.from], Bn = byId[ed.to]; if (!A || !Bn || A === Bn) return null;
+    var best = null;
+    var sA = ed.sidesA || sidesOf(A), sB = ed.sidesB || sidesOf(Bn);
+    function pass(full) {
+      sA.forEach(function (a) {
+        offsOf(A, a).forEach(function (oa) {
+          sB.forEach(function (b) {
+            offsOf(Bn, b).forEach(function (ob) {
+              var pre = (used[A.id][a] && A.type !== 'fork' ? W.side : 0) + (used[Bn.id][b] && Bn.type !== 'fork' ? W.side : 0) + (opt.sidePen ? opt.sidePen(A, a, true, ed) + opt.sidePen(Bn, b, false, ed) : 0) + (oa || ob ? 12 : 0);
+              if (best && pre >= best.c) return;
+              candidates(A, a, oa, Bn, b, ob, full).forEach(function (P) {
+                var c = pre + cost(P, A, Bn, ed, best ? best.c - pre : Infinity);
+                if (!best || c < best.c) best = { c: c, P: P, a: a, b: b, pen: pen + pre };
+              });
+            });
+          });
+        });
+      });
+    }
+    pass(false);
+    if (!best || best.pen > 0) pass(true);
+    if (!best) return null;
+    best.P = orClean(best.P);
+    for (var i = 0; i < best.P.length - 1; i++) segs.push({ a: best.P[i], b: best.P[i + 1], from: ed.from, to: ed.to, lab: ed.label, src: best.P[0] });
+    used[A.id][best.a] = (used[A.id][best.a] || 0) + 1; used[Bn.id][best.b] = (used[Bn.id][best.b] || 0) + 1;
+    total += best.c;
+    return best;
+  }
+  return { route: route, total: function () { return total; }, segs: segs, used: used };
+}
+/* simpan rute ke garis (format sama dengan hasil suntingan manual / impor EA) */
+function orStore(f, P, A, B) {
+  var RA = rect(A), RB = rect(B);
+  f.bends = P.slice(1, -1).map(function (q) { return { x: Math.round(q.x), y: Math.round(q.y) }; });
+  f.sa = lnAnchor(RA, P[0]); f.ta = lnAnchor(RB, P[P.length - 1]);
+  f.manual = true; delete f.eaSE; delete f.lo; f.style = f.style || {}; if (!(fs(f).route > 0) || fs(f).route >= 3) f.style.route = 1;
+}
+
+/* ---------- ukuran kotak ringkas ---------- */
+var AD2 = { BW: 130, GV: 28, GL: 24, HG: 50, M: 28, HEAD: 46, FOOT: 30 };
+function ad2Size(e, BW) {
+  var f = propFont(e), lh = f.size * 4 / 3 * 1.2, w = BW;
+  var L = wrap(e.name || '', w - 20, f);
+  /* teks yang sangat panjang: sedikit dilebarkan supaya tidak lebih dari 4 baris */
+  while (L.length > 4 && w < BW + 50) { w += 10; L = wrap(e.name || '', w - 20, f); }
+  e.w = w; e.h = Math.max(40, Math.round(L.length * lh + 22));
+}
+
+/* ---------- Activity v2 ---------- */
+function adLayout2(D, opt) {
+  opt = opt || {};
+  var nodes = D.elements.filter(function (e) { return !isContainer(e) && !isNoteish(e); }); if (!nodes.length) return false;
+  var lanes = opt.lanes || D.elements.filter(function (e) { return e.type === 'partition' && !e.horiz; }).sort(function (a, b) { return a.x - b.x; });
+  var laneIx = {};
+  nodes.forEach(function (e) {
+    if (opt.laneOf && opt.laneOf[e.id] != null) { laneIx[e.id] = opt.laneOf[e.id]; return; }
+    if (!lanes.length) { laneIx[e.id] = 0; return; }
+    var cx = e.x + e.w / 2, best = 0, bd = Infinity;
+    lanes.forEach(function (p, i) { var d = cx < p.x ? p.x - cx : cx > p.x + p.w ? cx - p.x - p.w : 0; if (d < bd) { bd = d; best = i; } });
+    laneIx[e.id] = best;
+  });
+  var nL = Math.max(1, lanes.length), G = flowGraph(D), byId = new Map(nodes.map(function (e) { return [e.id, e]; }));
+  var flows = D.flows.filter(function (f) { return byId.has(f.from) && byId.has(f.to) && f.from !== f.to; });
+  function outs(id) { return (G.out[id] || []).filter(function (f) { return byId.has(f.to) && f.to !== id; }).sort(function (a, b) { return repPrefer(a) - repPrefer(b); }); }
+  var starts = nodes.filter(isStartT); if (!starts.length) starts = nodes.filter(function (e) { return !(G.inn[e.id] || []).some(function (f) { return byId.has(f.from); }); });
+  if (!starts.length) starts = [nodes[0]];
+  /* garis balik: menuju objek yang lebih dekat ke titik mulai (BFS) dan berada dalam putaran. Dengan begitu cabang paralel
+     dari fork tetap dianggap maju walau ada decision yang kembali ke salah satunya. */
+  var depth = {}, bq = starts.map(function (s) { depth[s.id] = 0; return s.id; });
+  while (bq.length) { var x0b = bq.shift(); outs(x0b).forEach(function (f) { if (depth[f.to] == null) { depth[f.to] = depth[x0b] + 1; bq.push(f.to); } }); }
+  function reach(a, b) { var seen = {}, st = [a]; while (st.length) { var x = st.pop(); if (x === b) return true; if (seen[x]) continue; seen[x] = 1; outs(x).forEach(function (f) { st.push(f.to); }); } return false; }
+  var back = new Set();
+  flows.forEach(function (f) { var a = depth[f.from], b = depth[f.to]; if (a != null && b != null && b <= a && reach(f.to, f.from)) back.add(f.id); });
+  var state = {}, order = [];
+  function dfs(id) { state[id] = 1; outs(id).forEach(function (f) { if (back.has(f.id)) return; if (state[f.to] === 1) back.add(f.id); else if (!state[f.to]) dfs(f.to); }); state[id] = 2; order.push(id); }
+  starts.forEach(function (s) { if (!state[s.id]) dfs(s.id); });
+  nodes.forEach(function (e) { if (!state[e.id]) dfs(e.id); });
+  order.reverse();
+  var plen = {};
+  order.slice().reverse().forEach(function (id) { var m = 0; outs(id).forEach(function (f) { if (!back.has(f.id) && plen[f.to] != null) m = Math.max(m, plen[f.to] + 1); }); plen[id] = m; });
+  var main = new Set(), cur0 = starts[0].id, g = 0;
+  while (cur0 && !main.has(cur0) && g++ < 999) {
+    main.add(cur0);
+    var o0 = outs(cur0).filter(function (f) { return !back.has(f.id); }).sort(function (a, b) { var mf = opt.mainFlows; return (mf ? (mf.has(b.id) ? 1 : 0) - (mf.has(a.id) ? 1 : 0) : 0) || (plen[b.to] - plen[a.to]) || (repPrefer(a) - repPrefer(b)); });
+    cur0 = o0.length ? o0[0].to : null;
+  }
+  function fwdIn(id) { return (G.inn[id] || []).filter(function (f) { return byId.has(f.from) && !back.has(f.id) && f.from !== id; }); }
+  function fwdOut(id) { return outs(id).filter(function (f) { return !back.has(f.id); }); }
+  function isAct(e) { return isStepT(e); }
+  function isBr(e) { return e.type === 'decision' || e.type === 'merge' || (e.type === 'gateway' && e.gw !== 'and'); }
+  /* ukuran */
+  var BW = opt.BW || AD2.BW;
+  if (!opt.noSize) nodes.forEach(function (e) { if (e.type === 'action' || e.type === 'task') ad2Size(e, BW); });
+  /* cabang: rangkaian objek di luar alur utama yang berawal dari objek alur utama */
+  var branch = {}, nb = 0, brFirst = [];
+  order.forEach(function (id) {
+    if (!main.has(id)) return;
+    fwdOut(id).forEach(function (f) {
+      if (main.has(f.to) || branch[f.to] != null) return;
+      var b = nb++, st = [f.to]; brFirst.push({ b: b, from: id, first: f.to });
+      while (st.length) { var x = st.pop(); if (branch[x] != null || main.has(x)) continue; branch[x] = b; fwdOut(x).forEach(function (h) { st.push(h.to); }); }
+    });
+  });
+  nodes.forEach(function (e) { if (!main.has(e.id) && branch[e.id] == null) branch[e.id] = nb++; });
+  var laneHasMain = {}; main.forEach(function (id) { laneHasMain[laneIx[id]] = 1; });
+  /* tujuan garis balik tiap cabang: dipakai untuk memilih sisi awal yang masuk akal */
+  var lanesX = lanes.map(function (p) { return p.x; });
+  var x0 = lanes.length ? lanes[0].x : (opt.x0 || 40), y0 = lanes.length ? Math.min.apply(null, lanes.map(function (p) { return p.y; })) : (opt.y0 || 40);
+
+  var order2 = order.filter(function (id) { return main.has(id); }).concat(order.filter(function (id) { return !main.has(id); }));
+  function place(V) { var R1 = place1(V, null); return place1(V, R1); }
+  function place1(V, prev) {
+    var P = {}, col = {}, ivals = {}, usedIn = {}, corr = [], flatOf = {};
+    function key(L, c) { return L + ':' + c; }
+    function cpos(id) { return laneIx[id] * 100 + col[id]; }
+    function free(L, c, y, h) {
+      var iv = ivals[key(L, c)] || [], moved = true, g2 = 0;
+      while (moved && g2++ < 50) { moved = false; iv.forEach(function (q) { if (y < q[1] + AD2.GV && y + h > q[0] - AD2.GV) { y = q[1] + AD2.GV; moved = true; } }); }
+      return y;
+    }
+    function hitsCorr(id, y, h) {
+      var cp = cpos(id), r = null;
+      corr.forEach(function (k) { if (cp > k.lo && cp < k.hi && y < k.y + 12 && y + h > k.y - 12) r = Math.max(r == null ? -Infinity : r, k.y + 14); });
+      return r;
+    }
+    order2.forEach(function (id) {
+      var e = byId.get(id), L = laneIx[id];
+      if (main.has(id)) col[id] = 0;
+      else {
+        var bq = brFirst.find(function (q) { return q.b === branch[id]; }), fL = bq ? laneIx[bq.first] : L;
+        /* di lane asal cabang: sisi sesuai susunan yang dicoba; di lane lain: sisi yang menghadap lane asal */
+        var sg = L === fL ? (V.side[branch[id]] || 1) : (L > fL ? -1 : 1) * (V.other[branch[id]] || 1);
+        col[id] = laneHasMain[L] ? sg : 0;
+      }
+      usedIn[id] = usedIn[id] || {};
+      var y = y0 + AD2.HEAD, eq = null, eqFrom = null, y0b = -Infinity;
+      var preds = fwdIn(id).map(function (f) { return f.from; }).filter(function (u) { return P[u]; });
+      /* pendahulu dari cabang yang belum ditempatkan (alur cabang bergabung lagi): pakai posisi putaran sebelumnya */
+      if (prev) fwdIn(id).forEach(function (f) { var q = prev.P[f.from]; if (!P[f.from] && q) y0b = Math.max(y0b, q.y + q.h + AD2.GL); });
+      preds.forEach(function (u) {
+        var U = P[u], ue = byId.get(u), sameCol = laneIx[u] === L && col[u] === col[id];
+        /* decision bertumpuk: beri ruang untuk label garis (Ya/Tidak) dan label pertanyaan decision di bawahnya */
+        if (sameCol) { y = Math.max(y, U.y + U.h + (isBr(ue) && isBr(e) ? 52 : AD2.GV)); return; }
+        var side = (isBr(ue) || isForkT(ue)) && main.has(u) && !main.has(id) && branch[id] != null && brFirst.some(function (q) { return q.from === u && q.first === id; });
+        if (side && !isForkT(ue)) { eq = U.y + U.h / 2 - e.h / 2; eqFrom = u; return; }
+        if (side) { y = Math.max(y, U.y + U.h + AD2.GV); return; }
+        var dir = laneIx[u] !== L ? (laneIx[u] < L ? 'e' : 'w') : (col[u] < col[id] ? 'e' : 'w');
+        var flat = V.flat && laneIx[u] !== L && isAct(ue) && isAct(e) && fwdOut(u).length === 1 && preds.length === 1 && main.has(u) === main.has(id) && !usedIn[u][dir] && !flatOf[u];
+        if (flat) { eq = U.y + U.h / 2 - e.h / 2; eqFrom = u; return; }
+        /* decision / final / fork dimasuki dari atas: beri ruang untuk ruas mendatar di atasnya */
+        if (isBr(e) || isEndT(e) || isForkT(e)) y = Math.max(y, U.y + U.h + 30);
+        else y = Math.max(y, U.y + U.h + AD2.GL - e.h / 2);
+      });
+      if (eq != null) y = Math.max(y, eq);
+      if (y0b > y) { y = y0b; eq = null; }
+      /* kolom samping penuh di ketinggian itu: coba kolom lebih luar dulu, baru turun */
+      if (!main.has(id) && laneHasMain[L]) {
+        var c0 = col[id];
+        for (var k = 1; k <= 3; k++) { col[id] = c0 * k; if (free(L, col[id], y, e.h) === y && hitsCorr(id, y, e.h) == null) break; if (k === 3) col[id] = c0; }
+      }
+      for (var gg = 0; gg < 20; gg++) {
+        var y2 = free(L, col[id], y, e.h), hc = hitsCorr(id, y2, e.h);
+        if (hc != null) y2 = Math.max(y2, hc);
+        if (y2 === y) break; y = y2;
+      }
+      /* jalur mendatar dari pendahulu tidak boleh menembus kotak yang sudah ada */
+      if (eq != null && Math.abs(y - eq) < .5) {
+        var cy = y + e.h / 2, lo = Math.min(cpos(eqFrom), cpos(id)), hi = Math.max(cpos(eqFrom), cpos(id)), blocked = false;
+        Object.keys(P).forEach(function (o) { var c = cpos(o); if (c > lo && c < hi && P[o].y < cy + 10 && P[o].y + P[o].h > cy - 10) blocked = true; });
+        if (blocked) { var U2 = P[eqFrom]; y = free(L, col[id], Math.max(y, U2.y + U2.h + AD2.GL - e.h / 2), e.h); eq = null; }
+      } else eq = null;
+      if (eq != null) {
+        flatOf[id] = eqFrom; corr.push({ y: y + e.h / 2, lo: Math.min(cpos(eqFrom), cpos(id)), hi: Math.max(cpos(eqFrom), cpos(id)) });
+        var d1 = cpos(eqFrom) < cpos(id); usedIn[id][d1 ? 'w' : 'e'] = 1; usedIn[eqFrom][d1 ? 'e' : 'w'] = 1;
+      } else preds.forEach(function (u) {
+        if (laneIx[u] === L && col[u] === col[id]) usedIn[id].n = 1;
+        else {
+          var dd = cpos(u) < cpos(id); usedIn[id][dd ? 'w' : 'e'] = 1;
+          /* jalur L alur utama: kotak cabang tidak boleh menghalangi ruas mendatarnya */
+          if (main.has(id) && main.has(u)) { var lo2 = Math.min(cpos(u), cpos(id)), hi2 = Math.max(cpos(u), cpos(id)); corr.push({ y: P[u].y + P[u].h / 2, lo: lo2, hi: hi2 }); if (!isBr(e)) corr.push({ y: y + e.h / 2, lo: lo2, hi: hi2 }); }
+        }
+      });
+      P[id] = { y: Math.round(y), h: e.h, w: e.w };
+      (ivals[key(L, col[id])] = ivals[key(L, col[id])] || []).push([y, y + e.h]);
+    });
+    /* posisi mendatar relatif terhadap tengah lane: kolom samping sedekat mungkin dengan kotak yang sejajar di sebelahnya */
+    var rel = {}, step = BW + AD2.HG;
+    nodes.forEach(function (e) { if (col[e.id] === 0) rel[e.id] = 0; });
+    for (var L2 = 0; L2 < nL; L2++) {
+      [1, -1].forEach(function (sg) {
+        for (var c = 1; c <= 3; c++) {
+          var grp = {};
+          nodes.forEach(function (e) { if (laneIx[e.id] === L2 && col[e.id] === sg * c) { var k = branch[e.id]; (grp[k] = grp[k] || []).push(e); } });
+          Object.keys(grp).forEach(function (k) {
+            var need = c * 70;
+            grp[k].forEach(function (v) {
+              var pv = P[v.id];
+              nodes.forEach(function (u) {
+                if (laneIx[u.id] !== L2 || rel[u.id] == null || u === v) return;
+                var cu = col[u.id]; if (!(cu * sg >= 0 && Math.abs(cu) < c)) return;
+                var pu = P[u.id]; if (pu.y > pv.y + pv.h + 22 || pu.y + pu.h < pv.y - 22) return;
+                need = Math.max(need, Math.abs(rel[u.id]) + u.w / 2 + AD2.HG + v.w / 2);
+              });
+            });
+            grp[k].forEach(function (v) { rel[v.id] = sg * need; });
+          });
+        }
+      });
+    }
+    var lx = x0, LX = [], CX = [], LW = [];
+    for (var j = 0; j < nL; j++) {
+      var left = BW / 2 + AD2.M, right = BW / 2 + AD2.M;
+      nodes.forEach(function (e) { if (laneIx[e.id] !== j) return; left = Math.max(left, -rel[e.id] + e.w / 2 + AD2.M); right = Math.max(right, rel[e.id] + e.w / 2 + AD2.M); });
+      var nmw = lanes[j] && !opt.noLaneName ? textW(lanes[j].name || '', fontCss(propFont(lanes[j]))) + 30 : 0;
+      var half = Math.max(left, right, nmw / 2, BW / 2 + AD2.M + 12), Wd, cxl;
+      if (V.sym === true) { Wd = 2 * half; cxl = lx + half; }
+      else {
+        /* setengah simetris: sisi pendek ditambah separuh selisihnya (alur utama hanya sedikit bergeser dari tengah) */
+        var l2 = left, r2 = right; if (V.sym === 'semi') { if (l2 < r2) l2 += (r2 - l2) / 2; else r2 += (l2 - r2) / 2; }
+        Wd = Math.max(l2 + r2, nmw, BW + 2 * AD2.M + 24); cxl = lx + l2 + (Wd - l2 - r2) / 2;
+      }
+      LX.push(lx); CX.push(cxl); LW.push(Wd); lx += Wd;
+    }
+    nodes.forEach(function (e) { var L = laneIx[e.id]; P[e.id].x = Math.round(CX[L] + rel[e.id] - e.w / 2); });
+    /* fork/join mendatar: batangnya membentang selebar cabang-cabangnya di lane yang sama */
+    nodes.forEach(function (e) {
+      if (e.type !== 'fork') return;
+      var nb2 = fwdOut(e.id).map(function (f) { return f.to; }).concat(fwdIn(e.id).map(function (f) { return f.from; }));
+      var xs = nb2.filter(function (id) { return laneIx[id] === laneIx[e.id] && P[id]; }).map(function (id) { return P[id].x + byId.get(id).w / 2; });
+      if (xs.length < 2) return;
+      var lo = Math.min.apply(null, xs), hi = Math.max.apply(null, xs); if (hi - lo < 40) return;
+      P[e.id].x = Math.round(lo - 40); P[e.id].w = Math.round(hi - lo + 80);
+    });
+    var maxB = 0; nodes.forEach(function (e) { maxB = Math.max(maxB, P[e.id].y + e.h); });
+    return { P: P, col: col, LX: LX, LW: LW, CX: CX, H: maxB - y0 + AD2.FOOT };
+  }
+  function routeAndScore(R) {
+    var els = nodes.map(function (e) { var p = R.P[e.id]; return { id: e.id, type: e.type, x: p.x, y: p.y, w: p.w || e.w, h: e.h }; });
+    /* label pertanyaan decision di atas, di sisi yang tidak dipakai cabang samping; jadi penghalang garis */
+    var labs = {};
+    nodes.forEach(function (e) {
+      if (!(e.type === 'decision' || e.type === 'merge') || !e.name) return;
+      var p = R.P[e.id], f = propFont(e), lh = f.size * 4 / 3 * 1.2, L = wrap(e.name, Math.max(90, e.w * 2.4), f);
+      var w = Math.max.apply(null, L.map(function (l) { return textW(l, fontCss(f)); })) + 2, h = lh * L.length;
+      var right = fwdOut(e.id).some(function (f2) { return !main.has(f2.to) && R.P[f2.to] && R.P[f2.to].x < p.x; }) || fwdIn(e.id).some(function (f2) { return (f2.name || '').trim() && isBr(byId.get(f2.from)); });
+      var lxp = right ? p.x + e.w / 2 + 8 : p.x + e.w / 2 - 8 - w, lyp = p.y - 2 - h;
+      labs[e.id] = { x: Math.round(lxp - p.x), y: Math.round(lyp - p.y) };
+      els.push({ id: 'lab:' + e.id, type: 'label', x: lxp, y: lyp, w: w, h: h });
+    });
+    var xs = [], ys = [];
+    R.LX.forEach(function (x, i) { xs.push(x + 14, x + R.LW[i] - 14); });
+    els.forEach(function (b) { xs.push(b.x - 16, b.x + b.w + 16); ys.push(b.y - 14, b.y + b.h + 14); });
+    var rt = orRouter(els, {
+      tracksX: xs, tracksY: ys,
+      sides: function (e) { return ['n', 's', 'e', 'w']; },
+      offs: function (e, s) {
+        if (e.type === 'fork' && !orH(s)) { var cx = e.x + e.w / 2, o = [0]; flows.forEach(function (f) { var q = f.from === e.id ? f.to : f.to === e.id ? f.from : null; if (!q) return; var b = els.find(function (x) { return x.id === q; }); if (b) { var d = Math.round(b.x + b.w / 2 - cx); if (Math.abs(d) < e.w / 2 - 4 && o.indexOf(d) < 0) o.push(d); } }); return o; }
+        return e.type !== 'action' && e.type !== 'task' ? [0] : !orH(s) ? [0, -Math.round(e.w / 4), Math.round(e.w / 4)] : e.h >= 44 ? [0, -Math.round(e.h / 5), Math.round(e.h / 5)] : [0]; },
+      sidePen: function (e, s, out, ed) {
+        if (e.type === 'initial' || e.type === 'start') return out && s !== 's' ? 300 : 0;
+        if (isEndT(e)) return !out && s !== 'n' ? 120 : 0;
+        if (e.type === 'decision' || e.type === 'merge') { if (!out && s !== 'n' && !ed.back) return 260; if (out && s === 'n') return 400; }
+        return 0;
+      }
+    });
+    var res = {}, ok = true;
+    var list = flows.slice().sort(function (a, b) {
+      var ba = back.has(a.id) ? 1 : 0, bb = back.has(b.id) ? 1 : 0; if (ba !== bb) return ba - bb;
+      var ma = main.has(a.from) && main.has(a.to) ? 0 : 1, mb = main.has(b.from) && main.has(b.to) ? 0 : 1; if (ma !== mb) return ma - mb;
+      return order.indexOf(a.from) - order.indexOf(b.from);
+    });
+    var ec = {};
+    list.forEach(function (f) { var r = rt.route({ id: f.id, from: f.from, to: f.to, back: back.has(f.id), label: !!(f.name || '').trim() }); if (r) { res[f.id] = r.P; ec[(byId.get(f.from).name || f.from).slice(0, 18) + '>' + (byId.get(f.to).name || f.to).slice(0, 18)] = Math.round(r.c); } else ok = false; });
+    var area = 0; R.LW.forEach(function (w) { area += w; }); area *= R.H;
+    var asym = 0; nodes.forEach(function (e) { if (main.has(e.id)) { var L = laneIx[e.id]; asym += Math.abs(R.CX[L] - (R.LX[L] + R.LW[L] / 2)); } });
+    return { routes: res, score: rt.total() + area * 0.005 + asym * 1.2 + (ok ? 0 : 1e6), labs: labs, ec: ec, parts: [Math.round(rt.total()), Math.round(area * 0.005), Math.round(asym * 1.2)] };
+  }
+  /* susunan yang dicoba (pencarian lokal): sisi kiri/kanan cabang di lane asalnya, sisi cabang di lane lain
+     (menghadap / membelakangi lane asal), perpindahan lane mendatar atau L, lane simetris / setengah / pas isi */
+  var spans = {}; nodes.forEach(function (e) { var bq = brFirst.find(function (q) { return q.b === branch[e.id]; }); if (bq && laneIx[e.id] !== laneIx[bq.first]) spans[bq.b] = 1; });
+  var memo = {}, all = [], best = null, evals = 0;
+  function keyOf(V) { return JSON.stringify([V.side, V.other, V.flat, V.sym]); }
+  function evalV(V) {
+    var k = keyOf(V); if (memo[k]) return memo[k];
+    var R = place(V), S = routeAndScore(R); evals++;
+    var o = { V: V, R: R, S: S }; memo[k] = o; all.push({ v: k, score: Math.round(S.score), parts: S.parts });
+    if (!best || S.score < best.S.score) best = o;
+    return o;
+  }
+  function mk(sideFn, otherFn, flat, sym) { var sd = {}, ot = {}; brFirst.forEach(function (q, i) { sd[q.b] = sideFn(q, i); ot[q.b] = otherFn(q, i); }); return { side: sd, other: ot, flat: flat, sym: sym }; }
+  function clone(V) { return { side: Object.assign({}, V.side), other: Object.assign({}, V.other), flat: V.flat, sym: V.sym }; }
+  var seeds = [
+    mk(function (q) { return laneIx[q.first] === 0 && nL > 1 ? -1 : 1; }, function () { return 1; }, true, 'semi'),
+    mk(function () { return 1; }, function () { return 1; }, true, true),
+    mk(function () { return -1; }, function () { return 1; }, true, 'semi'),
+    mk(function (q, i) { return i % 2 ? -1 : 1; }, function () { return 1; }, false, 'semi')
+  ];
+  seeds.forEach(function (V0) {
+    var cur = evalV(V0);
+    for (var pass = 0; pass < 6; pass++) {
+      var nbrs = [];
+      brFirst.forEach(function (q) { var a = clone(cur.V); a.side[q.b] = -a.side[q.b]; nbrs.push(a); if (spans[q.b]) { var c2 = clone(cur.V); c2.other[q.b] = -c2.other[q.b]; nbrs.push(c2); } });
+      var f2 = clone(cur.V); f2.flat = !f2.flat; nbrs.push(f2);
+      [true, 'semi'].forEach(function (sy) { if (sy !== cur.V.sym) { var s2 = clone(cur.V); s2.sym = sy; nbrs.push(s2); } });
+      var bestN = null; nbrs.forEach(function (V) { var o = evalV(V); if (!bestN || o.S.score < bestN.S.score) bestN = o; });
+      if (bestN && bestN.S.score < cur.S.score - .5) cur = bestN; else break;
+      if (evals > 160) break;
+    }
+  });
+  var combos = all;
+  var R = best.R;
+  nodes.forEach(function (e) { var p = R.P[e.id]; e.x = p.x; e.y = p.y; if (e.type === 'fork' && p.w) e.w = p.w; if (best.S.labs[e.id]) e.lo = best.S.labs[e.id]; else if (e.type === 'decision' || e.type === 'merge') delete e.lo; });
+  lanes.forEach(function (p, i) { p.x = Math.round(R.LX[i]); p.y = y0; p.w = Math.round(R.LW[i]); p.h = Math.round(R.H); });
+  D.flows.forEach(function (f) { var P = best.S.routes[f.id]; if (P) orStore(f, P, byId.get(f.from), byId.get(f.to)); else { f.bends = []; delete f.sa; delete f.ta; delete f.manual; } });
+  adPost = null;
+  ad2Last = { score: Math.round(best.S.score), combos: evals, V: best.V, all: all };
+  return true;
+}
+var ad2Last = null;
+
+/* ---------- Use Case: aktor di kiri/kanan, use case satu/dua kolom di dalam batas sistem, garis lurus tanpa silang ---------- */
+function ucLayout(D) {
+  var acts = D.elements.filter(function (e) { return e.type === 'actor'; }), ucs = D.elements.filter(function (e) { return e.type === 'usecase'; });
+  var bnd = D.elements.find(function (e) { return e.type === 'boundary'; });
+  if (!ucs.length) return false;
+  var isA = {}, isU = {}; acts.forEach(function (a) { isA[a.id] = 1; }); ucs.forEach(function (u) { isU[u.id] = 1; });
+  var link = {}, parentOf = {};
+  acts.forEach(function (a) { link[a.id] = []; });
+  D.flows.forEach(function (f) {
+    var a = isA[f.from] ? f.from : isA[f.to] ? f.to : null, u = isU[f.from] ? f.from : isU[f.to] ? f.to : null;
+    if (a && u && link[a].indexOf(u) < 0) link[a].push(u);
+    if (isU[f.from] && isU[f.to] && (f.kind === 'include' || f.kind === 'extend')) { var base = f.kind === 'include' ? f.from : f.to, sub = f.kind === 'include' ? f.to : f.from; if (!parentOf[sub]) parentOf[sub] = base; }
+  });
+  var actorsOf = {}; ucs.forEach(function (u) { actorsOf[u.id] = []; });
+  acts.forEach(function (a) { link[a.id].forEach(function (u) { actorsOf[u].push(a.id); }); });
+  /* use case yang hanya dicapai lewat include/extend: kolom tambahan di kanan, sejajar induknya */
+  var aux = ucs.filter(function (u) { return !actorsOf[u.id].length && parentOf[u.id]; }), main = ucs.filter(function (u) { return aux.indexOf(u) < 0; });
+  /* ukuran seragam */
+  var f0 = propFont(ucs[0]), lh = f0.size * 4 / 3 * 1.2, UW = 130;
+  ucs.forEach(function (u) { UW = Math.max(UW, Math.min(180, textW(u.name || '', fontCss(propFont(u))) + 50)); });
+  var UH = 0; ucs.forEach(function (u) { var L = wrap(u.name || '', UW - 44, propFont(u)); u.w = UW; u.h = Math.max(50, Math.round(L.length * lh + 30)); UH = Math.max(UH, u.h); });
+  ucs.forEach(function (u) { u.h = UH; });
+  var deg = function (a) { return link[a.id].length; };
+  var sortedA = acts.slice().sort(function (a, b) { return deg(b) - deg(a); });
+  var best = null;
+  function attempt(sideOf, ncol) {
+    /* urutan use case: dikelompokkan per aktor, lalu dirapikan dengan barycenter */
+    var ord = main.slice(), ay = {};
+    var rank = function (u) { var as = actorsOf[u.id]; if (!as.length) return 1; var l = as.filter(function (a) { return sideOf[a] < 0; }).length, r = as.length - l; return r && l ? 1 : l ? 0 : 2; };
+    sortedA.forEach(function (a, i) { ay[a.id] = i; });
+    function bary(u) { var as = actorsOf[u.id]; if (!as.length) return 1e3 + main.indexOf(u); var s = 0; as.forEach(function (a) { s += ay[a]; }); return s / as.length; }
+    for (var it = 0; it < 4; it++) {
+      ord.sort(function (p, q) { return ncol === 1 ? (bary(p) - bary(q)) || (main.indexOf(p) - main.indexOf(q)) : (rank(p) - rank(q)) || (bary(p) - bary(q)) || (main.indexOf(p) - main.indexOf(q)); });
+      var pos = {}; ord.forEach(function (u, i) { pos[u.id] = i; });
+      acts.forEach(function (a) { var L = link[a.id]; if (!L.length) return; var s = 0; L.forEach(function (u) { s += pos[u] != null ? pos[u] : 0; }); ay[a.id] = s / L.length; });
+    }
+    /* kolom: 1 kolom kalau sedikit; 2 kolom bertingkat (selang-seling) supaya garis lewat di sela */
+    var P = {}, rowH = UH + 24, colGap = 50, bx = 0, by = 0;
+    var cols = ncol === 1 ? [ord] : [[], []];
+    if (ncol === 2) {
+      var hasR = acts.some(function (a) { return sideOf[a.id] > 0; });
+      ord.forEach(function (u, i) { var r = rank(u); var c = hasR ? (r === 0 ? 0 : r === 2 ? 1 : (cols[0].length <= cols[1].length ? 0 : 1)) : i % 2; cols[c].push(u); });
+    }
+    cols.forEach(function (list, c) { list.forEach(function (u, i) { P[u.id] = { x: bx + c * (UW + colGap), y: by + i * rowH + (ncol === 2 && c === 1 ? rowH / 2 : 0) }; }); });
+    var auxX = bx + cols.length * (UW + colGap);
+    var auxY = []; aux.forEach(function (u) { var p = P[parentOf[u.id]] || { y: 0 }, y = p.y; auxY.forEach(function (q) { if (Math.abs(q - y) < rowH) y = q + rowH; }); auxY.push(y); P[u.id] = { x: auxX, y: y }; });
+    var minY = Infinity, maxY = -Infinity, maxX = -Infinity;
+    ucs.forEach(function (u) { minY = Math.min(minY, P[u.id].y); maxY = Math.max(maxY, P[u.id].y + UH); maxX = Math.max(maxX, P[u.id].x + UW); });
+    var B = { l: bx - 36, t: minY - 46, r: maxX + 36, b: maxY + 30 };
+    /* aktor: tengah use case yang dihubunginya, tidak bertumpuk */
+    var A = {};
+    [-1, 1].forEach(function (sd) {
+      var list = acts.filter(function (a) { return sideOf[a.id] === sd; }).map(function (a) {
+        var L = link[a.id], s = 0; L.forEach(function (u) { s += P[u].y + UH / 2; }); return { a: a, cy: L.length ? s / L.length : (B.t + B.b) / 2 };
+      }).sort(function (p, q) { return p.cy - q.cy; });
+      for (var k = 0; k < 30; k++) { var mv = false; for (var i = 1; i < list.length; i++) { var need = list[i - 1].cy + list[i - 1].a.h + 50 - list[i].cy; if (need > 0) { list[i - 1].cy -= need / 2; list[i].cy += need / 2; mv = true; } } if (!mv) break; }
+      list.forEach(function (q) { var w = q.a.w; A[q.a.id] = { x: sd < 0 ? B.l - 110 - w / 2 : B.r + 110 - w / 2, y: Math.round(q.cy - q.a.h / 2 - 8) }; });
+    });
+    /* nilai: silang antar garis, garis menembus use case lain, luas */
+    var segs = [], sc = 0;
+    function cen(id) { var p = P[id] || A[id]; var e = D.elements.find(function (x) { return x.id === id; }); return { x: p.x + e.w / 2, y: p.y + e.h / 2 }; }
+    D.flows.forEach(function (f) { if ((P[f.from] || A[f.from]) && (P[f.to] || A[f.to])) segs.push([cen(f.from), cen(f.to), f.from, f.to]); });
+    function cross(a, b, c, d) { function o(p, q, r) { return (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x); } return o(a, b, c) * o(a, b, d) < 0 && o(c, d, a) * o(c, d, b) < 0; }
+    for (var i = 0; i < segs.length; i++) for (var j = i + 1; j < segs.length; j++) { var s1 = segs[i], s2 = segs[j]; if (s1[2] === s2[2] || s1[2] === s2[3] || s1[3] === s2[2] || s1[3] === s2[3]) continue; if (cross(s1[0], s1[1], s2[0], s2[1])) sc += 500; }
+    segs.forEach(function (s) {
+      ucs.forEach(function (u) {
+        if (u.id === s[2] || u.id === s[3]) return; var p = P[u.id], cx = p.x + UW / 2, cy = p.y + UH / 2, rx = UW / 2 - 4, ry = UH / 2 - 4;
+        for (var t = 0.05; t < 1; t += 0.05) { var x = s[0].x + (s[1].x - s[0].x) * t, y = s[0].y + (s[1].y - s[0].y) * t; if (((x - cx) / rx) * ((x - cx) / rx) + ((y - cy) / ry) * ((y - cy) / ry) < 1) { sc += 900; break; } }
+      });
+      sc += Math.hypot(s[1].x - s[0].x, s[1].y - s[0].y) * 0.3;
+    });
+    sc += (B.r - B.l) * (B.b - B.t) * 0.002;
+    if (!best || sc < best.sc) best = { sc: sc, P: P, A: A, B: B };
+  }
+  var nA = Math.min(acts.length, 4), ncols = main.length > 8 ? [2] : main.length > 5 ? [1, 2] : [1];
+  for (var m = 0; m < (1 << nA); m++) {
+    var sideOf = {}; sortedA.forEach(function (a, i) { sideOf[a.id] = i < nA ? ((m >> i) & 1 ? 1 : -1) : (i % 2 ? 1 : -1); });
+    if (sortedA.length && sideOf[sortedA[0].id] > 0) continue; /* aktor utama selalu di kiri */
+    ncols.forEach(function (nc) { attempt(sideOf, nc); });
+  }
+  if (!acts.length) attempt({}, ncols[0]);
+  /* geser supaya mulai dari kiri atas */
+  var X0 = best.B.l, Y0 = best.B.t;
+  acts.forEach(function (a) { if (best.A[a.id]) X0 = Math.min(X0, best.A[a.id].x); });
+  var dx = 60 - X0, dy = 50 - Y0;
+  ucs.forEach(function (u) { u.x = Math.round(best.P[u.id].x + dx); u.y = Math.round(best.P[u.id].y + dy); });
+  acts.forEach(function (a) { var p = best.A[a.id]; if (p) { a.x = Math.round(p.x + dx); a.y = Math.round(Math.max(20, p.y + dy)); } });
+  if (bnd) { bnd.x = Math.round(best.B.l + dx); bnd.y = Math.round(best.B.t + dy); bnd.w = Math.round(best.B.r - best.B.l); bnd.h = Math.round(best.B.b - best.B.t); }
+  D.flows.forEach(function (f) { f.bends = []; delete f.sa; delete f.ta; delete f.manual; delete f.eaSE; f.style = f.style || {}; f.style.route = 0; });
+  return true;
+}
+
+/* ---------- BPMN: alur kiri → kanan di dalam lane mendatar (memakai tata letak Activity yang diputar 90°) ---------- */
+function bpmnLayout(D) {
+  var pools = D.elements.filter(function (e) { return e.type === 'pool'; }), lanes = D.elements.filter(function (e) { return e.type === 'lane'; });
+  var nodes = D.elements.filter(function (e) { return !isContainer(e) && !isNoteish(e) && e.type !== 'dataobject' && e.type !== 'bstore'; });
+  if (!nodes.length) return false;
+  var rows = lanes.length ? lanes.slice() : pools.slice();
+  rows.sort(function (a, b) { return a.y - b.y; });
+  /* lane tiap objek: yang memuat titik tengahnya, kalau tidak ada yang terdekat */
+  var laneOf = {};
+  nodes.forEach(function (e) {
+    var cy = e.y + e.h / 2, cx = e.x + e.w / 2, bi = 0, bd = Infinity;
+    rows.forEach(function (r, i) { var d = cy < r.y ? r.y - cy : cy > r.y + r.h ? cy - r.y - r.h : 0; if (cx < r.x || cx > r.x + r.w) d += 1; if (d < bd) { bd = d; bi = i; } });
+    laneOf[e.id] = bi;
+  });
+  nodes.forEach(function (e) { if (e.type === 'task') { var f = propFont(e), lh = f.size * 4 / 3 * 1.2, L = wrap(e.name || '', 100, f); e.w = 120; e.h = Math.max(55, Math.round(L.length * lh + 24)); } });
+  var X0 = rows.length ? Math.min.apply(null, rows.map(function (r) { return r.x; })) : 60, Y0 = rows.length ? Math.min.apply(null, rows.map(function (r) { return r.y; })) : 60;
+  var pr = {}, prox = nodes.map(function (e) { var q = { id: e.id, type: e.type, gw: e.gw, name: e.name, style: e.style, x: e.y, y: e.x, w: e.h, h: e.w }; pr[e.id] = q; return q; });
+  var pl = rows.map(function (r, i) { return { id: 'pl' + i, type: 'partition', name: r.name, x: Y0 + i * 10, y: X0, w: 10, h: 10, style: r.style }; });
+  var lo = {}; nodes.forEach(function (e) { lo[e.id] = laneOf[e.id]; });
+  var flows = D.flows.filter(function (f) { return pr[f.from] && pr[f.to]; }).map(function (f) { return { id: f.id, kind: f.kind, from: f.from, to: f.to, name: f.name, bends: [], style: {} }; });
+  var PD = { id: D.id + ':bpmn', kind: 'bpmn', elements: pl.concat(prox), flows: flows };
+  var maxW = 0; prox.forEach(function (q) { maxW = Math.max(maxW, q.w); });
+  var head = 34;
+  if (!adLayout2(PD, { lanes: pl, laneOf: lo, noSize: true, BW: Math.max(60, maxW), noLaneName: true, x0: Y0, y0: X0 + head })) return false;
+  /* putar kembali: x ↔ y, sisi n↔w, s↔e */
+  var SW = { n: 'w', s: 'e', e: 's', w: 'n' };
+  nodes.forEach(function (e) { var q = pr[e.id]; e.x = Math.round(q.y + head); e.y = Math.round(q.x); delete e.lo; });
+  var total = 0; pl.forEach(function (p) { total = Math.max(total, p.h); });
+  rows.forEach(function (r, i) { var p = pl[i]; r.y = Math.round(p.x); r.h = Math.round(p.w); r.x = X0 + (lanes.length && pools.length ? 30 : 0); r.w = Math.round(total + head); });
+  if (lanes.length && pools.length) pools.forEach(function (pp) { var my = Math.min.apply(null, rows.map(function (r) { return r.y; })), My = Math.max.apply(null, rows.map(function (r) { return r.y + r.h; })); pp.x = X0; pp.y = my; pp.w = rows[0].w + 30; pp.h = My - my; });
+  var fm = {}; flows.forEach(function (f) { fm[f.id] = f; });
+  D.flows.forEach(function (f) {
+    var q = fm[f.id]; if (!q) return;
+    if (q.bends && (q.bends.length || q.sa)) {
+      f.bends = q.bends.map(function (b) { return { x: b.y + head, y: b.x }; });
+      f.sa = q.sa ? { s: SW[q.sa.s], p: q.sa.p } : undefined; f.ta = q.ta ? { s: SW[q.ta.s], p: q.ta.p } : undefined;
+      if (!f.sa) delete f.sa; if (!f.ta) delete f.ta;
+      f.manual = true; delete f.eaSE; f.style = f.style || {}; if (!(fs(f).route > 0) || fs(f).route >= 3) f.style.route = 1;
+    } else { f.bends = []; delete f.sa; delete f.ta; delete f.manual; }
+  });
+  /* objek data: di dekat tugas yang dihubunginya (di atas / bawahnya) */
+  D.elements.filter(function (e) { return e.type === 'dataobject' || e.type === 'bstore'; }).forEach(function (o) {
+    var f = D.flows.find(function (g) { return (g.from === o.id && pr[g.to]) || (g.to === o.id && pr[g.from]); }); if (!f) return;
+    var t = D.elements.find(function (x) { return x.id === (f.from === o.id ? f.to : f.from); });
+    o.x = Math.round(t.x + t.w / 2 - o.w / 2 + 50); o.y = Math.round(t.y - o.h - 22);
+    f.bends = []; delete f.sa; delete f.ta; delete f.manual;
+  });
+  return true;
+}
 
 /* ================= Jelaskan diagram (tanpa AI, berbasis analisis alur) =================
    Alir membaca struktur diagram (lane, urutan, cabang, perulangan, paralel, ujung) lalu menyusun penjelasan dan
@@ -6881,8 +7530,10 @@ function dgBuild(ucs, sys, deep) {
     });
   });
   made.forEach(function (D) {
+    adRouted = null;
     try { propLayout(D); } catch (x) { /* tata letak sederhana tetap dipakai */ }
-    try { autoRoute(D, {}); } catch (x) { /* nanti */ }
+    try { if (adRouted !== D.id) autoRoute(D, {}); } catch (x) { /* nanti */ }
+    adRouted = null;
   });
   return { made: made, groups: groups };
 }
