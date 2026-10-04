@@ -1754,8 +1754,11 @@ var GW_TYPES = { xor: 'Eksklusif (kosong)', xorx: 'Eksklusif (tanda X)', and: 'P
 var EV_DEFS = { none: 'Polos', message: 'Pesan', timer: 'Waktu' };
 function ufont(bold, size) { return { family: 'Tahoma', size: size || 8, b: !!bold }; }
 function lbl2(e, w, f, color, cx, cy) { return tblock(wrap(e.name, w, f), cx, cy, f, color); }
-function shadowAttr() { return doc.prefs.shadow !== false ? ' filter="url(#eaSh)"' : ''; }
-function fillOf(st) { return !st.fill || st.fill === 'none' ? 'none' : (doc.prefs.gradient !== false ? gradOf(st.fill) : st.fill); }
+/* saat objek sedang diseret (atau mode ringan), bayangan dan gradasi dimatikan sementara di layar supaya tetap lancar di laptop lambat. Ekspor selalu lengkap. */
+var fastDraw = false, inExport = false;
+function lightOn() { return !inExport && (fastDraw || doc.prefs.light === true); }
+function shadowAttr() { return doc.prefs.shadow !== false && !lightOn() ? ' filter="url(#eaSh)"' : ''; }
+function fillOf(st) { return !st.fill || st.fill === 'none' ? 'none' : (doc.prefs.gradient !== false && !lightOn() ? gradOf(st.fill) : st.fill); }
 /* teks nama di dalam kotak: EA menaruhnya di bagian atas (jarak ±7px), kecuali kalau tidak muat */
 function leftText(lines, x, ytop, f, color) { var lh = f.size * 4 / 3 * 1.2; return '<text text-anchor="start" dominant-baseline="central" ' + fontAttr(f, color) + '>' + lines.map(function (l, i) { return '<tspan x="' + x.toFixed(1) + '" y="' + (ytop + lh / 2 + i * lh).toFixed(1) + '">' + esc(l) + '</tspan>'; }).join('') + '</text>'; }
 function topText(e, w, f, color, pad) { var lines = wrap(e.name, w, f), lh = f.size * 4 / 3 * 1.2, hh = lines.length * lh, cy = hh + (pad || 7) * 2 <= e.h ? e.y + (pad || 7) + hh / 2 : e.y + e.h / 2; return tblock(lines, e.x + e.w / 2, cy, f, color); }
@@ -2769,14 +2772,14 @@ function renameDiagramModal() {
 }
 function umlDisplayPrefs() {
   var P = doc.prefs;
-  modal('Preferensi tampilan', '<div class="sec"><label class="cbx"><input type="checkbox" id="up-sh"' + (P.shadow !== false ? ' checked' : '') + '> Bayangan pada elemen (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-jp"' + (P.jumps !== false ? ' checked' : '') + '> Lompatan di persilangan garis (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-fr"' + (P.frame !== false ? ' checked' : '') + '> Bingkai dan tab nama diagram saat ekspor gambar/PDF (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-bn"' + (doc.defaults.action && doc.defaults.action.font && doc.defaults.action.font.b ? ' checked' : '') + '> Nama activity, object, use case, dan aktor tebal (persis EA)</label><label class="cbx"><input type="checkbox" id="up-bp"' + (doc.defaults.partition && doc.defaults.partition.font && doc.defaults.partition.font.b ? ' checked' : '') + '> Judul partition tebal</label><label class="cbx"><input type="checkbox" id="up-gr"' + (P.gradient !== false ? ' checked' : '') + '> Warna gradasi krem (seperti EA)</label></div>' +
+  modal('Preferensi tampilan', '<div class="sec"><label class="cbx"><input type="checkbox" id="up-sh"' + (P.shadow !== false ? ' checked' : '') + '> Bayangan pada elemen (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-jp"' + (P.jumps !== false ? ' checked' : '') + '> Lompatan di persilangan garis (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-fr"' + (P.frame !== false ? ' checked' : '') + '> Bingkai dan tab nama diagram saat ekspor gambar/PDF (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-bn"' + (doc.defaults.action && doc.defaults.action.font && doc.defaults.action.font.b ? ' checked' : '') + '> Nama activity, object, use case, dan aktor tebal (persis EA)</label><label class="cbx"><input type="checkbox" id="up-bp"' + (doc.defaults.partition && doc.defaults.partition.font && doc.defaults.partition.font.b ? ' checked' : '') + '> Judul partition tebal</label><label class="cbx"><input type="checkbox" id="up-gr"' + (P.gradient !== false ? ' checked' : '') + '> Warna gradasi krem (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-lt"' + (P.light === true ? ' checked' : '') + '> Mode ringan untuk laptop lambat: bayangan dan gradasi tidak digambar di layar (hasil ekspor tetap lengkap)</label></div>' +
     '<div class="sec"><h3>Warna semua elemen</h3><div class="row"><button class="btn" data-pre="ea">Bawaan EA (krem)</button><button class="btn" data-pre="mono">Hitam putih (laporan)</button></div><p class="hint">Warna yang diatur per elemen lewat bilah Format tetap dipakai, kecuali kamu memilih salah satu tombol di atas.</p></div>',
     '<button class="btn" data-close>Batal</button><button class="btn pri" data-ok>Terapkan</button>', function (s, close) {
       var pre = null;
       s.addEventListener('click', function (e) { var b = e.target.closest('[data-pre]'); if (b) { pre = b.dataset.pre; $$('[data-pre]', s).forEach(function (x) { x.classList.toggle('pri', x === b); }); } });
       $('[data-ok]', s).addEventListener('click', function () {
         mutate(function () {
-          P.shadow = $('#up-sh', s).checked; P.gradient = $('#up-gr', s).checked; P.jumps = $('#up-jp', s).checked; P.frame = $('#up-fr', s).checked; var bn = $('#up-bn', s).checked; BOLD_NAMES.forEach(function (k) { if (doc.defaults[k]) doc.defaults[k].font = Object.assign({}, doc.defaults[k].font, { b: bn }); }); if (doc.defaults.partition) doc.defaults.partition.font = Object.assign({}, doc.defaults.partition.font, { b: $('#up-bp', s).checked });
+          P.light = $('#up-lt', s).checked; P.shadow = $('#up-sh', s).checked; P.gradient = $('#up-gr', s).checked; P.jumps = $('#up-jp', s).checked; P.frame = $('#up-fr', s).checked; var bn = $('#up-bn', s).checked; BOLD_NAMES.forEach(function (k) { if (doc.defaults[k]) doc.defaults[k].font = Object.assign({}, doc.defaults[k].font, { b: bn }); }); if (doc.defaults.partition) doc.defaults.partition.font = Object.assign({}, doc.defaults.partition.font, { b: $('#up-bp', s).checked });
           if (pre) {
             doc.defaults = eaDefaults();
             if (pre === 'mono') Object.keys(TT).forEach(function (k) { var dd = doc.defaults[k]; if (dd.fill !== 'none' && dd.fill !== '#000000') dd.fill = '#ffffff'; dd.stroke = '#000000'; });
@@ -4509,7 +4512,22 @@ function overlay(D, routes, v) {
   if (tool === 'flow' && flowFrom) { var A = elOf(D, flowFrom); if (A) { var R = rect(A), p = clip(R, { x: R.cx, y: R.cy }, lastPt); s += '<path class="pv" style="stroke-width:' + 1.4 / k + 'px;stroke-dasharray:' + 5 / k + ' ' + 4 / k + '" d="M' + p.x + ' ' + p.y + 'L' + lastPt.x + ' ' + lastPt.y + '"/>'; } }
   return s;
 }
+/* menggambar ulang paling banyak sekali per frame saat menyeret; geser/zoom kanvas cukup memindah transform */
+var drawQ = 0, drawNow = false, viewQ = 0;
 function draw() {
+  if (drag && !drawNow) { if (!drawQ) drawQ = requestAnimationFrame(function () { drawQ = 0; drawNow = true; try { draw(); } finally { drawNow = false; } }); return; }
+  if (drawQ) { cancelAnimationFrame(drawQ); drawQ = 0; }
+  var tDraw = performance.now();
+  try { draw0(); } finally { slowCheck(performance.now() - tDraw); }
+}
+/* laptop lambat: kalau menggambar ulang saat menyeret terus-menerus berat, sarankan Mode ringan (sekali per sesi) */
+var slowN = 0, slowTold = false;
+function slowCheck(ms) {
+  if (!drag || slowTold || isDfd() || doc.prefs.light) return;
+  slowN = ms > 45 ? slowN + 1 : Math.max(0, slowN - 1);
+  if (slowN >= 12) { slowTold = true; toast('Menyeret terasa berat di perangkat ini. Coba Format → Preferensi tampilan → Mode ringan (hasil ekspor tetap lengkap).'); }
+}
+function draw0() {
   var D = cur(), v = view(), routes = routeAll(D), sc = sceneMarkup(D, routes, sel);
   cv.innerHTML = sc.defs + '<g transform="translate(' + v.x + ' ' + v.y + ') scale(' + v.k + ')">' + sc.body + overlay(D, routes, v) + '</g>';
   var g = 10 * v.k, G = 50 * v.k, mg = g < 7 ? G : g, pos = v.x + 'px ' + v.y + 'px';
@@ -4519,6 +4537,16 @@ function draw() {
   $('#zoomv').textContent = Math.round(v.k * 100) + '%';
   cv.style.cursor = (drag && drag.t === 'pan') ? 'grabbing' : (tool === 'hand' || spaceDown) ? 'grab' : tool === 'select' ? 'default' : 'crosshair';
   crumbs();
+}
+function drawView() {
+  var v = view(), g0 = cv.firstElementChild; while (g0 && g0.tagName !== 'g') g0 = g0.nextElementSibling;
+  if (!g0) { draw(); return; }
+  g0.setAttribute('transform', 'translate(' + v.x + ' ' + v.y + ') scale(' + v.k + ')');
+  var g = 10 * v.k, G = 50 * v.k, mg = g < 7 ? G : g, pos = v.x + 'px ' + v.y + 'px';
+  stage.style.backgroundSize = mg + 'px ' + mg + 'px,' + mg + 'px ' + mg + 'px,' + G + 'px ' + G + 'px,' + G + 'px ' + G + 'px';
+  stage.style.backgroundPosition = [pos, pos, pos, pos].join(',');
+  $('#zoomv').textContent = Math.round(v.k * 100) + '%';
+  clearTimeout(viewQ); viewQ = setTimeout(function () { if (!drag) draw(); }, 160);
 }
 
 /* ---------- tampilan ---------- */
@@ -5655,7 +5683,7 @@ function flushWheel() {
   var a = wheelAcc; wheelAcc = null; if (!a) return;
   var v = view();
   if (a.dx || a.dy) { v.x -= a.dx; v.y -= a.dy; v.fresh = false; }
-  if (a.z !== 1) zoomAt(a.cx, a.cy, a.z); else draw();
+  if (a.z !== 1) { var s0 = stageBox(), v0 = view(), sx0 = a.cx - s0.l, sy0 = a.cy - s0.t, nk0 = Math.min(8, Math.max(.1, v0.k * a.z)); v0.x = sx0 - (sx0 - v0.x) * (nk0 / v0.k); v0.y = sy0 - (sy0 - v0.y) * (nk0 / v0.k); v0.k = nk0; v0.fresh = false; drawView(); } else drawView();
 }
 function queueWheel(dx, dy, z, cx, cy) {
   if (!wheelAcc) { wheelAcc = { dx: 0, dy: 0, z: 1, cx: cx, cy: cy }; requestAnimationFrame(flushWheel); }
@@ -5757,8 +5785,9 @@ cv.addEventListener('pointermove', function (e) {
   var D = cur(), p = pt(e); lastPt = p;
   if (!drag) { if (tool === 'flow' && flowFrom) draw(); return; }
   var v = view();
+  if (drag.t !== 'pan' && drag.t !== 'marquee') fastDraw = true;
   if (drag.t === 'lab') { labMove(e, D, p); return; }
-  if (drag.t === 'pan') { v.x = drag.vx + e.clientX - drag.sx; v.y = drag.vy + e.clientY - drag.sy; v.fresh = false; draw(); }
+  if (drag.t === 'pan') { v.x = drag.vx + e.clientX - drag.sx; v.y = drag.vy + e.clientY - drag.sy; v.fresh = false; drawView(); return; }
   else if (drag.t.indexOf('ln') === 0) lnMove(e, D, p);
   else if (drag.t === 'move') {
     if (!Object.keys(drag.orig).length) { if (!drag.warned && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) >= 4) { drag.warned = true; toast('Objek ini dikunci. Klik kanan → Buka kunci untuk menggesernya.'); } return; }
@@ -5845,6 +5874,7 @@ function endPointer(e) {
   if (pinch) { if (ptrs.size < 2) pinch = null; return; }
   if (!drag) return;
   var d = drag; drag = null;
+  if (fastDraw) { fastDraw = false; draw(); }
   if (d.t.indexOf('ln') === 0) { lnUp(d); return; }
   if (d.t === 'qc') {
     if (!isDfd() && d.moved) { draw(); var oe = d.over && elOf(cur(), d.over); if (oe && isContainer(oe) && !linkKinds(elOf(cur(), d.from), oe, cur().kind).length) d.over = null; if (d.over) eaKindMenu(d.from, d.over, d.side, e.clientX, e.clientY); else eaNewElementMenu(d.from, d.side, lastPt, e.clientX, e.clientY); return; }
@@ -5895,7 +5925,7 @@ window.addEventListener('keydown', function (e) {
   }
   if (e.key === ' ') { if (tg && tg.closest && tg.closest('button,[data-tab]')) return; if (!spaceDown) { spaceDown = true; draw(); } e.preventDefault(); return; }
   if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); delSel(); return; }
-  if (e.key === 'Escape' && drag && drag.t !== 'pan' && drag.t !== 'marquee') { var dg = drag; drag = null; if (dg.pushed || dg.moved) { undo(); redoS.pop(); } draw(); return; }
+  if (e.key === 'Escape' && drag && drag.t !== 'pan' && drag.t !== 'marquee') { var dg = drag; drag = null; fastDraw = false; if (dg.pushed || dg.moved) { undo(); redoS.pop(); } draw(); return; }
   if (e.key === 'Escape' && multiPick) { setMultiPick(false); return; }
   if (e.key === 'Escape') { flowFrom = null; sel.clear(); setTool('select'); panel(); syncBar(); closeMenus(); closePop(); return; }
   if (e.key === 'F2') { e.preventDefault(); run('rename'); return; }
@@ -6078,6 +6108,9 @@ window.addEventListener('drop', function (e) { e.preventDefault(); var d = $('#d
 
 /* ---------- ekspor gambar ---------- */
 function exportSVG(D, ids) {
+  inExport = true; try { return exportSVG0(D, ids); } finally { inExport = false; }
+}
+function exportSVG0(D, ids) {
   D = D || cur();
   var routes = routeAll(D);
   if (ids && ids.size) {
