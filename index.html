@@ -149,6 +149,8 @@ svg.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-widt
 #findl .fi span { color: #6b7684; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
 #findl .fmore { color: #6b7684; font-size: 12px; padding: 4px 8px; }
 .grpbox { fill: none; stroke: #7b5cd6; pointer-events: none; }
+.anchorbox { fill: none; stroke: #e8710a; pointer-events: none; }
+.anchortag { fill: #e8710a; } .anchortxt { fill: #fff; font: 600 10px Arial, sans-serif; pointer-events: none; }
 .labsel { fill: none; stroke: #000; pointer-events: none; }
 .flab, .elab { cursor: move; }
 .lockb { pointer-events: none; }
@@ -2215,7 +2217,7 @@ function umlPanel() {
       h += '<button class="btn danger block" data-act="del">Hapus garis</button>';
     }
   } else if (ids.length > 1) {
-    h += '<div class="sec"><h2>Pilihan</h2><p class="hint">' + ids.length + ' item dipilih. Seret kotak kecil di tepi salah satunya untuk mengubah ukuran semuanya sekaligus.</p><div class="row">' + [['al', 'alL', 'kiri'], ['ac', 'alC', 'tengah'], ['ar', 'alR', 'kanan'], ['at', 'alT', 'atas'], ['am', 'alM', 'tengah'], ['ab', 'alB', 'bawah']].map(function (b2) { return '<button class="btn" data-act="' + b2[1] + '" title="Ratakan ' + b2[2] + '" aria-label="Ratakan ' + b2[2] + '">' + ico(b2[0]) + '</button>'; }).join('') + '</div><div class="row"><button class="btn" data-act="distH">Sebar horizontal</button><button class="btn" data-act="distV">Sebar vertikal</button></div><div class="row"><button class="btn" data-act="sameW">Samakan lebar</button><button class="btn" data-act="sameH">Samakan tinggi</button></div></div>';
+    h += '<div class="sec"><h2>Pilihan</h2><p class="hint">' + ids.length + ' item dipilih. Seret kotak kecil di tepi salah satunya untuk mengubah ukuran semuanya sekaligus.' + (selAnchor && ids.indexOf(selAnchor) >= 0 && elOf(D, selAnchor) ? ' <b>Acuan</b> (kotak oranye): "' + esc(elOf(D, selAnchor).name || TT[elOf(D, selAnchor).type].label) + '". Samakan lebar/tinggi dan rata mengikuti objek ini.' : '') + '</p><div class="row">' + [['al', 'alL', 'kiri'], ['ac', 'alC', 'tengah'], ['ar', 'alR', 'kanan'], ['at', 'alT', 'atas'], ['am', 'alM', 'tengah'], ['ab', 'alB', 'bawah']].map(function (b2) { return '<button class="btn" data-act="' + b2[1] + '" title="Ratakan ' + b2[2] + '" aria-label="Ratakan ' + b2[2] + '">' + ico(b2[0]) + '</button>'; }).join('') + '</div><div class="row"><button class="btn" data-act="distH">Sebar horizontal</button><button class="btn" data-act="distV">Sebar vertikal</button></div><div class="row"><button class="btn" data-act="sameW">Samakan lebar</button><button class="btn" data-act="sameH">Samakan tinggi</button></div></div>';
     h += '<div class="row"><button class="btn" data-act="dup">Duplikat</button><button class="btn danger" data-act="del">Hapus</button></div>';
   } else {
     h += '<div class="sec"><h2>Diagram</h2><div class="field"><label for="p-dn">Nama diagram</label><input class="in" id="p-dn" data-f="dname" value="' + esc(D.name) + '"></div>';
@@ -4462,6 +4464,7 @@ function overlay(D, routes, v) {
     s += '<rect class="selbox" style="stroke-width:' + sw + 'px;stroke-dasharray:' + 4 / k + ' ' + 3 / k + '" x="' + (e.x - 3 / k) + '" y="' + (e.y - 3 / k) + '" width="' + (e.w + 6 / k) + '" height="' + (e.h + 6 / k) + '"/>';
   });
   var selE = D.elements.filter(function (x) { return sel.has(x.id); });
+  if (selE.length > 1 && selAnchor && sel.has(selAnchor)) { var ae = elOf(D, selAnchor); if (ae) s += '<rect class="anchorbox" style="stroke-width:' + 2.2 / k + 'px" x="' + (ae.x - 5 / k) + '" y="' + (ae.y - 5 / k) + '" width="' + (ae.w + 10 / k) + '" height="' + (ae.h + 10 / k) + '" rx="' + 3 / k + '"><title>Objek acuan</title></rect><g transform="translate(' + (ae.x - 5 / k) + ' ' + (ae.y - 5 / k) + ') scale(' + 1 / k + ')"><rect class="anchortag" x="0" y="-16" width="42" height="15" rx="3"/><text class="anchortxt" x="21" y="-8.5" text-anchor="middle" dominant-baseline="central">acuan</text></g>'; }
   if (selE.length > 1 && !multiPick && !(drag && drag.t === 'move')) selE.forEach(function (e) {
     if (e.locked || e.w * k < 36 || e.h * k < 22) return; /* objek terlalu kecil di layar: pegangan malah menutupi objeknya */
     [['nw', e.x, e.y, 'nwse-resize'], ['ne', e.x + e.w, e.y, 'nesw-resize'], ['sw', e.x, e.y + e.h, 'nesw-resize'], ['se', e.x + e.w, e.y + e.h, 'nwse-resize'], ['n', e.x + e.w / 2, e.y, 'ns-resize'], ['s', e.x + e.w / 2, e.y + e.h, 'ns-resize'], ['w', e.x, e.y + e.h / 2, 'ew-resize'], ['e', e.x + e.w, e.y + e.h / 2, 'ew-resize']].forEach(function (h) {
@@ -5044,18 +5047,26 @@ function moveEls(list, dx, dy) {
   D.flows.forEach(function (f) { if (ms.has(f.from) && ms.has(f.to)) (f.bends || []).forEach(function (b) { b.x += dx; b.y += dy; }); });
 }
 function nudge(dx, dy) { var l = selEls().filter(function (e) { return !e.locked; }); if (l.length) mutate(function () { moveEls(l, dx, dy); }); }
+var selAnchor = null;
+function anchorEl(l) { return (selAnchor && l.find(function (e) { return e.id === selAnchor; })) || null; }
 function align(kind) {
   var l = selEls(); if (l.some(function (e) { return e.locked; })) toast('Objek terkunci tidak ikut diubah.'); l = l.filter(function (e) { return !e.locked; }).concat(l.filter(function (e) { return e.locked; })); if (l.length < 2) { toast('Pilih minimal dua objek untuk diratakan.'); return; }
+  var an = anchorEl(l), ref = an || l[0];
   mutate(function () {
     var x0 = Math.min.apply(null, l.map(function (e) { return e.x; })), x1 = Math.max.apply(null, l.map(function (e) { return e.x + e.w; }));
     var y0 = Math.min.apply(null, l.map(function (e) { return e.y; })), y1 = Math.max.apply(null, l.map(function (e) { return e.y + e.h; }));
-    var ref = l[0];
+    /* dengan acuan: rata ke tepi objek acuan; tanpa acuan: ke tepi terluar */
+    if (an) { x0 = an.x; x1 = an.x + an.w; y0 = an.y; y1 = an.y + an.h; }
     l.forEach(function (e) {
+      if (e.locked && e !== ref) return;
+      var cx = e.x + e.w / 2, cy = e.y + e.h / 2;
       if (kind === 'alL') e.x = x0; else if (kind === 'alR') e.x = x1 - e.w; else if (kind === 'alC') e.x = Math.round(ref.x + ref.w / 2 - e.w / 2);
       else if (kind === 'alT') e.y = y0; else if (kind === 'alB') e.y = y1 - e.h; else if (kind === 'alM') e.y = Math.round(ref.y + ref.h / 2 - e.h / 2);
-      else if (kind === 'sameW') e.w = ref.w; else if (kind === 'sameH') e.h = ref.h;
+      else if (kind === 'sameW' || kind === 'sameS') { e.w = ref.w; e.x = Math.round(cx - e.w / 2); if (kind === 'sameS') { e.h = ref.h; e.y = Math.round(cy - e.h / 2); } }
+      else if (kind === 'sameH') { e.h = ref.h; e.y = Math.round(cy - e.h / 2); }
     });
   });
+  if (/^same/.test(kind)) toast((kind === 'sameW' ? 'Lebar' : kind === 'sameH' ? 'Tinggi' : 'Ukuran') + ' ' + (l.length - 1) + ' objek disamakan dengan "' + (ref.name || ref.type) + '"' + (an ? ' (acuan)' : '') + '. Acuan = objek yang pertama diklik; ganti lewat klik kanan → Jadikan acuan.');
 }
 function distribute(horiz) {
   var l = selEls(); if (l.length < 3) { toast('Pilih minimal tiga objek untuk disebar rata.'); return; }
@@ -5299,7 +5310,7 @@ function menuItems(name) {
   if (name === 'file') return [item('Halaman mulai…', 'start'), item('Model DFD baru', 'new'), item('Buka .pam / .alir / .json / .zip…', 'open', 'Ctrl+O')].concat(FSA ? [item('Simpan' + (FH.h ? ' ke ' + FH.name : ''), 'save', 'Ctrl+S'), item('Simpan sebagai…', 'saveas', 'Ctrl+Shift+S')] : []).concat([HR, item('Teks untuk laporan (tabel alur data)…', 'report'), item('Bagikan lewat link…', 'share'), item('Riwayat versi…', 'hist'), HR, item('Simpan sebagai .pam', 'savepam', 'Ctrl+S'), item('Simpan proyek (.json)', 'savejson'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar JPG', 'jpg'), item('Ekspor gambar SVG', 'svg'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Opsi model…', 'modelopt'), item('Preferensi tampilan…', 'dispref')]);
   if (name === 'edit') return [item('Urungkan', 'undo', 'Ctrl+Z', { dis: !undoS.length }), item('Ulangi', 'redo', 'Ctrl+Y', { dis: !redoS.length }), HR, item('Potong', 'cut', 'Ctrl+X', { dis: !has }), item('Salin', 'copy', 'Ctrl+C', { dis: !has }), item('Tempel', 'paste', 'Ctrl+V', { dis: !clipb }), item('Hapus', 'del', 'Del', { dis: !has }), HR, item('Pilih simbol terhubung', 'selconn', '', { dis: !has }), item('Pilih semua', 'selall', 'Ctrl+A'), item('Pilih beberapa (klik satu per satu)', 'multipick', '', { ck: multiPick }), item('Pilih semua yang sejenis', 'selsame', '', { dis: !has }), item('Cari elemen…', 'find', 'Ctrl+F'), HR, item('Kunci / buka kunci posisi', 'lock', '', { dis: !nE }), item('Kelompokkan', 'group', 'Ctrl+G', { dis: nE < 2 }), item('Pisahkan kelompok', 'ungroup', 'Ctrl+Shift+G', { dis: !nE }), HR, item('Duplikat', 'dup', 'Ctrl+D', { dis: !has }), item('Ubah nama', 'rename', 'F2', { dis: sel.size !== 1 })];
   if (name === 'dict') return [item('Properti model…', 'modelopt'), { hd: 'Sub-proses' }, item(proc && childOf(D, proc) ? 'Buka diagram turunan' : 'Dekomposisi proses terpilih', 'decomp', 'Alt+↓', { dis: !proc }), item('Naik satu level', 'up', 'Alt+↑', { dis: !D.parent }), item('Hapus dekomposisi', 'undecomp', '', { dis: !(proc && childOf(D, proc)) }), item('Pohon proses…', 'tree'), HR, item('Daftar objek…', 'objlist'), item('Urutkan ulang nomor objek', 'renum'), item('Auto-balance alur', 'autobal', '', { dis: !D.parent }), item('Migrasikan alur terpilih ke induk', 'migrate', '', { dis: !D.parent || !f }), HR, item('Periksa model…', 'check', 'F4')];
-  if (name === 'arrange') return [item('Sesuaikan dengan teks', 'adjust', 'Ctrl+J', { dis: !nE }), item('Ukuran normal', 'normsize', '', { dis: !nE }), HR, { hd: 'Ratakan' }, item('Kiri', 'alL', '', { dis: nE < 2 }), item('Tengah (sumbu vertikal)', 'alC', '', { dis: nE < 2 }), item('Kanan', 'alR', '', { dis: nE < 2 }), item('Atas', 'alT', '', { dis: nE < 2 }), item('Tengah (sumbu horizontal)', 'alM', '', { dis: nE < 2 }), item('Bawah', 'alB', '', { dis: nE < 2 }), item('Samakan lebar', 'sameW', '', { dis: nE < 2 }), item('Samakan tinggi', 'sameH', '', { dis: nE < 2 }), HR, item('Sebar horizontal', 'distH', '', { dis: nE < 3 }), item('Sebar vertikal', 'distV', '', { dis: nE < 3 }), HR, { hd: 'Alur' }, item('Rapikan alur terpilih', 'tidy', 'Ctrl+L', { dis: !selFlows().length }), item('Rapikan semua alur… (pilih tampilan)', 'tidyall', 'Ctrl+Shift+L'), item('Rapikan tata letak (pindahkan objek, proporsional)', 'relayout', 'Ctrl+Shift+K', { dis: !(isDfd() || D.kind === 'activity') }), item('Pilih alur objek terpilih', 'selflows', '', { dis: !nE }), item('Rapikan otomatis setiap ada perubahan', 'autotidy', '', { ck: autoTidyOn() }), HR, { hd: 'Urutan' }, item('Bawa ke depan', 'front', 'Ctrl+]', { dis: !has }), item('Kirim ke belakang', 'back', 'Ctrl+[', { dis: !has }), item('Maju satu', 'fwd', '', { dis: !has }), item('Mundur satu', 'bwd', '', { dis: !has })];
+  if (name === 'arrange') return [item('Sesuaikan dengan teks', 'adjust', 'Ctrl+J', { dis: !nE }), item('Ukuran normal', 'normsize', '', { dis: !nE }), HR, { hd: 'Ratakan' }, item('Kiri', 'alL', '', { dis: nE < 2 }), item('Tengah (sumbu vertikal)', 'alC', '', { dis: nE < 2 }), item('Kanan', 'alR', '', { dis: nE < 2 }), item('Atas', 'alT', '', { dis: nE < 2 }), item('Tengah (sumbu horizontal)', 'alM', '', { dis: nE < 2 }), item('Bawah', 'alB', '', { dis: nE < 2 }), item('Samakan lebar', 'sameW', '', { dis: nE < 2 }), item('Samakan tinggi', 'sameH', '', { dis: nE < 2 }), item('Samakan lebar & tinggi', 'sameS', '', { dis: nE < 2 }), HR, item('Sebar horizontal', 'distH', '', { dis: nE < 3 }), item('Sebar vertikal', 'distV', '', { dis: nE < 3 }), HR, { hd: 'Alur' }, item('Rapikan alur terpilih', 'tidy', 'Ctrl+L', { dis: !selFlows().length }), item('Rapikan semua alur… (pilih tampilan)', 'tidyall', 'Ctrl+Shift+L'), item('Rapikan tata letak (pindahkan objek, proporsional)', 'relayout', 'Ctrl+Shift+K', { dis: !(isDfd() || D.kind === 'activity') }), item('Pilih alur objek terpilih', 'selflows', '', { dis: !nE }), item('Rapikan otomatis setiap ada perubahan', 'autotidy', '', { ck: autoTidyOn() }), HR, { hd: 'Urutan' }, item('Bawa ke depan', 'front', 'Ctrl+]', { dis: !has }), item('Kirim ke belakang', 'back', 'Ctrl+[', { dis: !has }), item('Maju satu', 'fwd', '', { dis: !has }), item('Mundur satu', 'bwd', '', { dis: !has })];
   if (name === 'format') return [item('Bayangan (shadow)', 'shadow', '', { ck: doc.prefs.shadow }), HR, item('Warnai semua alur sesuai ' + (isDfd() ? 'entitasnya' : 'aktor / partition') + '', 'colallflows'), item('Warnai alur objek terpilih sesuai warnanya', 'colflows', '', { dis: !nE }), HR, item('Warna garis…', 'pop:stroke', '', { dis: !has }), item('Warna isi…', 'pop:fill', '', { dis: !nE }), item('Warna teks…', 'pop:text', '', { dis: !has }), HR, { hd: 'Pola garis' }]
     .concat(Object.keys(DASHES).map(function (k) { return item(DASHES[k], 'dash:' + k, '', { dis: !has, ck: st && st.dash === k }); }))
     .concat([{ hd: 'Garis alur' }], routeNames().map(function (r, i) { return item(r, 'route:' + i, '', { dis: !f, ck: f && fs(f).route === i }); }), [HR], Object.keys(ARROWS).map(function (k) { return item(ARROWS[k], 'arrow:' + k, '', { dis: !f, ck: f && arrowKey(fs(f).arrows) === k }); }),
@@ -5341,14 +5352,16 @@ $('#menubar').addEventListener('click', function (e) {
   openMenuBtn(b);
 });
 $('#menubar').addEventListener('pointerover', function (e) { var b = e.target.closest('.mbtn'); if (b && menuEl && $('.mbtn[aria-expanded="true"]') && b.getAttribute('aria-expanded') !== 'true') openMenuBtn(b); });
+var ctxId = null;
 function contextMenu(e, id) {
+  ctxId = id;
   var D = cur(), o = id && (elOf(D, id) || flOf(D, id)), items = [];
   var mE = selEls();
   if (mE.length > 1 && id && sel.has(id)) {
     /* beberapa objek dipilih: perintah untuk semuanya sekaligus */
     items.push({ hd: mE.length + ' objek dipilih' }, item(multiPick ? 'Selesai memilih' : 'Pilih beberapa lagi (klik satu per satu)', 'multipick'), item('Pilih semua yang sejenis', 'selsame'), item('Pilih yang terhubung', 'selconn'), item('Pilih semua alurnya saja', 'selflows'), item('Warnai alurnya sesuai warna objeknya', 'colflows'), HR, item(mE.every(function (x) { return x.locked; }) ? 'Buka kunci' : 'Kunci posisi', 'lock'), item('Kelompokkan', 'group', 'Ctrl+G'), item('Pisahkan kelompok', 'ungroup', 'Ctrl+Shift+G', { dis: !mE.some(function (x) { return x.grp; }) }), HR, item('Potong', 'cut', 'Ctrl+X'), item('Salin', 'copy', 'Ctrl+C'), item('Salin sebagai gambar HD', 'copyselimg'), item('Duplikat', 'dup', 'Ctrl+D'), item('Hapus', 'del', 'Del'), HR,
       { hd: 'Ratakan' }, item('Kiri', 'alL'), item('Kanan', 'alR'), item('Atas', 'alT'), item('Bawah', 'alB'), item('Tengah (sumbu vertikal)', 'alC'), item('Tengah (sumbu horizontal)', 'alM'), HR,
-      item('Samakan lebar', 'sameW'), item('Samakan tinggi', 'sameH'), item('Sebar horizontal', 'distH', '', { dis: mE.length < 3 }), item('Sebar vertikal', 'distV', '', { dis: mE.length < 3 }));
+      item('Samakan lebar', 'sameW'), item('Samakan tinggi', 'sameH'), item('Samakan lebar & tinggi', 'sameS'), item(id && id === selAnchor ? 'Acuan: objek ini ✓' : 'Jadikan objek ini acuan', 'setanchor', '', { dis: !id || id[0] !== 'e' || id === selAnchor }), item('Sebar horizontal', 'distH', '', { dis: mE.length < 3 }), item('Sebar vertikal', 'distV', '', { dis: mE.length < 3 }));
     if (!isDfd() && mE.every(function (x) { return x.type === mE[0].type && (x.type === 'partition' || x.type === 'lane'); })) items.push(HR, item('Rapatkan ' + (mE[0].type === 'lane' ? 'lane' : 'partition') + ' terpilih', 'dockall'));
     items.push(HR, item('Warna garis…', 'pop:stroke'), item('Warna isi…', 'pop:fill'), item('Warna teks…', 'pop:text'), HR, item('Bawa ke depan', 'front'), item('Kirim ke belakang', 'back'));
     if (!isDfd() && Array.from(sel).some(function (x) { return labHasMoved(elOf(D, x) || flOf(D, x)); })) items.push(HR, item('Kembalikan posisi label', 'labreset'));
@@ -5488,7 +5501,8 @@ function run(a, btn) {
     case 'labreset': labReset(Array.from(sel)); break;
     case 'dockall': dockAll(Array.from(sel).filter(function (x) { return x[0] === 'e'; })); break;
     case 'porient': { var po = elOf(D, id); if (po && po.type === 'partition') mutate(function () { if (po.horiz) delete po.horiz; else po.horiz = true; }); break; }
-    case 'alL': case 'alC': case 'alR': case 'alT': case 'alM': case 'alB': case 'sameW': case 'sameH': align(a); break;
+    case 'alL': case 'alC': case 'alR': case 'alT': case 'alM': case 'alB': case 'sameW': case 'sameH': case 'sameS': align(a); break;
+    case 'setanchor': if (ctxId && sel.has(ctxId)) { selAnchor = ctxId; draw(); toast('Objek ini jadi acuan untuk samakan ukuran dan rata.'); } break;
     case 'distH': distribute(true); break;
     case 'distV': distribute(false); break;
     case 'front': case 'back': case 'fwd': case 'bwd': order(a); break;
@@ -5752,6 +5766,8 @@ cv.addEventListener('pointerdown', function (e) {
       if (multiPick) { if (sel.has(gid)) unpick = gid; else gm.forEach(function (x) { sel.add(x); }); }
       else if (e.shiftKey || e.ctrlKey || e.metaKey) { if (sel.has(gid)) gm.forEach(function (x) { sel.delete(x); }); else gm.forEach(function (x) { sel.add(x); }); }
       else if (!sel.has(gid)) sel = new Set(gm);
+      /* objek acuan: yang pertama diklik. Samakan lebar/tinggi dan rata mengikuti objek ini */
+      if (gid[0] === 'e' && sel.has(gid) && (!selAnchor || !sel.has(selAnchor) || sel.size === 1)) selAnchor = gid;
       mpUpdate();
       panel(); draw(); syncBar();
       if (gid[0] === 'e' && sel.has(gid)) {
