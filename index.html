@@ -4608,12 +4608,14 @@ function xDfdExplain(D) {
 }
 
 /* ---------- tanya jawab tentang objek ---------- */
-var X_QSTOP = ' hubungan kaitan antara beda perbedaan bisa dapat boleh harus data informasi apa apakah gimana gmn bgmn kayak seperti mana saja semua bagaimanakah siapa kapan kenapa mengapa kalau jika bila apabila gimana bagaimana terjadi yang lalu kemudian berikutnya selanjutnya sesudah setelah sebelum sebelumnya sesudahnya dilakukan oleh langkah itu ini nya dong sih ya kok bisa saat ketika di ke dari dan atau untuk pada aja saja jelaskan tolong coba ada adalah dengan tentang masukan keluaran input output mengirim menerima dikirim diterima ';
+var X_QSTOP = ' sudah udah telah baru muncul nongol keluar hubungan kaitan antara beda perbedaan bisa dapat boleh harus data informasi apa apakah gimana gmn bgmn kayak seperti mana saja semua bagaimanakah siapa kapan kenapa mengapa kalau jika bila apabila gimana bagaimana terjadi yang lalu kemudian berikutnya selanjutnya sesudah setelah sebelum sebelumnya sesudahnya dilakukan oleh langkah itu ini nya dong sih ya kok bisa saat ketika di ke dari dan atau untuk pada aja saja jelaskan tolong coba ada adalah dengan tentang masukan keluaran input output mengirim menerima dikirim diterima ';
 /* pemotong imbuhan ringan supaya "mengembalikan" = "pengembalian", "pembayaran" = "membayar", "ketemu" = "ditemukan" */
 var X_SYN = { ada: 'sedia', ketemu: 'temu', jumpa: 'temu', sah: 'valid', betul: 'benar', sukses: 'hasil', telat: 'lambat', kosong: 'habis', ok: 'benar', oke: 'benar', user: 'pengguna', admin: 'admin' };
 var X_ANT = [['habis', 'sedia'], ['lambat', 'tepat'], ['gagal', 'hasil'], ['salah', 'benar'], ['salah', 'valid'], ['tolak', 'terima'], ['tutup', 'buka']];
 function xStem(w) {
   if (X_SYN[w]) return X_SYN[w];
+  if (/^ng[aeiou]/.test(w) && w.length > 4) w = w.slice(2); else if (/^ny[aeiou]/.test(w) && w.length > 4) w = 's' + w.slice(2);
+  if (w.length > 5 && /in$/.test(w) && !/(ingin|main|lain|mesin|kain|login|admin|plugin|bisin)$/.test(w)) w = w.slice(0, -2);
   if (w.length > 5) w = w.replace(/(nya|lah|kah)$/, '');
   var p = /^(meng|meny|mem|men|me|peng|peny|pem|pen|per|pe|di|ber|ter|ke)(.{4,})$/.exec(w);
   if (p) w = p[2];
@@ -4655,10 +4657,13 @@ function xFind(D, q) {
   var seenF = {}; out = out.filter(function (c) { if (!c.o.from) return true; var k = norm(c.o.name); if (seenF[k]) return false; seenF[k] = 1; return true; });
   return out.sort(function (x, y) { return y.s - x.s; });
 }
-function xAnswer(D, q) {
+function xAnswer0(D, q) {
   q = String(q || '').trim(); if (!q) return '';
   var ql = q.toLowerCase(), C = xFind(D, q), o = null;
   if (C[0] && (C[0].s >= .7 || C[0].s >= .5 && (!C[1] || C[0].s - C[1].s >= .2))) o = C[0].o;
+  xFocus = o ? o.id : null; xKind = o ? 'obj' : 'none';
+  var pq = xPathQ(D, ql); if (pq) { xKind = 'path'; return pq; }
+  if (/berapa/.test(ql)) xKind = 'count';
   if (/berapa/.test(ql) && D.kind === 'usecase') return '<p>Diagram ini punya ' + D.elements.filter(function (e) { return e.type === 'actor'; }).length + ' aktor, ' + D.elements.filter(function (e) { return e.type === 'usecase'; }).length + ' use case, dan ' + D.flows.length + ' hubungan.</p>';
   if (/berapa/.test(ql)) {
     var acts = D.elements.filter(function (e) { return isStepT(e) || e.type === 'process'; });
@@ -4669,18 +4674,24 @@ function xAnswer(D, q) {
   }
   var isCondQ = /(kalau|jika|bila|apabila)/.test(ql) && !isDfd() && D.kind !== 'usecase';
   C = C.filter(function (c) { return c.s >= (isCondQ ? .6 : .3); });
+  if (!o && !(C[0] && C[0].s >= .7)) {
+    var allW0 = D.elements.concat(D.flows).reduce(function (a, x) { return a.concat(xWordsEl(x.name)); }, []), miss0 = xRaw(q).filter(function (w) { return w.length > 2 && X_QSTOP.indexOf(' ' + w + ' ') < 0 && !xIsNeg(w) && !/^(kalau|jika|bila|apabila|gimana|siapa|kapan|sebelum|sesudah|setelah|terjadi|yang|dilakukan)$/.test(w) && !xIn(xStem(w), allW0); });
+    if (miss0.length) { xKind = 'notfound'; var dl0 = /(kalau|jika|bila|apabila)/.test(ql) && !isDfd() ? D.elements.filter(function (e) { return (e.type === 'decision' || e.type === 'gateway') && !isForkT(e) && D.flows.filter(function (f) { return f.from === e.id; }).length > 1; }) : []; return '<p>Kata ' + miss0.slice(0, 4).map(function (w) { return '<b>' + esc(w) + '</b>'; }).join(', ') + ' tidak ada di nama objek mana pun di diagram ini, jadi aku tidak bisa menjawabnya dari diagram.' + (dl0.length ? ' Percabangan yang ada: ' + dl0.map(xB).join(', ') + '. Coba tanyakan dengan kata-kata dari salah satunya.' : ' Coba pakai nama objek seperti yang tertulis di diagram.') + '</p>'; }
+  }
   if (!o && C.length) {
     var pre = /(kalau|jika|bila|apabila|apa yang terjadi)/.test(ql) ? 'Apa yang terjadi kalau ' : /sebelum/.test(ql) ? 'Apa sebelum ' : /(sesudah|setelah)/.test(ql) ? 'Apa sesudah ' : /siapa/.test(ql) ? 'Siapa yang ' : /(kapan|kenapa|mengapa|syarat)/.test(ql) ? 'Kapan ' : '';
     return '<p>Aku belum yakin objek mana yang kamu maksud, jadi aku tidak menebak. Maksudmu salah satu ini?</p><div class="xchips">' + C.slice(0, 4).map(function (c) { var t = pre + (pre === 'Siapa yang ' || pre === 'Kapan ' ? xLow(xName(c.o)) : xName(c.o)) + (pre ? '?' : ''); return '<button class="chip" data-xq="' + esc(t) + '">' + esc(xName(c.o)) + '</button>'; }).join('') + '</div>';
   }
   if (!o && /(kalau|jika|bila|apabila)/.test(ql) && !isDfd() && D.kind !== 'usecase') {
     var dl = D.elements.filter(function (e) { return (e.type === 'decision' || e.type === 'gateway') && !isForkT(e) && D.flows.filter(function (f) { return f.from === e.id; }).length > 1; });
+    xKind = 'notfound';
     return '<p>Di diagram ini tidak ada percabangan (decision) yang membahas kondisi itu, jadi aku tidak bisa bilang apa yang terjadi.' + (dl.length ? ' Percabangan yang ada: ' + dl.map(xB).join(', ') + '.' : ' Diagram ini tidak punya percabangan sama sekali.') + '</p>';
   }
   if (!o) {
     var allW = D.elements.concat(D.flows).reduce(function (a, x) { return a.concat(xWordsEl(x.name)); }, []), miss = xRaw(q).filter(function (w) { return X_QSTOP.indexOf(' ' + w + ' ') < 0 && !xIsNeg(w) && !xIn(xStem(w), allW); });
     if (miss.length) return '<p>Kata ' + miss.slice(0, 4).map(function (w) { return '<b>' + esc(w) + '</b>'; }).join(', ') + ' tidak ada di nama objek mana pun di diagram ini, jadi aku tidak bisa menjawabnya dari diagram. Coba pakai nama objek seperti yang tertulis di diagram.</p>';
   }
+  if (!o) xKind = 'notfound';
   if (!o) return '<p>Aku tidak menemukan objek yang namanya cocok dengan pertanyaan itu di diagram ini. Coba sebut nama aktivitas, decision, proses, atau aktornya persis seperti di diagram.</p>';
   if (o && /(hubungan|kaitan|beda|perbedaan|antara)/.test(ql) && C[1] && C[1].s >= .45 && C[1].o !== o) return xRelAnswer(D, o, C[1].o);
   if (isDfd()) return xDfdAnswer(D, o, ql);
@@ -4703,6 +4714,8 @@ function xAnswer(D, q) {
 
   if (!/sesudah|setelah|lalu|kemudian|berikutnya|selanjutnya/.test(ql) || /sebelum/.test(ql)) h += '<p>Sebelumnya: ' + (pre.length ? pre.map(function (p) { return xB(p.e) + (xLbl(p.f) && (p.e.type === 'decision' || p.e.type === 'gateway') ? ' (jawaban <i>' + esc(xLbl(p.f)) + '</i>)' : ''); }).join(pre.join ? ' dan ' : ' atau ') + (pre.join && pre.length > 1 ? ' (menunggu semuanya selesai)' : '') : 'tidak ada (ini awal alur)') + '.</p>';
   if (!/sebelum/.test(ql) || /sesudah|setelah|lalu/.test(ql)) h += '<p>Sesudahnya: ' + (suc.length ? suc.map(function (x) { return (x.l ? '<i>' + esc(x.l) + '</i> → ' : '') + (isEndT(x.e) ? 'selesai' : xB(x.e)) + (x.back ? ' (kembali)' : ''); }).join(suc.some(function (x) { return x.l; }) ? '; ' : ' dan ') + (suc.length > 1 && !suc.some(function (x) { return x.l; }) ? ' (dikerjakan bersamaan)' : '') : isEndT(o) ? 'tidak ada, ini titik selesai' : '<b style="color:#c5221f">tidak ada (alur buntu)</b>') + '.</p>';
+  if (/sesudah|setelah|lalu|kemudian|berikutnya|selanjutnya/.test(ql) && !/sebelum/.test(ql) && suc.length === 1 && !isEndT(suc[0].e)) xFocus = suc[0].e.id;
+  else if (/sebelum/.test(ql) && !/sesudah|setelah/.test(ql) && pre.length === 1) xFocus = pre[0].e.id;
   return h;
 }
 function xDfdAnswer(D, o, ql) {
@@ -4727,25 +4740,74 @@ function xDecScore(d, Qc) {
   var cq = Qc.length ? hits / Qc.length : 0, cd = Wd.length ? new Set(used).size / Wd.length : 0;
   return { d: d, ok: hits > 0 && (cq >= .99 || cq >= .5 && cd >= .5), s: cq + cd, ant: ant };
 }
-function xCondAnswer(D, q, hint) {
-  var A = xAnalyze(D), raw = xRaw(q), neg = raw.some(xIsNeg), Qc = xWords(q).filter(function (w) { return !xIsNeg(w); });
+function xCondPick(A, q, hint) {
+  var raw = xRaw(q), neg = raw.some(xIsNeg), Qc = xWords(q).filter(function (w) { return !xIsNeg(w); });
   var decs = A.nodes.filter(function (d) { return (d.type === 'decision' || d.type === 'gateway') && !isForkT(d) && A.outs(d.id).length > 1; });
   var pick = hint ? xDecScore(hint, Qc) : null;
   if (!pick) { var sc = decs.map(function (d) { return xDecScore(d, Qc); }).filter(function (x) { return x.ok; }).sort(function (a, b) { return b.s - a.s; }); if (sc[0] && (!sc[1] || sc[0].s - sc[1].s >= .2)) pick = sc[0]; }
-  if (!pick) {
-    var BR = xFindBranch(A, q); if (!BR) return '';
-    return xCondHtml(A, BR.d, [BR.f]);
-  }
+  if (!pick) { var BR = xFindBranch(A, q); return BR ? { d: BR.d, F: [BR.f] } : null; }
   var d = pick.d, O = A.outs(d.id);
-  /* label yang disebut langsung, misalnya "kalau Transfer" */
   var named = O.filter(function (f) { var L = xWords(xLbl(f)).filter(function (w) { return !xIsNeg(w); }); return L.length && !X_YES.test(xLbl(f).toLowerCase()) && !X_NO.test(xLbl(f).toLowerCase()) && L.every(function (w) { return xIn(w, Qc); }); });
-  if (named.length === 1) return xCondHtml(A, d, named);
+  if (named.length === 1) return { d: d, F: named };
   var want = !(neg !== pick.ant);
   var pol = O.filter(function (f) { var l = xLbl(f).toLowerCase().trim(); return want ? X_YES.test(l) : X_NO.test(l); });
-  if (pol.length === 1) return xCondHtml(A, d, pol);
+  if (pol.length === 1) return { d: d, F: pol };
   var other = O.filter(function (f) { var l = xLbl(f).toLowerCase().trim(); return want ? X_NO.test(l) : X_YES.test(l); });
-  if (!pol.length && other.length && other.length === O.length) return '<p>Pemeriksaan ' + xB(d) + ' belum punya cabang untuk jawaban <i>' + (want ? 'Ya' : 'Tidak') + '</i>. Yang sudah digambar hanya cabang <i>' + esc(other.map(xLbl).join(', ')) + '</i>, jadi diagram belum menjawab apa yang terjadi pada kondisi itu.</p>';
-  return xCondHtml(A, d, O);
+  if (!pol.length && other.length && other.length === O.length) return { d: d, F: [], msg: '<p>Pemeriksaan ' + xB(d) + ' belum punya cabang untuk jawaban <i>' + (want ? 'Ya' : 'Tidak') + '</i>. Yang sudah digambar hanya cabang <i>' + esc(other.map(xLbl).join(', ')) + '</i>, jadi diagram belum menjawab apa yang terjadi pada kondisi itu.</p>' };
+  return { d: d, F: O };
+}
+function xCondAnswer(D, q, hint) {
+  var A = xAnalyze(D);
+  /* beberapa kondisi sekaligus: "kalau kode ketemu tapi telat", "kalau stok ada dan batal" */
+  var parts = q.replace(/^.*?\b(kalau|jika|bila|apabila)\b/, '').split(/\b(?:tapi|tetapi|namun|dan|terus|lalu|plus|sama|serta|trus)\b|,/).map(function (x) { return x.trim(); }).filter(function (x) { return xWords(x).length; });
+  if (parts.length > 1) {
+    var picks = parts.map(function (t) { return xCondPick(A, t, null); }).filter(function (p) { return p && p.F.length === 1; });
+    var uniq = []; picks.forEach(function (p) { if (!uniq.some(function (u) { return u.d === p.d; })) uniq.push(p); });
+    if (uniq.length > 1) return xSimulate(A, uniq);
+    var solo = parts.map(function (t) { return { t: t, p: xCondPick(A, t, null) }; }), got = solo.filter(function (x) { return x.p; });
+    if (got.length === 1) {
+      var other = solo.filter(function (x) { return !x.p; }).map(function (x) { return '<i>' + esc(x.t) + '</i>'; });
+      var g = got[0].p; xFocus = g.d.id;
+      return (g.msg || xCondHtml(A, g.d, g.F)) + (other.length ? '<p><b>Catatan:</b> untuk ' + other.join(', ') + ' tidak ada percabangan (decision) di diagram ini, jadi menurut diagram itu bukan pilihan; alurnya selalu berjalan seperti yang digambar.</p>' : '');
+    }
+  }
+  var P = xCondPick(A, q, hint); if (!P) return '';
+  xFocus = P.F.length === 1 ? (xBranchSteps(A, P.F[0], P.d).steps.slice(-1)[0] || P.d).id : P.d.id;
+  if (P.msg) return P.msg;
+  return xCondHtml(A, P.d, P.F);
+}
+/* telusuri alur dari titik mulai dengan pilihan-pilihan yang diminta; decision lain mengikuti alur utama */
+function xSimulate(A, picks) {
+  var D = A.D, choose = new Map(picks.map(function (p) { return [p.d.id, p.F[0]]; })), mainCh = new Map((A.main ? A.main.choices : []).map(function (c) { return [c.d.id, c.l]; }));
+  var id = A.starts[0] && A.starts[0].id, seen = new Set(), steps = [], started = false, reached = new Set(), assumed = [], endT = '', n = 0;
+  while (id && n++ < 500) {
+    var e = A.byId.get(id); if (!e) break;
+    if (seen.has(id)) { endT = 'kembali ke ' + xB(xStepAt(A, id)); break; }
+    seen.add(id);
+    if (isEndT(e)) { endT = 'selesai'; break; }
+    if (started && isStepT(e)) steps.push(e);
+    var O = A.outs(id); if (!O.length) { endT = '<b style="color:#c5221f">buntu</b>'; break; }
+    if (isForkT(e) && O.length > 1) { var j = xJoinOf(A, e); if (started) steps.push({ par: xParLists(A, e, j) }); if (!j) break; id = j.id; continue; }
+    var f = O[0];
+    if (O.length > 1) {
+      if (choose.has(id)) { f = choose.get(id); reached.add(id); if (!started) started = true; }
+      else {
+        var ml = mainCh.get(id), fm = O.find(function (x) { return (xLbl(x) || ('ke ' + xName(A.byId.get(x.to)))) === ml; }) || O.find(function (x) { return !A.back.has(x.id); }) || O[0];
+        f = fm; if (started || picks.some(function (p) { return !reached.has(p.d.id); })) assumed.push({ d: e, l: xLbl(f) || '?' });
+      }
+    }
+    if (started && A.back.has(f.id)) { endT = 'kembali ke ' + xB(xStepAt(A, f.to)); break; }
+    id = f.to;
+  }
+  var h = '<p>Kalau ' + picks.map(function (p) { return xB(p.d) + ' = <i>' + esc(xLbl(p.F[0]) || '?') + '</i>'; }).join(' dan ') + ':</p>';
+  if (!started) return h + '<p>Pemeriksaan itu tidak tercapai dari titik mulai, jadi diagram tidak menjawabnya.</p>';
+  h += '<p>Yang terjadi: ' + (steps.length ? xStepsText(D, steps) + ', lalu ' : '') + (endT || 'berhenti') + '.</p>';
+  var miss = picks.filter(function (p) { return !reached.has(p.d.id); });
+  if (miss.length) h += '<p><b>Catatan:</b> ' + miss.map(function (p) { return xB(p.d); }).join(', ') + ' tidak akan sempat diperiksa dengan pilihan itu, karena alurnya sudah ' + (endT === 'selesai' ? 'selesai' : endT.replace(/^kembali/, 'kembali')) + ' lebih dulu. Jadi dua kondisi itu tidak bisa terjadi bersamaan di diagram ini.</p>';
+  var asm = assumed.filter(function (x) { return !choose.has(x.d.id); });
+  if (asm.length) h += '<p class="hint">Pemeriksaan lain yang dilewati kuanggap mengikuti alur utama: ' + asm.map(function (x) { return xB(x.d) + ' = <i>' + esc(x.l) + '</i>'; }).join(', ') + '.</p>';
+  xFocus = steps.length && !steps[steps.length - 1].par ? steps[steps.length - 1].id : picks[picks.length - 1].d.id;
+  return h;
 }
 function xCondHtml(A, d, F) {
   var D = A.D, c = A.cond[d.id] || [], h = '<p>Ini ditentukan oleh pemeriksaan ' + xB(d) + (laneOf(D, d) ? ' (oleh ' + esc(laneOf(D, d)) + ')' : '') + (F.length === 1 ? ', dengan jawaban <i>' + esc(xLbl(F[0]) || '(tanpa label)') + '</i>' : '') + '.</p>';
@@ -4808,6 +4870,95 @@ function xRelAnswer(D, a, b) {
   if (!direct.length) h += '<li>Tidak terhubung langsung.</li>';
   return h + '</ul>';
 }
+/* bahasa sehari-hari: "kalo stoknya abis gmn", "emang sistem yg nyimpen?" */
+var X_SLANG = { kalo: 'kalau', klo: 'kalau', kalok: 'kalau', kl: 'kalau', gmn: 'gimana', gmna: 'gimana', gimana: 'gimana', gk: 'tidak', ga: 'tidak', gak: 'tidak', nggak: 'tidak', ngga: 'tidak', enggak: 'tidak', engga: 'tidak', kagak: 'tidak', ndak: 'tidak', udh: 'sudah', udah: 'sudah', dah: 'sudah', blm: 'belum', sblm: 'sebelum', stlh: 'setelah', abis: 'habis', trs: 'lalu', trus: 'lalu', terus: 'lalu', yg: 'yang', dgn: 'dengan', sm: 'sama', emg: 'memang', emang: 'memang', emangnya: 'memang', memangnya: 'memang', bener: 'benar', beneran: 'benar', bnr: 'benar', knp: 'kenapa', napa: 'kenapa', dmn: 'mana', aja: 'saja', doang: 'saja', nyimpen: 'menyimpan', nyimpan: 'menyimpan', ngisi: 'mengisi', ngirim: 'mengirim', nerima: 'menerima', dapet: 'mendapat', ngambil: 'mengambil', make: 'memakai', makai: 'memakai', baca: 'membaca', ngebaca: 'membaca', ngecek: 'memeriksa', ngecheck: 'memeriksa', cek: 'memeriksa', masukin: 'memasukkan', milih: 'memilih', nampilin: 'menampilkan', nampilkan: 'menampilkan', ngapain: 'apa yang dilakukan', ngelakuin: 'melakukan', tau: 'tahu', pake: 'pakai', bikin: 'membuat', kelar: 'selesai', beres: 'selesai', telat: 'terlambat', ketemu: 'ditemukan', nemu: 'ditemukan', cepet: 'cepat', sampe: 'sampai', nyampe: 'sampai', minjem: 'meminjam', pinjem: 'pinjam', balikin: 'mengembalikan', ngembaliin: 'mengembalikan', mencet: 'menekan', pencet: 'tekan', ngeklik: 'klik', nyari: 'mencari', ngasih: 'memberi', ilang: 'hilang', gaada: 'tidak ada', gada: 'tidak ada', dlu: 'dulu', duluan: 'dulu', bayarnya: 'bayar', lgsg: 'langsung', langsung: 'langsung', gitu: 'begitu', kenapa: 'kenapa', ngelewatin: 'melewati', lewatin: 'melewati', apa2: 'apa', ngerjain: 'mengerjakan', ngeproses: 'memproses', proses: 'proses', ngubah: 'mengubah', ngitung: 'menghitung', itung: 'hitung', nolak: 'menolak', tuh: '', sih: '', dong: '', deh: '', nih: '', loh: '', lho: '', kah: '', mah: '', wkwk: '', hehe: '' };
+function xNormQ(q) {
+  q = String(q || '').toLowerCase().replace(/\b(abis|habis|selesai|kelar)\s+(itu|ini)\b/g, 'sesudah itu').replace(/(^|\b(?:terus|trus|trs|lalu|nah)\s+)(abis|habis|kelar|beres)\s+/g, '$1sesudah ').replace(/\b(kalau|kalo|klo|kl|pas|waktu)\s+(sudah|udah|udh|dah|selesai|kelar|beres)\b/g, 'sesudah').replace(/\b(sudah|udah|udh|dah)\s+(itu)\b/g, 'sesudah itu').replace(/\bgak?\s+jadi\b/g, 'tidak jadi');
+  return q.replace(/[a-z]+/g, function (w) { if (X_SLANG.hasOwnProperty(w)) return X_SLANG[w]; var m = /^(.{3,})nya$/.exec(w); if (m && X_SLANG[m[1]]) return X_SLANG[m[1]]; return w; }).replace(/\s+/g, ' ').trim();
+}
+var X_VERIF = /\b(memang|benar|yakin|serius|masa|masak|beneran|betulan|bukannya|apa iya|iya kah)\b/;
+/* "emang iya?" tanpa isi: tunjukkan bukti jawaban sebelumnya, yaitu garis-garis di diagram */
+function xEvidence(D, last) {
+  if (!last) return '<p>Mau dicek yang mana? Tanyakan dulu sesuatu tentang diagram ini, nanti aku tunjukkan buktinya dari garis-garisnya.</p>';
+  if (last.kind === 'count') { var acts = D.elements.filter(function (e) { return isStepT(e) || e.type === 'process'; }), decs = D.elements.filter(function (e) { return (e.type === 'decision' || e.type === 'gateway') && !isForkT(e); }); return '<p>Iya, ini hitungannya satu per satu dari diagram:</p><p><b>' + acts.length + ' ' + (isDfd() ? 'proses' : 'aktivitas') + ':</b> ' + acts.map(function (e) { return esc(xName(e)); }).join(', ') + '.</p>' + (decs.length ? '<p><b>' + decs.length + ' percabangan:</b> ' + decs.map(function (e) { return esc(xName(e)); }).join(', ') + '.</p>' : '') + (isDfd() ? '<p class="hint">Entitas luar dan data store tidak dihitung sebagai proses.</p>' : '<p class="hint">Initial, final, fork/join, dan partition tidak dihitung sebagai aktivitas.</p>'); }
+  if (last.kind === 'path' && !isDfd() && D.kind !== 'usecase') { var A = xAnalyze(D); return '<p>Iya. Ini semua jalur yang aku telusuri dari titik mulai, mengikuti garisnya satu per satu:</p><ol>' + A.paths.map(function (p) { return '<li>' + (p.choices.length ? p.choices.map(function (x) { return xB(x.d) + ' = <i>' + esc(x.l) + '</i>'; }).join(' → ') : 'tanpa percabangan') + ' → ' + (p.end === 'final' ? 'selesai' : p.end === 'loop' ? 'kembali ke ' + xB(p.at) : 'buntu di ' + xB(p.at)) + ' (' + p.steps + ' aktivitas)</li>'; }).join('') + '</ol>'; }
+  if (!last.ids.length) return '<p>Iya. Jawabanku tadi: ' + last.plain + ' Itu karena aku sudah mencari di semua nama objek dan garis di diagram ini dan memang tidak ketemu. Kalau menurutmu ada, mungkin namanya ditulis berbeda; coba sebut nama persis seperti di diagram.</p>';
+  var set = new Set(last.ids), F = D.flows.filter(function (f) { return set.has(f.from) || set.has(f.to); }).slice(0, 14);
+  return '<p>Yakin, jawabanku tadi sesuai diagram. Aku tidak mengarang; ini garis-garis yang jadi dasarnya:</p><ul>' + F.map(function (f) { var a = elOf(D, f.from), b = elOf(D, f.to); return '<li>' + xB(a) + (laneOf(D, a) ? ' <small>(' + esc(laneOf(D, a)) + ')</small>' : '') + ' → ' + xB(b) + (laneOf(D, b) ? ' <small>(' + esc(laneOf(D, b)) + ')</small>' : '') + (xLbl(f) ? ' dengan label <i>' + esc(xLbl(f)) + '</i>' : '') + '</li>'; }).join('') + '</ul><p>Kalau ada yang tidak sesuai maksudmu, berarti garis atau labelnya di diagram yang perlu diubah. Klik objeknya di kanvas untuk mengecek.</p>';
+}
+/* klaim "emang Sistem yang menyimpan data?" dicek benar/salah */
+function xClaim(D, q) {
+  if (isDfd()) return xClaimDfd(D, q);
+  var lanes = D.elements.filter(function (e) { return (e.type === 'partition' || e.type === 'lane' || e.type === 'actor') && e.name; });
+  var nq = ' ' + q.replace(/[^a-z0-9 ]+/g, ' ') + ' ', L = lanes.filter(function (l) { return nq.indexOf(' ' + norm(l.name).replace(/[^a-z0-9 ]+/g, ' ').trim() + ' ') >= 0; });
+  if (L.length !== 1) return '';
+  var rest = q.replace(new RegExp(norm(L[0].name).replace(/[^a-z0-9 ]+/g, ' ').trim().replace(/ /g, '\\s+'), 'g'), ' ').replace(new RegExp(X_VERIF.source, 'g'), ' ').replace(/\b(apakah|apa|iya|ya|tidak|bukan|kan)\b/g, ' ');
+  var C = xFind(D, rest).filter(function (c) { return c.o !== L[0] && c.o.type !== 'partition' && c.o.type !== 'lane'; });
+  if (!C[0] || C[0].s < .5) { var rw = xWords(rest).filter(function (w) { return !xIsNeg(w); }); if (!rw.length) return ''; xKind = 'notfound'; return '<p><b>Tidak ada</b> aktivitas seperti itu di diagram ini, jadi ' + xB(L[0]) + ' juga tidak melakukannya. ' + xB(L[0]) + ' hanya melakukan: ' + D.elements.filter(function (e) { return isStepT(e) && laneOf(D, e) === L[0].name; }).map(function (e) { return esc(xName(e)); }).join(', ') + '.</p>'; }
+  var o = C[0].o, ties = C.filter(function (c) { return c.s >= C[0].s - .1 && c.s >= .5; }).map(function (c) { return c.o; });
+  if (ties.length > 1 && D.kind !== 'usecase') {
+    var inL = ties.filter(function (t) { return laneOf(D, t) === L[0].name; }), outL = ties.filter(function (t) { return laneOf(D, t) !== L[0].name; });
+    xFocus = ties[0].id;
+    if (!outL.length) return '<p><b>Iya, benar.</b> ' + ties.map(xB).join(' dan ') + ' semuanya ada di lane ' + esc(L[0].name) + '.</p>';
+    if (!inL.length) return '<p><b>Bukan.</b> ' + ties.map(function (t) { return xB(t) + ' dilakukan oleh <b>' + esc(laneOf(D, t) || '-') + '</b>'; }).join('; ') + '.</p>';
+    return '<p><b>Sebagian.</b> ' + inL.map(xB).join(', ') + ' memang oleh ' + esc(L[0].name) + ', tapi ' + outL.map(function (t) { return xB(t) + ' oleh <b>' + esc(laneOf(D, t) || '-') + '</b>'; }).join(', ') + '.</p>';
+  }
+  xFocus = o.id;
+  if (D.kind === 'usecase' && L[0].type === 'actor') { var ok = D.flows.some(function (f) { return (f.from === L[0].id && f.to === o.id) || (f.to === L[0].id && f.from === o.id); }); return '<p>' + (ok ? '<b>Iya, benar.</b> ' + xB(L[0]) + ' terhubung ke ' + xB(o) + '.' : '<b>Bukan.</b> Di diagram ini ' + xB(L[0]) + ' tidak terhubung ke ' + xB(o) + '.') + '</p>'; }
+  var ln = laneOf(D, o); if (!ln) return '';
+  return '<p>' + (ln === L[0].name ? '<b>Iya, benar.</b> ' + xB(o) + ' ada di lane ' + esc(ln) + '.' : '<b>Bukan.</b> Menurut diagram, ' + xB(o) + ' dilakukan oleh <b>' + esc(ln) + '</b>, bukan ' + esc(L[0].name) + '.') + '</p>';
+}
+var xLast = null, xFocus = null, xKind = '';
+/* "emang Student yang kirim payments?" dicek ke garis alur data */
+function xClaimDfd(D, q) {
+  var nq = ' ' + q.replace(/[^a-z0-9. ]+/g, ' ').replace(/\s+/g, ' ') + ' ';
+  function has(n) { n = norm(n).replace(/[^a-z0-9. ]+/g, ' ').replace(/\s+/g, ' ').trim(); return n && nq.indexOf(' ' + n + ' ') >= 0; }
+  var E = D.elements.filter(function (e) { return e.name && has(e.name); }), F = D.flows.filter(function (f) { return f.name && has(f.name); });
+  if (!E.length || !F.length) return '';
+  var e = E.sort(function (a, b) { return b.name.length - a.name.length; })[0], fn = F.sort(function (a, b) { return b.name.length - a.name.length; })[0].name;
+  var recv = /(terima|menerima|diterima|dapat|mendapat|masuk ke)/.test(q), all = D.flows.filter(function (f) { return norm(f.name) === norm(fn); });
+  var mine = all.filter(function (f) { return recv ? f.to === e.id : f.from === e.id; }), oth = all.filter(function (f) { return mine.indexOf(f) < 0; });
+  xFocus = e.id;
+  if (mine.length) return '<p><b>Iya, benar.</b> ' + mine.map(function (f) { return '<b>' + esc(xNmP(elOf(D, f.from))) + '</b> → <b>' + esc(xNmP(elOf(D, f.to))) + '</b>'; }).join(', ') + ' membawa <i>' + esc(fn) + '</i>.</p>';
+  return '<p><b>Bukan.</b> ' + xB(e) + ' tidak ' + (recv ? 'menerima' : 'mengirim') + ' <i>' + esc(fn) + '</i>. Di diagram, <i>' + esc(fn) + '</i> mengalir ' + oth.map(function (f) { return 'dari <b>' + esc(xNmP(elOf(D, f.from))) + '</b> ke <b>' + esc(xNmP(elOf(D, f.to))) + '</b>'; }).join(', ') + '.</p>';
+}
+/* "jalur paling cepat sampai selesai", "jalur terpanjang", "ada berapa jalur" */
+function xPathQ(D, ql) {
+  if (isDfd() || D.kind === 'usecase') return '';
+  var shortQ = /(paling\s+(cepat|pendek|singkat|sedikit)|tercepat|terpendek|tersingkat)/.test(ql), longQ = /(paling\s+(lama|panjang|banyak)|terlama|terpanjang)/.test(ql), countQ = /berapa\s+(jalur|kemungkinan|skenario|cabang)/.test(ql) || /(semua|daftar)\s+(jalur|kemungkinan)/.test(ql);
+  if (!shortQ && !longQ && !countQ) return '';
+  var A = xAnalyze(D), fin = A.paths.filter(function (p) { return p.end === 'final'; });
+  function desc(p) { return (p.choices.length ? p.choices.map(function (x) { return xB(x.d) + ' = <i>' + esc(x.l) + '</i>'; }).join(', ') : 'tanpa percabangan') + ' (' + p.steps + ' aktivitas)'; }
+  if (countQ) return '<p>Ada ' + A.paths.length + ' kemungkinan jalur: ' + fin.length + ' sampai selesai' + (A.paths.length - fin.length ? ', ' + A.paths.filter(function (p) { return p.end === 'loop'; }).length + ' kembali ke langkah sebelumnya' + (A.paths.some(function (p) { return p.end === 'stuck'; }) ? ', dan ' + A.paths.filter(function (p) { return p.end === 'stuck'; }).length + ' buntu' : '') : '') + '. Daftar lengkapnya ada di bagian "Semua kemungkinan jalur" di bawah.</p>';
+  if (!fin.length) return '<p>Tidak ada jalur yang sampai ke titik selesai di diagram ini.</p>';
+  var srt = fin.slice().sort(function (a, b) { return shortQ ? a.steps - b.steps : b.steps - a.steps; }), best = srt.filter(function (p) { return p.steps === srt[0].steps; });
+  return '<p>Jalur ' + (shortQ ? 'tersingkat' : 'terpanjang') + ' sampai selesai: ' + best.map(desc).join('; atau ') + '.</p><p>Isinya: ' + xStepsText(D, best[0].seq) + ', lalu selesai.</p>' + (fin.length > 1 ? '<p class="hint">Sebagai perbandingan, ' + (shortQ ? 'terpanjang' : 'tersingkat') + ' ' + srt[srt.length - 1].steps + ' aktivitas.</p>' : '');
+}
+function xAnswer(D, q) {
+  var raw = String(q || '').trim(); if (!raw) return '';
+  xFocus = null; xKind = '';
+  var nq = xNormQ(raw), content = xWords(nq.replace(new RegExp(X_VERIF.source, 'g'), ' ')).filter(function (w) { return !xIsNeg(w) && !/^(iya|ya|gitu|begitu|kan|itu|ini|jawab|jawaban|tadi|kamu|aku|salah|lalu|sesudah|setelah|sebelum|melakukan|dilakukan)$/.test(w); });
+  if (X_VERIF.test(nq) || /^(iya|ya|masa|yakin|serius|apakah)\b/.test(nq)) {
+    if (!content.length) return xEvidence(D, xLast);
+    var cl = xClaim(D, nq); if (cl) { if (!xKind) xKind = 'claim'; xRemember(D, cl); return cl; }
+  }
+  /* pertanyaan lanjutan: "terus abis itu ngapain?", "siapa yang melakukannya?" memakai objek dari jawaban sebelumnya */
+  var pre = '';
+  if (xLast && xLast.focus && !/(kalau|jika|bila|apabila)/.test(nq)) {
+    var C = xFind(D, nq), conf = C[0] && C[0].s >= .5;
+    var cue = /\b(itu|tadi|tersebut|lalu|sesudahnya|sebelumnya|selanjutnya|berikutnya|kemudian)\b|nya\b|^(siapa|kapan|kenapa|mengapa)\b/.test(nq);
+    var fo = elOf(D, xLast.focus);
+    if (fo && cue && (!conf || !content.length)) { nq = nq.replace(/\b(itu|tadi|tersebut)\b/g, ' ') + ' ' + norm(xName(fo)); pre = '<p class="hint">Maksudnya <b>' + esc(xName(fo)) + '</b> dari jawaban sebelumnya.</p>'; }
+  }
+  var h = pre + xAnswer0(D, nq);
+  xRemember(D, h);
+  return h;
+}
+function xRemember(D, h) {
+  var ids = []; D.elements.forEach(function (e) { if (e.name && h.indexOf('<b>' + esc(xName(e)) + '</b>') >= 0) ids.push(e.id); });
+  var tmp = document.createElement('div'); tmp.innerHTML = h;
+  xLast = { ids: ids, plain: tmp.textContent.trim().slice(0, 300), focus: xFocus || (xLast && xLast.focus), kind: xKind };
+}
 function xSuggest(D) {
   var s = [];
   if (isDfd()) { var p = D.elements.find(function (e) { return e.type === 'process'; }), e = D.elements.find(function (x) { return x.type === 'entity'; }); if (p) s.push('Apa masukan ' + xName(p) + '?'); if (e) s.push('Apa yang dikirim ' + xName(e) + '?'); }
@@ -4824,9 +4975,10 @@ function xSuggest(D) {
 function explainModal(focusId) {
   var D = cur(); if (!D.elements.length) { toast('Diagram masih kosong.'); return; }
   var body = isDfd() ? xDfdExplain(D) : D.kind === 'usecase' ? xUseCaseExplain(D) : xFlowExplain(D);
-  var html = '<div class="xask"><input class="in" id="xq" placeholder="Tanya tentang diagram ini, misalnya: apa yang terjadi kalau data tidak valid?" aria-label="Pertanyaan"><button class="btn pri" id="xgo">Tanya</button></div>' +
+  var html = '<div class="xask"><input class="in" id="xq" placeholder="Tanya apa saja, boleh santai: kalo stoknya abis gmn? emang sistem yg nyimpen?" aria-label="Pertanyaan"><button class="btn pri" id="xgo">Tanya</button></div>' +
     '<div class="xchips">' + xSuggest(D).map(function (t) { return '<button class="chip" data-xq="' + esc(t) + '">' + esc(t) + '</button>'; }).join('') + '</div><div class="xans" id="xans" hidden></div>' +
     '<div class="xexp" id="xexp">' + body + '</div><p class="st-note" style="flex-shrink:0">Penjelasan ini disusun langsung dari garis dan objek di diagram, tanpa AI, jadi tidak mengarang. Kalau ada yang terasa salah, berarti garis atau labelnya di diagram yang perlu dicek.</p>';
+  xLast = null;
   modal('Jelaskan diagram: ' + (D.name || diagTitle(D)), html, '<button class="btn" data-close>Tutup</button><button class="btn" id="xcopy">Salin penjelasan</button>', function (s) {
     s.querySelector('.modal').classList.add('mid', 'xmodal');
     function ask(t) { var a = $('#xans', s); a.hidden = false; a.innerHTML = '<div class="xq">' + esc(t) + '</div>' + xAnswer(D, t); }
@@ -6822,7 +6974,7 @@ var HELP = {
     '<li>Seret panah biru ke <b>area kosong</b> untuk membuat elemen baru yang langsung tersambung (seperti Quick Link di EA).</li>' +
     '<li>Atau pilih jenis garis di Toolbox, klik elemen asal, lalu klik elemen tujuan.</li>' +
     '<li>Garis dirapikan otomatis setiap ada perubahan. Garis yang kamu atur sendiri tidak diubah. Matikan lewat Susun → Rapikan otomatis.</li></ul><h4>Mengatur garis (seperti EA)</h4><ul><li><b>Seret garisnya langsung</b> ke mana saja: naik-turun dan kiri-kanan sekaligus. Tahan <b>Shift</b> untuk mengunci ke satu arah. Berlaku juga di DFD. Kalau ruas di ujung digeser keluar dari objek, tikungan kecil dibuat sendiri; kalau dikembalikan, garis lurus lagi.</li><li>Garis <b>Direct</b> yang lurus digeser sejajar (naik-turun atau kiri-kanan), ujungnya ikut menyusuri tepi objek seperti di EA. Tahan Alt sambil menyeret untuk membuat tikungan.</li><li><b>Label bisa digeser</b>: nama decision, merge, gateway, initial/final, nama garis, [guard], dan «include». Saat dipilih muncul kotak dan garis bantu putus-putus seperti EA. Label ikut bergerak bersama objek atau garisnya, dan posisinya ikut terbawa ke EA. Klik kanan → Kembalikan posisi label untuk mengembalikannya.</li><li><b>Ctrl+klik</b> di garis menambah titik (kotak kecil). Seret titiknya untuk membuat tikungan. Ctrl+klik titiknya untuk menghapus.</li><li>Kotak di <b>ujung garis</b> bisa digeser menyusuri tepi objek. Tarik menjauh dari objek untuk memindah sambungan ke objek lain; lepas di tempat kosong untuk membatalkan.</li><li>Bentuk garis sama seperti EA: Direct / Custom Line, Orthogonal - Square, Orthogonal - Rounded, Tree Style (vertikal/horizontal), dan Lateral (vertikal/horizontal). Pilih di panel kanan atau klik kanan garis.</li><li>Garis yang bersilangan diberi lompatan kecil seperti EA (bisa dimatikan di Format → Preferensi tampilan).</li><li>Tarik panah biru ke tempat kosong: elemen baru muncul tepat di titik kamu melepasnya.</li></ul>' +
-    '<h4>Dari skenario use case</h4><ul><li>Salin tabel skenario (kolom Aktor dan Sistem, Normal Flow, Alternative Flow) dari Google Docs atau Word, lalu tekan <b>Ctrl+V di kanvas</b>. Bisa juga buka berkas <b>.docx</b> laporan (Berkas → Buat diagram dari skenario). Tiap use case langsung jadi Activity Diagram: partition aktor dan sistem, initial, aktivitas, decision Ya/Tidak untuk alur alternatif, dan final.</li><li>Nomor langkah di alur alternatif menentukan letak decision. Kalau langkah terakhirnya sama dengan langkah di Normal Flow (misalnya kembali ke form), garisnya dikembalikan ke langkah itu.</li><li>Bisa sekaligus membuat Use Case Diagram dari semua skenario.</li></ul><h4>Fitur pembantu tugas</h4><ul><li><b>Simpan seperti Word</b> (Chrome/Edge di laptop): buka berkas lewat Alir, lalu <b>Ctrl+S</b> langsung menimpa berkas itu (.pam untuk DFD, .alir untuk proyek UML). Ctrl+Shift+S = Simpan sebagai. Ekspor ke EA pindah ke Ctrl+E. Pasang Alir sebagai aplikasi (ikon pasang di kolom alamat) supaya berkas .alir / .pam / .eap bisa dibuka dengan klik dua kali.</li><li><b>Jelaskan diagram</b> (F3, menu Diagram, atau klik kanan objek → Jelaskan objek ini): Alir membaca garis dan objek lalu menyusun alur utama per pelaku, arti setiap percabangan, perulangan, alur paralel, semua kemungkinan jalur, dan hal yang perlu dicek. Bisa ditanya, misalnya <i>kalau stok habis gimana?</i>, <i>siapa yang memvalidasi data?</i>, <i>apa sebelum menyimpan data?</i>. Jawabannya diambil langsung dari diagram tanpa AI, jadi kalau tidak ada di diagram, Alir bilang tidak ada.</li><li><b>Teks untuk laporan</b> (Berkas): tabel skenario Aktor/Sistem dan narasi bernomor disusun dari activity diagram, tabel alur data dari DFD, tabel aktor dan use case dari use case diagram. Klik Salin lalu tempel di Google Docs/Word.</li><li><b>Jalankan alur ▶</b> (menu Diagram atau klik kanan kanvas): titik biru berjalan mengikuti alur; di decision kamu memilih cabangnya. Spasi = lanjut, Esc = berhenti. Cocok untuk presentasi dan menemukan alur buntu.</li><li><b>Bagikan lewat link</b> (Berkas): seluruh diagram dimasukkan ke dalam link, kirim lewat WhatsApp. Penerima mendapat salinannya sendiri.</li><li><b>Riwayat versi</b> (Berkas): salinan otomatis saat dibuka, tiap 10 menit, dan sebelum membuka berkas lain. Bisa dipulihkan atau diunduh.</li><li><b>Use case ↔ Activity</b>: klik dua kali use case yang punya activity diagram untuk membukanya (ada tanda ∞ kecil). Klik kanan use case → Buat Activity Diagram.</li></ul><h4>Merapikan tata letak</h4><ul><li><b>Susun → Rapikan tata letak</b> (Ctrl+Shift+K) memindah objek supaya seimbang: di Activity, alur utama lurus di tengah lane, pindah lane dibuat sebaris, cabang di samping, garis kembali lewat sisi luar. Di DFD, proses di tengah, data store di bawah prosesnya, entitas kiri-kanan, ukuran objek proporsional. Bisa dibatalkan dengan Ctrl+Z.</li><li>Klik kanan objek → <b>Pilih semua alurnya</b> untuk memilih semua garis masuk dan keluar objek itu (lalu ganti warna, pola, atau Ctrl+L untuk merapikan garis itu saja). <b>Warnai alurnya sesuai warna objek</b> mewarnai garisnya sekaligus. Format → Warnai semua alur sesuai entitas melakukannya untuk semua entitas.</li></ul><h4>Swimlane, pool, dan batas sistem</h4><ul><li>Seperti di EA, tiap <b>partition</b> (swimlane) adalah elemen sendiri, bukan satu tabel. Klik di dekat partition lain untuk menaruh partition baru menempel di sampingnya.</li><li>Saat digeser atau diubah ukurannya, tepinya <b>menempel otomatis</b> ke partition lain (seperti opsi Dockable di EA). Tahan Alt untuk mematikan.</li><li>Klik kanan partition → <b>Rapatkan semua partition</b> untuk menjejerkan tanpa celah dan menyamakan tingginya. Klik kanan → Jadikan mendatar/tegak untuk mengubah arah.</li><li>Lane yang ditaruh di dalam pool otomatis menyesuaikan lebar pool.</li><li>Geser bingkai lewat <b>judul atau tepinya</b>. Isi di dalamnya ikut berpindah.</li></ul>' +
+    '<h4>Dari skenario use case</h4><ul><li>Salin tabel skenario (kolom Aktor dan Sistem, Normal Flow, Alternative Flow) dari Google Docs atau Word, lalu tekan <b>Ctrl+V di kanvas</b>. Bisa juga buka berkas <b>.docx</b> laporan (Berkas → Buat diagram dari skenario). Tiap use case langsung jadi Activity Diagram: partition aktor dan sistem, initial, aktivitas, decision Ya/Tidak untuk alur alternatif, dan final.</li><li>Nomor langkah di alur alternatif menentukan letak decision. Kalau langkah terakhirnya sama dengan langkah di Normal Flow (misalnya kembali ke form), garisnya dikembalikan ke langkah itu.</li><li>Bisa sekaligus membuat Use Case Diagram dari semua skenario.</li></ul><h4>Fitur pembantu tugas</h4><ul><li><b>Simpan seperti Word</b> (Chrome/Edge di laptop): buka berkas lewat Alir, lalu <b>Ctrl+S</b> langsung menimpa berkas itu (.pam untuk DFD, .alir untuk proyek UML). Ctrl+Shift+S = Simpan sebagai. Ekspor ke EA pindah ke Ctrl+E. Pasang Alir sebagai aplikasi (ikon pasang di kolom alamat) supaya berkas .alir / .pam / .eap bisa dibuka dengan klik dua kali.</li><li><b>Jelaskan diagram</b> (F3, menu Diagram, atau klik kanan objek → Jelaskan objek ini): Alir membaca garis dan objek lalu menyusun alur utama per pelaku, arti setiap percabangan, perulangan, alur paralel, semua kemungkinan jalur, dan hal yang perlu dicek. Bisa ditanya dengan bahasa santai, misalnya <i>kalo stoknya abis gmn?</i>, <i>kalau kode ketemu tapi telat?</i> (beberapa kondisi sekaligus), <i>emang sistem yg nyimpen data?</i> (dicek benar/salah), <i>terus abis itu?</i> (lanjutan dari jawaban sebelumnya), <i>emang iya?</i> (ditunjukkan garis yang jadi buktinya), atau <i>jalur paling cepat yang mana?</i>. Jawabannya diambil langsung dari diagram tanpa AI, jadi kalau tidak ada di diagram, Alir bilang tidak ada.</li><li><b>Teks untuk laporan</b> (Berkas): tabel skenario Aktor/Sistem dan narasi bernomor disusun dari activity diagram, tabel alur data dari DFD, tabel aktor dan use case dari use case diagram. Klik Salin lalu tempel di Google Docs/Word.</li><li><b>Jalankan alur ▶</b> (menu Diagram atau klik kanan kanvas): titik biru berjalan mengikuti alur; di decision kamu memilih cabangnya. Spasi = lanjut, Esc = berhenti. Cocok untuk presentasi dan menemukan alur buntu.</li><li><b>Bagikan lewat link</b> (Berkas): seluruh diagram dimasukkan ke dalam link, kirim lewat WhatsApp. Penerima mendapat salinannya sendiri.</li><li><b>Riwayat versi</b> (Berkas): salinan otomatis saat dibuka, tiap 10 menit, dan sebelum membuka berkas lain. Bisa dipulihkan atau diunduh.</li><li><b>Use case ↔ Activity</b>: klik dua kali use case yang punya activity diagram untuk membukanya (ada tanda ∞ kecil). Klik kanan use case → Buat Activity Diagram.</li></ul><h4>Merapikan tata letak</h4><ul><li><b>Susun → Rapikan tata letak</b> (Ctrl+Shift+K) memindah objek supaya seimbang: di Activity, alur utama lurus di tengah lane, pindah lane dibuat sebaris, cabang di samping, garis kembali lewat sisi luar. Di DFD, proses di tengah, data store di bawah prosesnya, entitas kiri-kanan, ukuran objek proporsional. Bisa dibatalkan dengan Ctrl+Z.</li><li>Klik kanan objek → <b>Pilih semua alurnya</b> untuk memilih semua garis masuk dan keluar objek itu (lalu ganti warna, pola, atau Ctrl+L untuk merapikan garis itu saja). <b>Warnai alurnya sesuai warna objek</b> mewarnai garisnya sekaligus. Format → Warnai semua alur sesuai entitas melakukannya untuk semua entitas.</li></ul><h4>Swimlane, pool, dan batas sistem</h4><ul><li>Seperti di EA, tiap <b>partition</b> (swimlane) adalah elemen sendiri, bukan satu tabel. Klik di dekat partition lain untuk menaruh partition baru menempel di sampingnya.</li><li>Saat digeser atau diubah ukurannya, tepinya <b>menempel otomatis</b> ke partition lain (seperti opsi Dockable di EA). Tahan Alt untuk mematikan.</li><li>Klik kanan partition → <b>Rapatkan semua partition</b> untuk menjejerkan tanpa celah dan menyamakan tingginya. Klik kanan → Jadikan mendatar/tegak untuk mengubah arah.</li><li>Lane yang ditaruh di dalam pool otomatis menyesuaikan lebar pool.</li><li>Geser bingkai lewat <b>judul atau tepinya</b>. Isi di dalamnya ikut berpindah.</li></ul>' +
     '<h4>Ke Enterprise Architect</h4><ul><li><b>Buka .eap</b>: Berkas → Buka. Activity, Use Case, dan BPMN dibaca, diagram jenis lain dilewati.</li><li><b>Ekspor ke EA</b> (Ctrl+S) membuat berkas .xml (XMI) untuk diimpor ke EA. Langkahnya ditampilkan di jendela ekspor.</li><li><b>Ke Google Docs / Word</b>: klik <b>Salin gambar</b> di bilah atas (atau Ctrl+Alt+C), lalu Ctrl+V di dokumen. Gambarnya HD (4x), tetap tajam saat diperbesar, lengkap dengan bingkai dan nama diagram seperti hasil ekspor. Ctrl+C pada objek terpilih juga langsung bisa ditempel sebagai gambar.</li><li>Untuk laporan: Berkas → Ekspor semua ke PDF atau PNG.</li></ul>',
   tentang: '<p><b>Alir</b> adalah editor diagram di browser: DFD yang bisa membuka dan menyimpan berkas <b>.pam</b> PowerDesigner 6, serta Activity, Use Case, dan BPMN yang bisa membuka <b>.eap</b> dan mengekspor ke Enterprise Architect.</p><p><b>Jangan jadikan Alir sebagai patokan.</b> Alir bukan produk resmi PowerDesigner, SAP, atau Sparx Systems. Selalu buka hasil akhir di aplikasi aslinya sebelum dikumpulkan.</p><p>Semua data tersimpan di browser masing-masing pengguna. Tidak ada yang dikirim ke server.</p>'
 };
