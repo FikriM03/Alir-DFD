@@ -405,6 +405,42 @@ ol.steps code, ol.steps kbd { font: 600 12px var(--f-mono); padding: 1px 5px; bo
 }
 @media (prefers-reduced-motion: reduce) { #panel { transition: none; } }
 .scnoalt{color:#b45309}
+
+/* v38: tab = diagram yang dibuka; Project Browser bisa dilipat & dicari */
+.tab { max-width: 230px; }
+.tab .tl { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.tab.pv .tl { font-style: italic; }
+.tab.pv { color: var(--mut); }
+.tab .x { opacity: 0; width: 18px; height: 18px; display: inline-grid; place-items: center; padding: 0; flex: none; }
+.tab:hover .x, .tab[aria-selected="true"] .x, .tab:focus-within .x { opacity: 1; }
+.tab .x:hover { background: var(--panel2); }
+@media (hover: none) { .tab .x { opacity: .8; } }
+#tabpop .ti .op { margin-left: auto; color: var(--acc); font-size: 9px; }
+.pbtools { display: flex; align-items: center; gap: 6px; }
+.pbsearch { position: relative; flex: 1; min-width: 0; }
+.pbsearch svg { position: absolute; left: 8px; top: 50%; width: 13px; height: 13px; margin-top: -6.5px; fill: none; stroke: var(--mut); stroke-width: 1.6; stroke-linecap: round; pointer-events: none; }
+.pbq { width: 100%; height: 28px; padding: 0 8px 0 27px; border: 1px solid var(--bd); border-radius: 6px; background: var(--panel); color: var(--fg); font: 12.5px var(--f-body); }
+.pbq:focus { border-color: var(--acc); outline: none; box-shadow: 0 0 0 2px color-mix(in srgb, var(--acc) 22%, transparent); }
+.pbq::-webkit-search-cancel-button { cursor: pointer; }
+.pbcount { font: 500 10.5px var(--f-mono); color: var(--mut); white-space: nowrap; }
+.btn.sm.ic { width: 28px; padding: 0; display: inline-grid; place-items: center; }
+.btn.sm.ic svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.pbbox { resize: vertical; min-height: 90px; }
+.tree.pb .pbd, .tree.pb .pbrow { display: flex; align-items: center; gap: 0; min-width: 0; }
+.tree.pb .pbrow { gap: 5px; } .tree.pb .pbrow .tw { margin-right: -3px; }
+.tree.pb .pbd > button[data-pbd] { flex: 1; min-width: 0; }
+.tree.pb .nm { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.tree.pb .tw { flex: none; width: 18px; height: 20px; padding: 0; display: inline-grid; place-items: center; border-radius: 4px; color: var(--mut); }
+.tree.pb .tw svg { width: 9px; height: 9px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; transition: transform .12s ease; }
+.tree.pb .tw[aria-expanded="true"] svg { transform: rotate(90deg); }
+.tree.pb .tw:hover { color: var(--fg); background: var(--panel2); }
+.tree.pb .tw0 { flex: none; width: 18px; }
+.tree.pb .op { flex: none; width: 6px; height: 6px; margin: 0 2px 0 6px; border-radius: 50%; background: var(--acc); opacity: .75; }
+.tree.pb button.cur .op { background: currentColor; }
+.tree.pb .pbrow i { margin-left: 6px; font: 500 10.5px var(--f-mono); color: var(--mut); font-style: normal; }
+.tree.pb mark { background: color-mix(in srgb, var(--acc) 22%, transparent); color: inherit; border-radius: 2px; padding: 0 1px; }
+.pbnone { padding: 8px 6px; }
+@media (prefers-reduced-motion: reduce) { .tree.pb .tw svg { transition: none; } }
 </style>
 <div id="app">
   <nav id="menubar" aria-label="Menu utama">
@@ -1104,7 +1140,7 @@ function fontAttr(f, color) {
 
 /* ---------- riwayat ---------- */
 function snapshot() { return JSON.stringify(doc); }
-function push() { fhDirty(); undoS.push(snapshot()); if (undoS.length > 150) undoS.shift(); redoS = []; }
+function push() { fhDirty(); tbBeforeChange(); undoS.push(snapshot()); if (undoS.length > 150) undoS.shift(); redoS = []; }
 function mutate(fn) { push(); fn(); afterChange(); }
 function fixActive() {
   if (!doc.diagrams.some(function (d) { return d.id === active; })) active = doc.diagrams[0].id;
@@ -1114,7 +1150,7 @@ function fixActive() {
 function undo() { if (!undoS.length) return; redoS.push(snapshot()); doc = JSON.parse(undoS.pop()); fixActive(); afterChange(); }
 function redo() { if (!redoS.length) return; undoS.push(snapshot()); doc = JSON.parse(redoS.pop()); fixActive(); afterChange(); }
 function syncOffpage() { if (!isDfd()) return; doc.diagrams.forEach(function (D) { D.elements.forEach(function (e) { if (e.type === 'offpage' && !e.loose) { var p = offRef(e); if (p) e.name = p.name; } }); }); }
-function afterChange() { syncOffpage(); if (view().fresh) fit(); scheduleAutoTidy(); persist(); draw(); panel(); tabs(); status(); syncBar(); }
+function afterChange() { tbAfterChange(); syncOffpage(); if (view().fresh) fit(); scheduleAutoTidy(); persist(); draw(); panel(); tabs(); status(); syncBar(); }
 var atT = 0, atSig = {};
 function geoSig(D) { return D.elements.map(function (e) { return e.id + ':' + Math.round(e.x) + ',' + Math.round(e.y) + ',' + Math.round(e.w) + ',' + Math.round(e.h); }).join('|') + '#' + D.flows.map(function (f) { return f.id + f.from + f.to + (f.manual ? 'm' : '') + (f.kind || ''); }).join('|'); }
 function autoTidyOn() { return doc.prefs.autoTidy != null ? doc.prefs.autoTidy : !isDfd(); }
@@ -2332,19 +2368,38 @@ function umlCheck(D) {
 }
 
 /* ---------- Project Browser + properti ---------- */
-var pbOpen = {};
+/* v38: isi diagram & paket bisa dilipat (bawaan terlipat), dicari, posisi gulir dipertahankan, tinggi bisa ditarik */
+var pbOpen = {}, pbFold = {}, PB_Q = '', pbLastActive = null;
+try { pbOpen = JSON.parse(localStorage.getItem('alir-pbopen') || '{}') || {}; pbFold = JSON.parse(localStorage.getItem('alir-pbfold') || '{}') || {}; } catch (x) { pbOpen = {}; pbFold = {}; }
+function pbSaveState() { try { localStorage.setItem('alir-pbopen', JSON.stringify(pbOpen)); localStorage.setItem('alir-pbfold', JSON.stringify(pbFold)); } catch (x) { /* abaikan */ } }
 function kindBadge(k) { return '<span class="kb kb-' + k + '">' + KINDS[k].short + '</span>'; }
+function pbNorm(t) { return String(t || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+function pbHit(d) { var q = pbNorm(PB_Q); if (!q) return true; var n = pbNorm(d.name); return q.split(' ').every(function (w) { return n.indexOf(w) >= 0; }); }
+function pbMark(name) {
+  var q = pbNorm(PB_Q); if (!q) return esc(name);
+  var t = String(name), low = t.toLowerCase(), marks = [];
+  q.split(' ').forEach(function (w) { var i = low.indexOf(w); if (w && i >= 0) marks.push([i, i + w.length]); });
+  marks.sort(function (a, b) { return a[0] - b[0]; });
+  var out = '', at = 0; marks.forEach(function (m) { if (m[0] < at) return; out += esc(t.slice(at, m[0])) + '<mark>' + esc(t.slice(m[0], m[1])) + '</mark>'; at = m[1]; });
+  return out + esc(t.slice(at));
+}
+function pbTw(kind, id, open, label) { return '<button class="tw" data-' + kind + '="' + id + '" aria-expanded="' + open + '" aria-label="' + (open ? 'Lipat ' : 'Buka ') + esc(label) + '" title="' + (open ? 'Lipat' : 'Tampilkan isi') + '"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3 2l4 3-4 3"/></svg></button>'; }
 function pbTree() {
-  var h = '<ul class="tree pb">';
-  var seenP = {};
+  var h = '<ul class="tree pb">', seenP = {}, any = false, q = !!pbNorm(PB_Q);
+  function hasHit(p) { return doc.diagrams.some(function (d) { return d.pkg === p.id && pbHit(d); }) || doc.packages.some(function (c) { return c.parent === p.id && c.id !== p.id && hasHit(c); }); }
   function pkgNode(p) {
     if (seenP[p.id]) return ''; seenP[p.id] = 1;
-    var ds = doc.diagrams.filter(function (d) { return d.pkg === p.id; }), subs = doc.packages.filter(function (q) { return q.parent === p.id; });
-    var s = '<li><div class="pbrow" data-pbp="' + p.id + '" draggable="true" title="Klik kanan untuk menu paket, klik dua kali untuk ganti nama, seret diagram ke sini untuk memindah"><span class="pkgi" aria-hidden="true"></span><b>' + esc(p.name) + '</b></div><ul>';
+    if (q && !hasHit(p)) return '';
+    var ds = doc.diagrams.filter(function (d) { return d.pkg === p.id && pbHit(d); }), subs = doc.packages.filter(function (c) { return c.parent === p.id; });
+    var folded = !q && pbFold[p.id], n = doc.diagrams.filter(function (d) { return d.pkg === p.id; }).length;
+    var s = '<li><div class="pbrow" data-pbp="' + p.id + '" draggable="true" title="Klik kanan untuk menu paket, klik dua kali untuk ganti nama, seret diagram ke sini untuk memindah">' + pbTw('pbtp', p.id, !folded, p.name) + '<span class="pkgi" aria-hidden="true"></span><b>' + esc(p.name) + '</b>' + (folded && n ? '<i>' + n + '</i>' : '') + '</div>';
+    if (folded) return s + '</li>';
+    s += '<ul>';
     ds.forEach(function (d) {
-      var open = d.id === active || pbOpen[d.id];
-      s += '<li><button data-pbd="' + d.id + '" draggable="true" title="Klik kanan: ganti nama, duplikat, salin, pindah paket"' + (d.id === active ? ' class="cur"' : '') + '>' + kindBadge(d.kind) + esc(d.name) + ' <i>' + d.elements.length + '</i></button>';
-      if (open && d.elements.length) {
+      any = true;
+      var open = !!pbOpen[d.id] && d.elements.length > 0, tab = tbIsOpen(d.id);
+      s += '<li><div class="pbd">' + (d.elements.length ? pbTw('pbtw', d.id, open, d.name) : '<span class="tw0"></span>') + '<button data-pbd="' + d.id + '" draggable="true" title="' + esc(d.name) + '\nKlik: buka · klik kanan: ganti nama, duplikat, salin, pindah paket, hapus"' + (d.id === active ? ' class="cur" aria-current="true"' : '') + '>' + kindBadge(d.kind) + '<span class="nm">' + pbMark(d.name) + '</span>' + (tab ? '<span class="op" title="' + (TB.preview === d.id ? 'Terbuka sebagai pratinjau' : 'Terbuka di tab') + '"></span>' : '') + '<i>' + d.elements.length + '</i></button></div>';
+      if (open) {
         var tops = d.elements.filter(function (e) { return !containerOf(d, e) || isContainer(e) && !containerOf(d, e); });
         var seenE = {};
         var list = function (arr, lvl) {
@@ -2357,15 +2412,53 @@ function pbTree() {
       }
       s += '</li>';
     });
-    subs.forEach(function (q) { s += pkgNode(q); });
+    subs.forEach(function (c) { s += pkgNode(c); });
     return s + '</ul></li>';
   }
   doc.packages.filter(function (p) { return !p.parent; }).forEach(function (p) { h += pkgNode(p); });
-  return h + '</ul>';
+  h += '</ul>';
+  if (q && !any) h = '<p class="hint pbnone">Tidak ada diagram yang namanya memuat "' + esc(PB_Q) + '".</p>';
+  return h;
 }
+/* gambar ulang pohon saja (dipakai kotak cari & tombol lipat) supaya fokus ketik dan posisi gulir tidak hilang */
+function pbRefresh() { var b = panelEl.querySelector('.pbbox'); if (!b) { panel(); return; } var st = b.scrollTop; b.innerHTML = pbTree(); b.scrollTop = st; var c = panelEl.querySelector('.pbcount'); if (c) c.textContent = pbCountTxt(); }
+function pbCountTxt() { var n = doc.diagrams.length, m = PB_Q ? doc.diagrams.filter(pbHit).length : n; return PB_Q ? m + ' dari ' + n : n + ' diagram'; }
+function pbHeight() { try { var v = +localStorage.getItem('alir-pbh'); return v >= 90 ? v : 0; } catch (x) { return 0; } }
+/* sebelum/sesudah panel digambar ulang: pertahankan gulir, fokus cari, dan tampilkan diagram aktif */
+function pbKeep() {
+  var b = panelEl.querySelector('.pbbox'), ae = document.activeElement;
+  return { st: b ? b.scrollTop : null, ps: panelEl.scrollTop, q: ae && ae.classList && ae.classList.contains('pbq') ? [ae.selectionStart, ae.selectionEnd] : null };
+}
+function pbRestore(k) {
+  var b = panelEl.querySelector('.pbbox'); panelEl.scrollTop = k.ps;
+  if (!b) return;
+  if (k.st != null) b.scrollTop = k.st;
+  if (k.q) { var i = panelEl.querySelector('.pbq'); if (i) { i.focus(); try { i.setSelectionRange(k.q[0], k.q[1]); } catch (x) { } } }
+  if (pbLastActive !== active) {
+    pbLastActive = active;
+    var c = b.querySelector('.cur');
+    if (c) { var br = b.getBoundingClientRect(), cr = c.getBoundingClientRect(); if (cr.top < br.top + 4 || cr.bottom > br.bottom - 4) b.scrollTop += (cr.top - br.top) - b.clientHeight / 2 + cr.height / 2; }
+  }
+}
+/* kotak cari Project Browser: menyaring sambil mengetik; Enter membuka hasil pertama; Esc mengosongkan */
+document.addEventListener('input', function (e) { if (!e.target.classList || !e.target.classList.contains('pbq')) return; PB_Q = e.target.value; pbRefresh(); });
+document.addEventListener('keydown', function (e) {
+  if (!e.target.classList || !e.target.classList.contains('pbq')) return;
+  if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (PB_Q) { PB_Q = ''; e.target.value = ''; pbRefresh(); } else e.target.blur(); }
+  else if (e.key === 'Enter') { e.preventDefault(); var f = panelEl.querySelector('.pbbox [data-pbd]'); if (f) tbPreviewOpen(f.dataset.pbd); }
+  else if (e.key === 'ArrowDown') { e.preventDefault(); var g = panelEl.querySelector('.pbbox [data-pbd]'); if (g) g.focus(); }
+  e.stopPropagation();
+}, true);
+/* tarik pojok kanan-bawah kotak untuk mengubah tinggi; diingat */
+document.addEventListener('pointerup', function () { var b = panelEl && panelEl.querySelector('.pbbox'); if (!b || !b.style.height && !b._h0) return; var h = Math.round(b.getBoundingClientRect().height); if (Math.abs(h - (b._h0 || 0)) > 3) { b._h0 = h; try { localStorage.setItem('alir-pbh', String(h)); } catch (x) { } } });
 function umlPanel() {
   var D = cur(), ids = Array.from(sel), h = '';
-  h += '<div class="sec pbsec"><div class="pbhead"><h2>Project Browser</h2><div class="row tight"><button class="btn sm" data-act="newdiag" title="Diagram baru">+ Diagram</button><button class="btn sm" data-act="newpkg" title="Paket (folder) baru">+ Paket</button></div></div><div class="pbbox">' + pbTree() + '</div></div>';
+  var pbh = pbHeight(), keep = pbKeep();
+  /* paket yang memuat diagram aktif tidak boleh terlipat (supaya diagram yang sedang dibuka terlihat) */
+  if (pbLastActive !== active && D.pkg) { var pp = D.pkg, g0 = 0; while (pp && g0++ < 20) { if (pbFold[pp]) { delete pbFold[pp]; pbSaveState(); } var P0 = doc.packages.find(function (x) { return x.id === pp; }); pp = P0 && P0.parent; } }
+  h += '<div class="sec pbsec"><div class="pbhead"><h2>Project Browser</h2><div class="row tight"><button class="btn sm" data-act="newdiag" title="Diagram baru">+ Diagram</button><button class="btn sm" data-act="newpkg" title="Paket (folder) baru">+ Paket</button></div></div>' +
+    (doc.diagrams.length > 3 ? '<div class="pbtools"><div class="pbsearch"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg><input class="pbq" type="search" placeholder="Cari diagram…" aria-label="Cari diagram di Project Browser" value="' + esc(PB_Q) + '"></div><span class="pbcount">' + pbCountTxt() + '</span><button class="btn sm ic" data-act="pbfoldall" title="Lipat semua isi diagram" aria-label="Lipat semua isi diagram"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4-3 4 3M4 13l4-3 4 3"/></svg></button></div>' : '') +
+    '<div class="pbbox"' + (pbh ? ' style="height:' + pbh + 'px;max-height:none"' : '') + '>' + pbTree() + '</div></div>';
   if (ids.length === 1) {
     var e = elOf(D, ids[0]), f = e ? null : flOf(D, ids[0]);
     if (e) {
@@ -2411,7 +2504,7 @@ function umlPanel() {
     var items = umlCheck(D); if (!items.length) items.push({ s: 'ok', t: D.elements.length ? 'Tidak ada masalah di diagram ini.' : 'Diagram masih kosong. Pilih elemen di Toolbox lalu klik di kanvas.' });
     h += '<div class="sec"><h2>Pemeriksaan</h2><ul class="chk">' + items.map(function (c) { return '<li class="' + c.s + '"' + (c.ids ? ' data-go="' + active + '" data-ids="' + c.ids.join(',') + '"' : '') + '><span>' + esc(c.t) + '</span></li>'; }).join('') + '</ul></div>';
   }
-  panelEl.innerHTML = h;
+  panelEl.innerHTML = h; pbRestore(keep);
 }
 function umlPanelChange(t) {
   var f = t.dataset.f, D = cur(), id = Array.from(sel)[0], o = elOf(D, id) || flOf(D, id);
@@ -2431,10 +2524,15 @@ function umlPanelChange(t) {
   return true;
 }
 function umlPanelClick(e) {
+  var tw = e.target.closest('[data-pbtw]');
+  if (tw) { var tid = tw.dataset.pbtw; if (pbOpen[tid]) delete pbOpen[tid]; else pbOpen[tid] = 1; pbSaveState(); pbRefresh(); return true; }
+  var tp = e.target.closest('[data-pbtp]');
+  if (tp) { var pid = tp.dataset.pbtp; if (pbFold[pid]) delete pbFold[pid]; else pbFold[pid] = 1; pbSaveState(); pbRefresh(); return true; }
+  if (e.target.closest('[data-act="pbfoldall"]')) { pbOpen = {}; pbSaveState(); pbRefresh(); return true; }
   var b = e.target.closest('[data-pbd]');
-  if (b) { var id = b.dataset.pbd; if (id === active) { pbOpen[id] = !pbOpen[id]; panel(); } else switchTo(id); return true; }
+  if (b) { tbPreviewOpen(b.dataset.pbd); return true; }
   var be = e.target.closest('[data-pbe]');
-  if (be) { if (be.dataset.pbd2 !== active) switchTo(be.dataset.pbd2); if (multiPick && be.dataset.pbd2 === active) { if (sel.has(be.dataset.pbe)) sel.delete(be.dataset.pbe); else sel.add(be.dataset.pbe); draw(); panel(); syncBar(); return true; } sel = new Set([be.dataset.pbe]); draw(); panel(); syncBar(); viewSel(); return true; }
+  if (be) { if (be.dataset.pbd2 !== active) tbPreviewOpen(be.dataset.pbd2); if (multiPick && be.dataset.pbd2 === active) { if (sel.has(be.dataset.pbe)) sel.delete(be.dataset.pbe); else sel.add(be.dataset.pbe); draw(); panel(); syncBar(); return true; } sel = new Set([be.dataset.pbe]); draw(); panel(); syncBar(); viewSel(); return true; }
   return false;
 }
 
@@ -2904,7 +3002,7 @@ function useDoc(nd, act, label) {
   persistNow();
   doc = nd.kind === 'ea' ? normEa(nd) : normDoc(nd);
   if (isDfd()) pinImported();
-  bumpSeq(); views = {}; active = act && doc.diagrams.some(function (d) { return d.id === act; }) ? act : doc.diagrams[0].id;
+  bumpSeq(); views = {}; active = act && doc.diagrams.some(function (d) { return d.id === act; }) ? act : doc.diagrams[0].id; tbReset();
   sel.clear(); flowFrom = null; tool = 'select'; undoS = []; redoS = [];
   modeUI(); setTool('select'); afterChange();
   if (label) toast(label);
@@ -2959,14 +3057,14 @@ function renameDiagramModal() {
 }
 function umlDisplayPrefs() {
   var P = doc.prefs;
-  modal('Preferensi tampilan', '<div class="sec"><label class="cbx"><input type="checkbox" id="up-sh"' + (P.shadow !== false ? ' checked' : '') + '> Bayangan pada elemen (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-jp"' + (P.jumps !== false ? ' checked' : '') + '> Lompatan di persilangan garis (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-fr"' + (P.frame !== false ? ' checked' : '') + '> Bingkai dan tab nama diagram saat ekspor gambar/PDF (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-bn"' + (doc.defaults.action && doc.defaults.action.font && doc.defaults.action.font.b ? ' checked' : '') + '> Nama activity, object, use case, dan aktor tebal (persis EA)</label><label class="cbx"><input type="checkbox" id="up-bp"' + (doc.defaults.partition && doc.defaults.partition.font && doc.defaults.partition.font.b ? ' checked' : '') + '> Judul partition tebal</label><label class="cbx"><input type="checkbox" id="up-gr"' + (P.gradient !== false ? ' checked' : '') + '> Warna gradasi krem (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-lt"' + (P.light === true ? ' checked' : '') + '> Mode ringan untuk laptop lambat: bayangan dan gradasi tidak digambar di layar (hasil ekspor tetap lengkap)</label></div>' +
+  modal('Preferensi tampilan', TB_PREF_HTML() + '<div class="sec"><label class="cbx"><input type="checkbox" id="up-sh"' + (P.shadow !== false ? ' checked' : '') + '> Bayangan pada elemen (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-jp"' + (P.jumps !== false ? ' checked' : '') + '> Lompatan di persilangan garis (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-fr"' + (P.frame !== false ? ' checked' : '') + '> Bingkai dan tab nama diagram saat ekspor gambar/PDF (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-bn"' + (doc.defaults.action && doc.defaults.action.font && doc.defaults.action.font.b ? ' checked' : '') + '> Nama activity, object, use case, dan aktor tebal (persis EA)</label><label class="cbx"><input type="checkbox" id="up-bp"' + (doc.defaults.partition && doc.defaults.partition.font && doc.defaults.partition.font.b ? ' checked' : '') + '> Judul partition tebal</label><label class="cbx"><input type="checkbox" id="up-gr"' + (P.gradient !== false ? ' checked' : '') + '> Warna gradasi krem (seperti EA)</label><label class="cbx"><input type="checkbox" id="up-lt"' + (P.light === true ? ' checked' : '') + '> Mode ringan untuk laptop lambat: bayangan dan gradasi tidak digambar di layar (hasil ekspor tetap lengkap)</label></div>' +
     '<div class="sec"><h3>Warna semua elemen</h3><div class="row"><button class="btn" data-pre="ea">Bawaan EA (krem)</button><button class="btn" data-pre="mono">Hitam putih (laporan)</button></div><p class="hint">Warna yang diatur per elemen lewat bilah Format tetap dipakai, kecuali kamu memilih salah satu tombol di atas.</p></div>',
     '<button class="btn" data-close>Batal</button><button class="btn pri" data-ok>Terapkan</button>', function (s, close) {
       var pre = null;
       s.addEventListener('click', function (e) { var b = e.target.closest('[data-pre]'); if (b) { pre = b.dataset.pre; $$('[data-pre]', s).forEach(function (x) { x.classList.toggle('pri', x === b); }); } });
       $('[data-ok]', s).addEventListener('click', function () {
         mutate(function () {
-          P.light = $('#up-lt', s).checked; P.shadow = $('#up-sh', s).checked; P.gradient = $('#up-gr', s).checked; P.jumps = $('#up-jp', s).checked; P.frame = $('#up-fr', s).checked; var bn = $('#up-bn', s).checked; BOLD_NAMES.forEach(function (k) { if (doc.defaults[k]) doc.defaults[k].font = Object.assign({}, doc.defaults[k].font, { b: bn }); }); if (doc.defaults.partition) doc.defaults.partition.font = Object.assign({}, doc.defaults.partition.font, { b: $('#up-bp', s).checked });
+          tbPrefApply(s); P.light = $('#up-lt', s).checked; P.shadow = $('#up-sh', s).checked; P.gradient = $('#up-gr', s).checked; P.jumps = $('#up-jp', s).checked; P.frame = $('#up-fr', s).checked; var bn = $('#up-bn', s).checked; BOLD_NAMES.forEach(function (k) { if (doc.defaults[k]) doc.defaults[k].font = Object.assign({}, doc.defaults[k].font, { b: bn }); }); if (doc.defaults.partition) doc.defaults.partition.font = Object.assign({}, doc.defaults.partition.font, { b: $('#up-bp', s).checked });
           if (pre) {
             doc.defaults = eaDefaults();
             if (pre === 'mono') Object.keys(TT).forEach(function (k) { var dd = doc.defaults[k]; if (dd.fill !== 'none' && dd.fill !== '#000000') dd.fill = '#ffffff'; dd.stroke = '#000000'; });
@@ -4032,8 +4130,10 @@ function scGenerate(list, withUc) {
     if (withUc && list.length) made.unshift(scMakeUseCase(list));
     if (made.length) { active = made[made.length > 1 && withUc ? 1 : 0].id; sel.clear(); made.forEach(function (D) { views[D.id] = { x: 0, y: 0, k: 1, fresh: true }; }); }
   });
+  /* sedikit diagram: semua dibuka di tab; banyak: cukup satu tab, sisanya di Project Browser (tidak membanjiri bilah tab) */
+  if (made.length <= 4) { made.forEach(function (D) { tbPin(D.id); }); tabs(); }
   umlToolbox(); setTool('select');
-  toast(made.length + ' diagram dibuat dari skenario. Cek lagi nama dan cabangnya, lalu rapikan kalau perlu.');
+  toast(made.length + ' diagram dibuat dari skenario' + (made.length > 4 ? ' dan ada di Project Browser (yang pertama sudah dibuka)' : '') + '. Cek lagi nama dan cabangnya, lalu rapikan kalau perlu.');
 }
 function scSummary(u) { return u.normal.length + ' langkah' + (u.alts.length ? ', ' + u.alts.length + ' alternatif' : ', <span class="scnoalt">belum ada alternative flow</span>'); }
 function scenarioModal(pre) {
@@ -5945,6 +6045,87 @@ function reportImgModal() {
     read(); render();
   });
 }
+
+/* ===================== v38: tab = diagram yang DIBUKA (seperti EA / VS Code) =====================
+   Menutup tab tidak menghapus diagram; diagramnya tetap di Project Browser / Pohon proses.
+   Klik diagram di Project Browser membuka TAB PRATINJAU (miring) yang diganti saat membuka diagram lain;
+   tab menetap kalau isinya diubah, tabnya diklik dua kali, atau dibuka dari daftar semua diagram.
+   Status tab disimpan terpisah dari proyek (localStorage), jadi tidak ikut ke .pam / XMI / .json. */
+var TB = { open: [], preview: null, pchk: null, key: '' };
+function tbPrevOn() { try { return localStorage.getItem('alir-tabpreview') !== '0'; } catch (x) { return true; } }
+function tbKey() { return lsKey() + '-tabs'; }
+function tbIsOpen(id) { return TB.open.indexOf(id) >= 0 || TB.preview === id; }
+/* proyek baru dibuka: proyek kecil semua tab terbuka (seperti dulu), proyek besar cukup diagram aktif */
+function tbInit(saved) {
+  TB.key = tbKey(); TB.pchk = null;
+  var ids = doc.diagrams.map(function (d) { return d.id; });
+  if (saved && Array.isArray(saved.open) && saved.open.some(function (id) { return ids.indexOf(id) >= 0; })) { TB.open = saved.open.filter(function (id) { return ids.indexOf(id) >= 0; }); TB.preview = saved.preview && ids.indexOf(saved.preview) >= 0 && TB.open.indexOf(saved.preview) < 0 ? saved.preview : null; }
+  else { TB.open = ids.length <= 8 ? ids.slice() : [active].filter(Boolean); TB.preview = null; }
+  tbClean();
+}
+function tbSig() { return (doc.name || '') + '#' + doc.diagrams.map(function (d) { return d.id; }).join(','); }
+function tbLoad() { try { var j = JSON.parse(localStorage.getItem(tbKey()) || 'null'); return j && j.sig === tbSig() ? j : null; } catch (x) { return null; } }
+function tbSave() { try { localStorage.setItem(tbKey(), JSON.stringify({ open: TB.open, preview: TB.preview, sig: tbSig() })); } catch (x) { /* abaikan */ } }
+function tbEnsure() { if (TB.key !== tbKey()) tbInit(tbLoad()); else tbClean(); }
+function tbReset() { TB.key = ''; }
+/* buang tab diagram yang sudah tidak ada; diagram aktif selalu punya tab */
+function tbClean() {
+  if (!doc || !doc.diagrams) return;
+  var ids = {}; doc.diagrams.forEach(function (d) { ids[d.id] = 1; });
+  TB.open = TB.open.filter(function (id, i, a) { return ids[id] && a.indexOf(id) === i; });
+  if (TB.preview && (!ids[TB.preview] || TB.open.indexOf(TB.preview) >= 0)) TB.preview = null;
+  if (active && ids[active] && !tbIsOpen(active)) TB.open.push(active);
+  if (TB.preview && TB.preview !== active && !TB.open.length) { TB.open.push(TB.preview); TB.preview = null; }
+}
+function tbVisible() { tbEnsure(); return orderedDiagrams().filter(function (d) { return tbIsOpen(d.id); }); }
+function tbPin(id) { if (TB.preview === id) { TB.preview = null; if (TB.open.indexOf(id) < 0) TB.open.push(id); tbSave(); return true; } if (TB.open.indexOf(id) < 0) { TB.open.push(id); tbSave(); return true; } return false; }
+/* buka sebagai tab tetap */
+function tbOpen(id) { if (!diag(id)) return; tbPin(id); if (id !== active) switchTo(id); else { tabs(); panel(); } }
+/* buka dari Project Browser / Pohon proses: tab pratinjau (bila diagram belum punya tab) */
+function tbPreviewOpen(id) {
+  if (!diag(id)) return;
+  if (!tbIsOpen(id) && tbPrevOn()) { var old = TB.preview; TB.preview = id; if (old && old !== id && old !== active) { /* pratinjau lama diganti */ } }
+  else if (!tbIsOpen(id)) TB.open.push(id);
+  if (id !== active) switchTo(id); else { tabs(); panel(); }
+  tbSave();
+  tbHintOnce();
+}
+function tbHintOnce() {
+  if (!TB.preview) return;
+  try { if (localStorage.getItem('alir-tabhint')) return; localStorage.setItem('alir-tabhint', '1'); } catch (x) { return; }
+  setTimeout(function () { toast('Tab bertulisan miring = pratinjau: diganti saat kamu membuka diagram lain. Klik dua kali tabnya (atau ubah isinya) supaya tetap terbuka.'); }, 300);
+}
+/* tutup tab (diagram TIDAK dihapus) */
+function tbClose(id) {
+  var vis = tbVisible(), i = vis.findIndex(function (d) { return d.id === id; });
+  if (i < 0) return;
+  if (vis.length < 2) { toast('Ini satu-satunya tab yang terbuka. Buka diagram lain dulu dari Project Browser.'); return; }
+  if (TB.preview === id) TB.preview = null; TB.open = TB.open.filter(function (x) { return x !== id; });
+  if (id === active) { var nx = vis[i + 1] || vis[i - 1]; active = null; switchTo(nx.id); }
+  else { tabs(); panel(); }
+  tbSave();
+}
+function tbCloseOthers(id) {
+  TB.open = [id]; TB.preview = null; tbSave();
+  if (id !== active) switchTo(id); else { tabs(); panel(); }
+  toast('Tab lain ditutup. Semua diagram tetap ada di ' + (isDfd() ? 'Pohon proses' : 'Project Browser') + '.');
+}
+function tbCloseRight(id) {
+  var vis = tbVisible(), i = vis.findIndex(function (d) { return d.id === id; }); if (i < 0) return;
+  var keep = vis.slice(0, i + 1).map(function (d) { return d.id; });
+  TB.open = TB.open.filter(function (x) { return keep.indexOf(x) >= 0; }); if (TB.preview && keep.indexOf(TB.preview) < 0) TB.preview = null;
+  if (keep.indexOf(active) < 0) switchTo(id); else { tabs(); panel(); }
+  tbSave();
+}
+/* tab pratinjau menjadi tetap begitu isi diagramnya berubah */
+function tbBeforeChange() { TB.pchk = TB.preview && TB.preview === active && diag(active) ? { id: active, s: JSON.stringify(diag(active)) } : null; }
+function tbAfterChange() {
+  if (TB.pchk) { var D = diag(TB.pchk.id); if (D && TB.preview === TB.pchk.id && JSON.stringify(D) !== TB.pchk.s) tbPin(TB.pchk.id); TB.pchk = null; }
+  tbEnsure(); tbSave();
+}
+
+function TB_PREF_HTML() { return '<div class="sec"><h3>Tab diagram</h3><label class="cbx"><input type="checkbox" id="tb-pv"' + (tbPrevOn() ? ' checked' : '') + '> Tab pratinjau: klik diagram di ' + (isDfd() ? 'Pohon proses' : 'Project Browser') + ' membuka tab sementara (miring) yang diganti diagram berikutnya, supaya tab tidak menumpuk</label></div>'; }
+function tbPrefApply(s) { var c = s.querySelector('#tb-pv'); if (!c) return; try { localStorage.setItem('alir-tabpreview', c.checked ? '1' : '0'); } catch (x) { } if (!c.checked && TB.preview) tbPin(TB.preview); }
 
 /* ================= Jelaskan diagram (tanpa AI, berbasis analisis alur) =================
    Alir membaca struktur diagram (lane, urutan, cabang, perulangan, paralel, ujung) lalu menyusun penjelasan dan
@@ -7970,7 +8151,9 @@ function diagramMenu(id, x, y) {
   var D = diag(id); if (!D) return;
   dgMenuId = id;
   var its = [{ hd: diagLabel(D) }], kids = subtreeOf(id).length - 1;
-  its.push(item('Buka', 'dg:open', '', { dis: id === active }), item(isDfd() && D.parent ? 'Ganti nama proses…' : 'Ganti nama…', 'dg:rename', 'dbl-klik'));
+  var vis = tbVisible(), vi = vis.findIndex(function (d) { return d.id === id; });
+  its.push(item(TB.preview === id ? 'Tetapkan tab (bukan pratinjau)' : tbIsOpen(id) ? 'Buka' : 'Buka di tab', 'dg:open', '', { dis: id === active && TB.preview !== id }), item(isDfd() && D.parent ? 'Ganti nama proses…' : 'Ganti nama…', 'dg:rename', 'dbl-klik'));
+  if (vi >= 0) its.push(HR, item('Tutup tab', 'dg:close', 'klik tengah', { dis: vis.length < 2 }), item('Tutup tab lainnya', 'dg:closeoth', '', { dis: vis.length < 2 }), item('Tutup tab di kanan', 'dg:closeright', '', { dis: vi >= vis.length - 1 }));
   its.push(HR, item(kids ? 'Duplikat (beserta ' + kids + ' turunan)' : 'Duplikat beserta isinya', 'dg:dup'), item('Salin diagram', 'dg:copy'), item('Tempel diagram', 'dg:paste', '', { dis: !canPasteDiagram() }));
   its.push(HR, item('Geser ke kiri/atas', 'dg:up'), item('Geser ke kanan/bawah', 'dg:down'));
   if (!isDfd() && doc.packages.length > 1) { its.push({ hd: 'Pindah ke paket' }); doc.packages.forEach(function (p) { its.push(item(p.name, 'dg:pkg:' + p.id, '', { ck: D.pkg === p.id, dis: D.pkg === p.id })); }); }
@@ -7993,7 +8176,10 @@ function pkgMenu(pid, x, y) {
 function runBrowse(a) {
   if (a.indexOf('dg:') === 0) {
     var id = dgMenuId, op = a.slice(3); if (!diag(id)) return true;
-    if (op === 'open') switchTo(id);
+    if (op === 'open') tbOpen(id);
+    else if (op === 'close') tbClose(id);
+    else if (op === 'closeoth') tbCloseOthers(id);
+    else if (op === 'closeright') tbCloseRight(id);
     else if (op === 'rename') renameDiagram(id);
     else if (op === 'dup') dupDiagram(id);
     else if (op === 'copy') copyDiagram(id);
@@ -8197,6 +8383,7 @@ function dfdScenarioModal(pre) {
         res = dgBuild(pick, sys, deep); active = res.made[1] ? res.made[1].id : res.made[0].id; sel.clear();
         res.made.forEach(function (D) { views[D.id] = { x: 0, y: 0, k: 1, fresh: true }; });
       });
+      if (res.made.length <= 8) { res.made.forEach(function (D) { tbPin(D.id); }); tabs(); }
       toast('DFD dibuat: ' + res.made.length + ' diagram (konteks, level 1' + (res.made.length > 2 ? ', dan ' + (res.made.length - 2) + ' diagram level 2' : '') + '). Periksa dengan F4.');
     });
     if (pre) show(pre.ucs, pre.src);
@@ -9159,7 +9346,7 @@ function treeHtml() {
 }
 function treeClick(b) {
   var D = diag(b.dataset.tree); if (!D) return;
-  switchTo(D.id);
+  tbPreviewOpen(D.id);
   if (b.dataset.e) { sel = new Set([b.dataset.e]); draw(); panel(); syncBar(); }
 }
 panelEl.addEventListener('change', function (e) {
@@ -9194,13 +9381,15 @@ function orderedDiagrams() {
   return order;
 }
 function tabs() {
-  tabsEl.innerHTML = orderedDiagrams().map(function (d) {
-    var label = d.parent ? procLabel(d) : d.name;
-    return '<div class="tab" role="tab" data-tab="' + d.id + '" aria-selected="' + (d.id === active) + '" tabindex="0" draggable="true" title="' + esc(label) + ' (klik kanan untuk menu, seret untuk memindah)">' + (isDfd() ? '<span class="lv">L' + depth(d) + '</span>' : kindBadge(d.kind)) + '<span>' + esc(label) + '</span>' +
-      (doc.diagrams.length > 1 ? '<button class="x" data-xtab="' + d.id + '" aria-label="Hapus diagram" title="' + (d.parent ? 'Hapus dekomposisi' : 'Hapus diagram') + ' (bisa diurungkan)">×</button>' : '') + '</div>';
+  var vis = tbVisible();
+  tabsEl.innerHTML = vis.map(function (d) {
+    var label = d.parent ? procLabel(d) : d.name, pv = TB.preview === d.id;
+    return '<div class="tab' + (pv ? ' pv' : '') + '" role="tab" data-tab="' + d.id + '" aria-selected="' + (d.id === active) + '" tabindex="0" draggable="true" title="' + esc(label) + (pv ? '\nTab pratinjau (miring): diganti saat membuka diagram lain. Klik dua kali supaya tetap terbuka.' : '\nKlik dua kali: ganti nama · klik kanan: menu · klik tengah: tutup · seret: pindah urutan') + '">' + (isDfd() ? '<span class="lv">L' + depth(d) + '</span>' : kindBadge(d.kind)) + '<span class="tl">' + esc(label) + '</span>' +
+      (vis.length > 1 ? '<button class="x" data-xtab="' + d.id + '" aria-label="Tutup tab ' + esc(label) + '" title="Tutup tab (diagramnya tidak dihapus, tetap ada di ' + (isDfd() ? 'Pohon proses' : 'Project Browser') + ')">×</button>' : '') + '</div>';
   }).join('') + (isDfd() ? '<button class="tab add" data-act="addd" title="Diagram utama baru. Saat disimpan ke .pam, tiap diagram utama jadi berkas .pam sendiri (dalam satu ZIP).">+ Diagram</button>' : '<button class="tab add" data-act="newdiag" title="Diagram baru">+ Diagram</button>');
   $('#fname').value = doc.name;
   $('#tabCount').textContent = doc.diagrams.length;
+  $('#tabAll').title = 'Semua diagram (' + doc.diagrams.length + ', ' + vis.length + ' terbuka di tab) — Ctrl+Shift+E';
   tabScrollActive(); tabArrows();
 }
 /* ---------- bilah tab: bisa digeser (roda mouse, seret, tombol panah) + daftar semua diagram ---------- */
@@ -9266,11 +9455,11 @@ function tabPopup() {
     hot = Math.min(hot, Math.max(0, shown.length - 1));
     tl.innerHTML = shown.length ? shown.map(function (x, k) {
       var badge = isDfd() ? '<span class="k">L' + depth(x.d) + '</span>' : (x.d.kind && KINDS[x.d.kind] ? '<span class="k">' + KINDS[x.d.kind].short + '</span>' : '');
-      return '<button class="ti' + (k === hot ? ' hot' : '') + '" role="option" data-go="' + x.d.id + '" aria-current="' + (x.d.id === active) + '"><span class="n">' + x.i + '</span>' + badge + '<span>' + esc(diagLabel(x.d)) + '</span></button>';
+      return '<button class="ti' + (k === hot ? ' hot' : '') + '" role="option" data-go="' + x.d.id + '" aria-current="' + (x.d.id === active) + '"><span class="n">' + x.i + '</span>' + badge + '<span>' + esc(diagLabel(x.d)) + '</span>' + (tbIsOpen(x.d.id) ? '<span class="op" title="Terbuka di tab">●</span>' : '') + '</button>';
     }).join('') : '<p class="hint" style="padding:8px 10px">Tidak ada diagram yang cocok.</p>';
     var h = tl.querySelector('.hot'); if (h) h.scrollIntoView({ block: 'nearest' });
   }
-  function go(id) { box.remove(); document.removeEventListener('pointerdown', outside, true); switchTo(id); }
+  function go(id) { box.remove(); document.removeEventListener('pointerdown', outside, true); tbOpen(id); }
   function outside(e) { if (!box.contains(e.target) && !e.target.closest('#tabAll')) { box.remove(); document.removeEventListener('pointerdown', outside, true); } }
   document.addEventListener('pointerdown', outside, true);
   inp.addEventListener('input', function () { hot = 0; render(); });
@@ -9285,13 +9474,16 @@ function tabPopup() {
   render(); inp.focus();
 }
 $('#tabAll').addEventListener('click', tabPopup);
-function tabStep(n) { var L = orderedDiagrams(), i = L.findIndex(function (d) { return d.id === active; }); if (L.length > 1) switchTo(L[(i + n + L.length) % L.length].id); }
-tabsEl.addEventListener('dblclick', function (e) { var t = e.target.closest('[data-tab]'); if (t) renameDiagram(t.dataset.tab); });
+function tabStep(n) { var L = tbVisible(), i = L.findIndex(function (d) { return d.id === active; }); if (L.length > 1) switchTo(L[(i + n + L.length) % L.length].id); }
+tabsEl.addEventListener('dblclick', function (e) { if (e.target.closest('.x')) return; var t = e.target.closest('[data-tab]'); if (!t) return; if (TB.preview === t.dataset.tab) { tbPin(t.dataset.tab); tabs(); panel(); } else renameDiagram(t.dataset.tab); });
+/* klik tengah = tutup tab (seperti browser) */
+tabsEl.addEventListener('auxclick', function (e) { if (e.button !== 1) return; var t = e.target.closest('[data-tab]'); if (t) { e.preventDefault(); tbClose(t.dataset.tab); } });
+tabsEl.addEventListener('mousedown', function (e) { if (e.button === 1 && e.target.closest('[data-tab]')) e.preventDefault(); });
 tabsEl.addEventListener('contextmenu', function (e) { var t = e.target.closest('[data-tab]'); if (!t) return; e.preventDefault(); diagramMenu(t.dataset.tab, e.clientX, e.clientY); });
 tabsEl.addEventListener('click', function (e) {
   if (tabPanBlock && Date.now() - tabPanBlock < 250) { e.preventDefault(); return; }
   var x = e.target.closest('[data-xtab]');
-  if (x) { removeDiagram(x.dataset.xtab); return; }
+  if (x) { tbClose(x.dataset.xtab); return; }
   if (e.target.closest('[data-act="newdiag"]')) { run('newdiag', e.target.closest('[data-act]')); return; }
   if (e.target.closest('[data-act="addd"]')) { mutate(function () { var d = { id: uid('d'), name: 'Diagram ' + (doc.diagrams.length + 1), parent: null, elements: [], flows: [] }; doc.diagrams.push(d); active = d.id; sel.clear(); }); return; }
   var t = e.target.closest('[data-tab]'); if (t) switchTo(t.dataset.tab);
@@ -10184,7 +10376,7 @@ function displayPrefs() {
       return '<tr><td>' + k[1] + '</td><td>' + sw(k[0], 'stroke') + '</td><td>' + (k[0] === 'flow' ? '' : sw(k[0], 'fill')) + '</td><td>' + sw(k[0], 'text') + '</td><td><select class="in" aria-label="Huruf ' + k[1] + '" data-k="' + k[0] + '" data-font="family" style="height:28px;min-width:120px">' + FONTS.map(function (x) { return '<option' + (x === f.family ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select></td><td><select class="in" aria-label="Ukuran ' + k[1] + '" data-k="' + k[0] + '" data-font="size" style="height:28px;width:62px">' + FSIZES.map(function (x) { return '<option' + (x === f.size ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select></td></tr>';
     }).join('') + '</tbody></table></div>';
   }
-  var body = '<div class="sec"><h3>Gaya bawaan simbol</h3><div id="dp-t">' + table() + '</div><div class="row"><button class="btn" data-pre="classic">Warna PowerDesigner</button><button class="btn" data-pre="mono">Hitam putih (laporan)</button></div></div>' +
+  var body = TB_PREF_HTML() + '<div class="sec"><h3>Gaya bawaan simbol</h3><div id="dp-t">' + table() + '</div><div class="row"><button class="btn" data-pre="classic">Warna PowerDesigner</button><button class="btn" data-pre="mono">Hitam putih (laporan)</button></div></div>' +
     '<div class="sec"><h3>Alur</h3><div class="two"><div class="field"><label for="dp-r">Bentuk garis</label><select class="in" id="dp-r">' + routeNames().map(function (r, i) { return '<option value="' + i + '"' + (d.flow.route === i ? ' selected' : '') + '>' + r + '</option>'; }).join('') + '</select></div>' +
     '<div class="field"><label for="dp-a">Panah</label><select class="in" id="dp-a">' + Object.keys(ARROWS).map(function (k) { return '<option value="' + k + '"' + (arrowKey(d.flow.arrows) === k ? ' selected' : '') + '>' + ARROWS[k] + '</option>'; }).join('') + '</select></div></div></div>' +
     '<div class="sec"><h3>Terapkan ke</h3><label class="cbx"><input type="radio" name="dp-ap" value="new" checked> Simbol baru dan simbol yang belum diberi gaya sendiri</label><label class="cbx"><input type="radio" name="dp-ap" value="all"> Semua simbol (gaya per objek dihapus)</label><label class="cbx"><input type="radio" name="dp-ap" value="sel"' + (sel.size ? '' : ' disabled') + '> Simbol terpilih saja</label></div>';
@@ -10196,7 +10388,7 @@ function displayPrefs() {
     });
     s.addEventListener('change', function (e) { var t = e.target; if (t.dataset.font) { var o = {}; o[t.dataset.font] = t.dataset.font === 'size' ? Number(t.value) : t.value; d[t.dataset.k].font = Object.assign({}, d[t.dataset.k].font, o); } });
     $('[data-ok]', s).addEventListener('click', function () {
-      d.flow.route = Number($('#dp-r', s).value); var av = $('#dp-a', s).value; d.flow.arrows = { s: av === 's' || av === 'st', t: av === 't' || av === 'st', c: av === 'c' };
+      tbPrefApply(s); d.flow.route = Number($('#dp-r', s).value); var av = $('#dp-a', s).value; d.flow.arrows = { s: av === 's' || av === 'st', t: av === 't' || av === 'st', c: av === 'c' };
       var ap = $('input[name=dp-ap]:checked', s).value;
       mutate(function () {
         if (ap === 'sel') {
@@ -10689,7 +10881,7 @@ function pinImported() {
 }
 function loadDoc(nd, label) {
   if (nd.kind === 'ea' || !isDfd()) { useDoc(nd, null, 'Dibuka: ' + label); return; }
-  histSnap('Sebelum membuka ' + label); push(); fhAdopt(); doc = normDoc(nd); pinImported(); bumpSeq(); views = {}; active = doc.diagrams[0].id; sel.clear(); flowFrom = null; buildRail(); setTool('select');
+  histSnap('Sebelum membuka ' + label); push(); fhAdopt(); doc = normDoc(nd); pinImported(); bumpSeq(); views = {}; active = doc.diagrams[0].id; tbReset(); sel.clear(); flowFrom = null; buildRail(); setTool('select');
   afterChange(); toast('Dibuka: ' + label + ' (' + summary(doc) + ')');
 }
 function mergeDocs(docs) {
@@ -10881,7 +11073,7 @@ var HELP = {
     '<li>Alat lain di kiri, sama seperti palet PowerDesigner: <b>Split/Merge</b> (M) untuk memecah/menggabung alur, <b>Off-page</b> (O) untuk proses di luar diagram turunan, <b>Teks</b> (T) untuk judul/keterangan, serta <b>Kotak, Elips, Garis</b> untuk gambar bebas. Semuanya ikut tersimpan di .pam.</li></ul>' +
     '<h4>Dari skenario use case</h4><ul><li>Berkas → <b>Buat DFD dari skenario</b>: tempel tabel skenario dari Google Docs/Word atau buka .docx. Alir menyusun DFD level 0, level 1 (satu proses "Mengelola Data X" per objek data, lengkap dengan data store), dan level 2 per use case. Alurnya sudah seimbang antar level.</li>' +
     '<li>Format tabel yang dikenali: baris "Nomor Use Case" dan "Nama Use Case" terpisah, satu baris gabungan "UC21 - Membuat Data Artikel", dua sel "UC21 | Nama", judul tabel "Tabel 3.1 Skenario ...", kolom "No | Aktor | Sistem", versi bahasa Inggris, dan teks biasa.</li></ul>' +
-    '<h4>Tab dan daftar diagram</h4><ul><li>Bilah tab bisa digeser dengan roda mouse, diseret, atau tombol ‹ ›. Tombol angka di ujung kanan membuka <b>daftar semua diagram</b>; ketik nama atau nomor urut lalu Enter (Ctrl+Shift+E). Ctrl+PageUp/PageDown pindah tab.</li>' +
+    '<h4>Tab dan daftar diagram</h4><ul><li><b>Tab = diagram yang sedang dibuka.</b> Tombol × (atau klik tengah) hanya <b>menutup tab</b>; diagramnya tetap ada dan bisa dibuka lagi dari Pohon proses / Project Browser atau daftar semua diagram. Menghapus diagram: klik kanan → Hapus diagram. Klik kanan tab juga punya <b>Tutup tab lainnya</b> dan <b>Tutup tab di kanan</b>.</li><li>Tab bertulisan <i>miring</i> adalah <b>tab pratinjau</b>: dibuka dengan sekali klik dari pohon dan diganti saat kamu membuka diagram lain, supaya tab tidak menumpuk. Tab menetap kalau isinya diubah atau tabnya diklik dua kali (bisa dimatikan di Preferensi tampilan).</li><li>Bilah tab bisa digeser dengan roda mouse, diseret, atau tombol ‹ ›. Tombol angka di ujung kanan membuka <b>daftar semua diagram</b>; ketik nama atau nomor urut lalu Enter (Ctrl+Shift+E). Ctrl+PageUp/PageDown pindah tab.</li>' +
     '<li>Seret tab untuk mengubah urutan. Klik dua kali tab untuk ganti nama. <b>Klik kanan</b> tab atau diagram di Pohon proses: ganti nama, duplikat beserta isinya, salin/tempel diagram (juga ke proyek lain), pindah urutan, ekspor PNG, hapus.</li></ul>' +
     '<h4>Mengatur garis alur</h4><ul>' +
     '<li>Klik alurnya. Alur terpilih diberi <b>sorotan biru</b> dan <b>kotak biru</b> di kedua ujung.</li>' +
@@ -10906,7 +11098,7 @@ var HELP = {
   kunci: '<table>' + [['V / H / P / D / E / F', 'Alat Pilih / Geser / Proses / Store / Entitas / Alur'], ['Ctrl+A, Ctrl+C, Ctrl+X, Ctrl+V', 'Pilih semua, salin, potong, tempel'], ['Shift+klik, atau klik kanan → Pilih beberapa', 'Memilih banyak objek satu per satu'], ['Ctrl+G, Ctrl+Shift+G', 'Kelompokkan, pisahkan kelompok'], ['Ctrl+F', 'Cari elemen di semua diagram'], ['Klik kanan → Kunci posisi', 'Objek tidak bisa tergeser, diubah ukurannya, atau terhapus'], ['Shift saat menggeser, Esc saat menyeret', 'Gerak lurus, batalkan geseran'], ['Ctrl+D', 'Duplikat'], ['Ctrl+Z / Ctrl+Y', 'Urungkan / ulangi'], ['Delete', 'Hapus pilihan'], ['F2', 'Ganti nama'], ['Ctrl+L', 'Rapikan garis alur terpilih'], ['Ctrl+J', 'Sesuaikan ukuran dengan teks'], ['Panah / Shift+panah', 'Geser objek 5 / 20 px'], ['Alt+↓ / Alt+↑', 'Masuk dekomposisi / naik satu level'], ['Ctrl + scroll, cubit touchpad', 'Zoom'], ['Scroll, geser dua jari di touchpad, Shift+scroll, Spasi+seret', 'Geser kanvas'], ['Alt saat menyeret', 'Tanpa snap ke grid'], ['F1', 'Bantuan ini'], ['F3', 'Jelaskan diagram (tanya jawab tentang alur)'], ['F4', 'Periksa model'], ['F5 / F6 / F7', 'Skala 100% / perbesar / perkecil'], ['F8 / F9', 'Tampilan global / tampilan sebelumnya'], ['Ctrl+S', 'Simpan .pam'], ['Ctrl+O', 'Buka berkas']].map(function (r) { return '<tr><td><kbd>' + r[0] + '</kbd></td><td>' + r[1] + '</td></tr>'; }).join('') + '</table>',
   uml: '<h4>Memulai</h4><ul><li>Klik ikon <b>rumah</b> di kiri atas (Halaman mulai) untuk memilih <b>Activity</b>, <b>Use Case</b>, atau <b>BPMN</b>. Semua diagram UML disimpan dalam satu proyek, terpisah dari DFD.</li>' +
     '<li><b>Toolbox</b> di kiri berisi elemen dan jenis garis, sama seperti di Enterprise Architect. Klik elemen lalu klik di kanvas.</li>' +
-    '<li><b>Project Browser</b> di kanan menampilkan paket, diagram, dan elemennya. Klik elemen di situ untuk langsung menuju ke elemennya.</li></ul>' +
+    '<li><b>Project Browser</b> di kanan menampilkan paket, diagram, dan elemennya. Klik diagram untuk membukanya; tanda <b>›</b> di kiri untuk menampilkan/melipat isinya, lalu klik elemen untuk langsung menuju ke elemennya. Kotak <b>Cari diagram</b> menyaring daftar (Enter membuka hasil pertama, Esc mengosongkan). Titik biru = diagram yang sedang terbuka di tab. Tarik pojok kanan bawah kotaknya untuk mengubah tinggi.</li></ul>' +
     '<h4>Menyambung elemen</h4><ul><li>Pilih elemen, lalu <b>seret panah biru</b> di sisinya ke elemen lain. Kalau ada beberapa jenis hubungan (misalnya «include», «extend», Generalization), Alir menanyakan jenisnya.</li>' +
     '<li>Seret panah biru ke <b>area kosong</b> untuk membuat elemen baru yang langsung tersambung (seperti Quick Link di EA).</li>' +
     '<li>Atau pilih jenis garis di Toolbox, klik elemen asal, lalu klik elemen tujuan.</li>' +
