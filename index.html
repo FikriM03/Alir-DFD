@@ -404,6 +404,7 @@ ol.steps code, ol.steps kbd { font: 600 12px var(--f-mono); padding: 1px 5px; bo
   #status span.wide { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { #panel { transition: none; } }
+.scnoalt{color:#b45309}
 </style>
 <div id="app">
   <nav id="menubar" aria-label="Menu utama">
@@ -3528,10 +3529,13 @@ function scHtmlRows(html) {
   function cellParas(el) {
     var out = [];
     function add(t, k) { String(t).split('\n').forEach(function (x, i) { x = scClean(x); if (x) out.push({ t: x, k: k, c: i ? 1 : 0 }); }); }
-    function txt(n) { var c = n.cloneNode(true); Array.prototype.forEach.call(c.querySelectorAll('br'), function (b) { b.replaceWith('\n'); }); return c.textContent; }
+    /* Word memotong baris kode HTML (±76 huruf) tanpa arti; hanya <br> (atau teks ber-white-space:pre) yang benar-benar baris baru */
+    function pre(n) { var e = n.nodeType === 1 ? n : n.parentElement; return !!(e && e.closest && e.closest('pre,textarea,[style*="white-space:pre"],[style*="white-space: pre"]')); }
+    function srcNl(n) { if (!pre(n)) { var w = document.createTreeWalker(n, 4), x; while ((x = w.nextNode())) if (/[\r\n]/.test(x.nodeValue) && !pre(x)) x.nodeValue = x.nodeValue.replace(/[\r\n]+/g, ' '); } }
+    function txt(n) { var c = n.cloneNode(true); if (!pre(n)) srcNl(c); Array.prototype.forEach.call(c.querySelectorAll('br'), function (b) { b.replaceWith('\n'); }); return c.textContent; }
     (function walk(n) {
       Array.prototype.forEach.call(n.childNodes, function (c) {
-        if (c.nodeType === 3) { add(c.textContent, ''); return; }
+        if (c.nodeType === 3) { add(pre(c) ? c.textContent : c.textContent.replace(/[\r\n]+/g, ' '), ''); return; }
         if (c.nodeType !== 1) return;
         var tg = c.tagName;
         if (tg === 'STYLE' || tg === 'SCRIPT' || tg === 'COLGROUP') return;
@@ -3644,9 +3648,9 @@ async function scDocxRows(buf) {
    - kolom langkah "Aktor | Sistem", "No | Aktor | Sistem", "Aksi Aktor | Reaksi Sistem", "Admin | Sistem", "Actor | System"
    - kalau tidak ada penanda nama sama sekali, setiap "Normal Flow" baru dianggap skenario baru
    Batas skenario: teks di luar tabel (judul bab, paragraf penjelasan) dan tabel lain yang bukan bagian alur TIDAK pernah dijadikan langkah. */
-var SC_UC = /^(?:tabel\s*[\d.]+\s*[:.\-–—]?\s*)?(?:skenario\s*)?(?:use\s*case\s*)?[(\[]?\s*(u\.?\s*c\.?\s*s?|use\s*case)\s*[-_.#]?\s*(\d{1,3}[a-z]?)\s*[)\]]?\s*(?:[-–—:.|)]+\s*|\s+)?(.*)$/i;
+var SC_UC = /^(?:tabel\s*[\d.]+\s*[:.\-–—]?\s*)?(?:skenario\s*)?(?:use\s*case\s*)?[(\[]?\s*(u\.?\s*c\.?\s*s?|use\s*case)\s*[-_.#]?\s*(\d{1,3}[a-z]?)\s*[)\]]?\s*(?:[-–—:.|)\/]+\s*|\s+)?(.*)$/i;
 var SC_KEY_NO = /^(nomor|no\.?|kode|id|nomer)\s*(use\s*case|uc|skenario)?\s*$|^use\s*case\s*(id|no\.?|number|code|#)\s*$/i;
-var SC_KEY_NAME = /^(nama\s*(use\s*case|uc|skenario)?|use\s*case\s*name|use\s*case|judul(\s*use\s*case)?|name|use\s*case\s*title|title)\s*$/i;
+var SC_KEY_NAME = /^((nomor|no\.?|kode|id)\s*(\/|&|dan|and|,)\s*)?(nama\s*(use\s*case|uc|skenario)?|use\s*case\s*name|use\s*case|judul(\s*use\s*case)?|name|use\s*case\s*title|title)(\s*(\/|&|dan|and|,)\s*(nomor|no\.?|kode|id))?\s*$|^(id|no\.?|kode)\s*(\/|&|dan|and)\s*nama\s*(use\s*case|uc)?\s*$/i;
 var SC_KEY_ACTOR = /^(aktor|actor)(\s*(utama|primer|primary|yang\s*terlibat))?\s*$|^(primary\s*actor|pelaku|actors?)\s*$/i;
 var SC_KEY_SKIP = /^(trigger|pemicu|deskripsi|description|tujuan|goal|pre[\s-]*conditions?|post[\s-]*conditions?|prasyarat|kondisi\s*(awal|akhir)|syarat\s*(awal|akhir)|prioritas|priority|stakeholders?|asumsi|assumptions?|catatan|notes?|keterangan|frekuensi|frequency|aktor\s*pendukung|secondary\s*actors?|supporting\s*actors?|tipe|type|level|ringkasan|summary|hasil|output|input|include[sd]?|extends?|relasi|relationship|special\s*requirements?|kebutuhan\s*khusus|business\s*rules?|aturan\s*bisnis|versi|version|author|penulis|dibuat\s*oleh|created\s*by|tanggal|date|status|scope|ruang\s*lingkup|kategori|category|related|terkait|referensi|reference|minimal\s*guarantee|success\s*guarantee|jaminan)\b/i;
 var SC_NORMAL = /^((normal|basic|main|typical)\s*(flow|course|scenario|path|event)s?|alur\s*(normal|utama|dasar|kejadian\s*normal|kejadian\s*utama)|skenario\s*(normal|utama|dasar|sukses)|jalur\s*(normal|utama)|main\s*success\s*scenario|flow\s*of\s*events?\s*:?\s*(normal|basic|main)?)\b/i;
@@ -3656,11 +3660,14 @@ var SC_COL_A = /^(aktor|actor|pengguna|user|aksi\s*aktor|actor\s*action|kegiatan
 /* nomor langkah: "1.", "1)", "(1)", "1:", "8a.", "4.1", "Langkah 3." → { num, rest } */
 function scNum(t) {
   if (/^\d+(\.\d+){2,}/.test(t)) return null;
-  var m = t.match(/^(?:langkah|step)?\s*\(?(\d{1,3})(?:\.?[a-z](?![a-z])|\.\d{1,2}(?!\d))?\s*[.):]+\s*(\S.*)$/i) || t.match(/^(\d{1,3})\s+([A-Za-z"“].*)$/);
-  return m ? { num: +m[1], rest: m[2] } : null;
+  var m = t.match(/^(?:langkah|step)?\s*\(?(\d{1,3})(?:\.?[a-z](?![a-z])|\.\d{1,2}(?!\d))?\s*[.):]+\s*(?!\d{1,2}\s)(\S.*)$/i) || t.match(/^(?:langkah|step)?\s*(\d{1,3})(?:\.\d{1,2}|[a-z])\s+([A-Za-z"“].*)$/) || t.match(/^(\d{1,3})\s+([A-Za-z"“].*)$/);
+  if (!m) return null;
+  var sb = t.match(/^(?:langkah|step)?\s*\(?\d{1,3}(?:\.?([a-z])(?![a-z])|\.(\d{1,2})(?!\d))/i);
+  return { num: +m[1], rest: m[2], sub: sb ? (sb[1] ? sb[1].toLowerCase().charCodeAt(0) - 96 : +sb[2]) : 0 };
 }
 function scParse(rows) {
-  var ucs = [], u = null, sec = null, colA = 0, colS = 1, colN = -1, title = '', state = '';
+  var ucs = [], u = null, sec = null, colA = 0, colS = 1, colN = -1, title = '', state = '', hkeys = null;
+  function isKey(x) { var k = scClean(x).replace(/\s*:\s*$/, ''); return SC_KEY_NO.test(k) || SC_KEY_NAME.test(k) || SC_KEY_ACTOR.test(k) || SC_KEY_SKIP.test(k); }
   function start(keepTitle) { u = { name: '', actor: '', no: '', normal: [], alts: [], tbl: false }; ucs.push(u); sec = null; colA = 0; colS = 1; colN = -1; if (keepTitle && title) u.name = title; title = ''; state = ''; }
   function busy() { return u && (u.normal.length || u.alts.length); }
   function close() { sec = null; state = ''; }
@@ -3668,7 +3675,8 @@ function scParse(rows) {
   function cleanName(t) { return scClean(String(t || '').replace(/^[:\-–—.|)\s]+/, '').replace(/^(skenario|scenario)\s*(use\s*case\s*)?[:\-–—]?\s*/i, '').replace(/^use\s*case\s*[:\-–—]?\s*/i, '')).replace(/[.:]\s*$/, ''); }
   function setNo(v) { if (!u || busy() || u.no) start(); u.no = scClean(v); }
   function setName(v) {
-    var mu = String(v).match(SC_UC), no = '';
+    var mu = String(v).match(SC_UC), no = '', mt = String(v).match(/^(.*?\S)\s*[(\[]\s*(u\.?\s*c|use\s*case)\s*[-_.#]?\s*(\d{1,3}[a-z]?)\s*[)\]]\s*$/i);
+    if (mt && !(mu && /^(uc|u\.c|use)/i.test(scClean(v)))) { v = mt[1]; no = 'UC' + mt[3]; mu = null; }
     if (mu && mu[3] && !/^\d/.test(mu[3]) && /^(uc|u\.c|use)/i.test(scClean(v))) { no = mu[1].replace(/[\s.]/g, '').toUpperCase().replace(/^USECASE$/, 'UC') + mu[2]; v = mu[3]; }
     v = cleanName(v); if (!v) return;
     if (!u || busy() || (u.name && u.name !== v)) start();
@@ -3684,7 +3692,9 @@ function scParse(rows) {
       if (cur && (SC_ATTR.test(t) || SC_DETAIL.test(t))) return;
       var m = scNum(t);
       if (!m && (/^\d{1,3}[.)]?$/.test(t) || SC_ATTR.test(t) || (SC_DETAIL.test(t) && !scVerb(t)))) return;
-      if (m) { var tt = m.rest, ln = guess ? laneOf(tt, lane) : lane; if (guess) tt = tt.replace(/^(sistem|system|aktor|actor)\s*[:\-–—]\s*/i, ''); cur = { num: m.num, t: tt, lane: ln, typed: 1 }; out.push(cur); return; }
+      if (m) { var tt = m.rest, ln = guess ? laneOf(tt, lane) : lane; if (guess) tt = tt.replace(/^(sistem|system|aktor|actor)\s*[:\-–—]\s*/i, ''); cur = { num: m.num, sub: m.sub, t: tt, lane: ln, typed: 1 }; out.push(cur); return; }
+      /* "Kembali ke langkah N" / "Use case selesai" tanpa nomor di bawah langkah bernomor: langkah kendali sendiri */
+      if (cur && !p.c && (SC_BACK.test(scClean(t)) || SC_END.test(scClean(t)))) { cur = { num: null, t: t, lane: lane }; out.push(cur); return; }
       /* tanpa nomor: langkah baru (nomor otomatis / sel pertama / paragraf berkata kerja), sambungan kalimat, atau rincian yang diabaikan */
       if (p.k === 'n' || !cur || (!p.c && !cur.typed && cur.k !== 'n' && scVerb(t) && !/^[a-z]/.test(t))) { cur = { num: null, t: guess ? t.replace(/^(sistem|system|aktor|actor)\s*[:\-–—]\s*/i, '') : t, lane: guess ? laneOf(t, lane) : lane, k: p.k }; out.push(cur); return; }
       if (p.c || /^[a-z"“'(]/.test(t)) cur.t += ' ' + t;
@@ -3695,6 +3705,7 @@ function scParse(rows) {
   function isStart(r) {
     var f = r.filter(function (c) { return c.length; }).map(txt); if (!f.length) return false;
     var t = f[0], k = t.replace(/\s*:.*$/, '');
+    if (f.length >= 2 && f.every(isKey) && f.some(function (x) { x = scClean(x).replace(/\s*:\s*$/, ''); return SC_KEY_NAME.test(x) || SC_KEY_NO.test(x); })) return true;
     if (((/:/.test(t) || f.length === 2) && (SC_KEY_NO.test(k) || SC_KEY_NAME.test(k))) || SC_NORMAL.test(t) || /^(tabel|table)\s*\d/i.test(t) || (/^(skenario|scenario)\b/i.test(t) && !SC_ALT.test(t))) return true;
     if (SC_UC.test(t) && /^[(\[]?\s*(uc|u\.c|use\s*case)/i.test(t) && !/^\d/.test(t)) return true;
     var cs = f.findIndex(function (x) { return SC_COL_S.test(x); }); if (cs < 0) return false;
@@ -3707,7 +3718,7 @@ function scParse(rows) {
       if (isStart(rows[j])) return true;
       if (near) return false;
       var t = txt(f[0]);
-      if (f.length > 1 || scNum(t) || SC_ALT.test(t)) return false;
+      if (f.length > 1 || rows[j].length > 1 || scNum(t) || SC_ALT.test(t)) return false;
     }
     return false;
   }
@@ -3720,6 +3731,8 @@ function scParse(rows) {
   }
   /* judul/teks di luar tabel atau judul bab bernomor: tutup alur, simpan sebagai calon nama */
   function heading(t) {
+    /* baris atribut (nama_x: varchar, tanggal: date) bukan judul dan tidak menutup alur */
+    if ((SC_DETAIL.test(t) || SC_ATTR.test(t)) && !scVerb(t)) return;
     close();
     if (SC_BUL.test(t) || SC_DETAIL.test(t) || SC_ATTR.test(t)) return;
     if (/^(flow\s*(of\s*)?events?|event\s*flows?|alur\s*(kejadian|peristiwa)|skenario|scenario|langkah(\s*-\s*langkah)?|steps?|deskripsi\s*alur|use\s*case|skenario\s*use\s*case)\s*:?$/i.test(scClean(t))) return;
@@ -3739,13 +3752,16 @@ function scParse(rows) {
       /* catatan/keterangan di tengah alur yang sedang berjalan tidak memutus alur */
       if (SC_KEY_SKIP.test(key)) { if (!u) start(true); if (state === 'flow' && sec && sec.length) return true; sec = null; state = 'meta'; return true; }
     }
+    if (kvKey == null && (m = t.match(/^([A-Za-z].{2,80}?\S)\s*[(\[]\s*(u\.?\s*c|use\s*case)\s*[-_.#]?\s*(\d{1,3}[a-z]?)\s*[)\]]\s*$/i)) && m[1].split(' ').length <= 10) {
+      if (!u || busy() || u.no) start(); u.no = 'UC' + m[3]; u.name = cleanName(m[1]); return true;
+    }
     if ((m = t.match(SC_UC)) && (m[3] || kvKey == null) && !/^\d+\s*[.)]/.test(t)) {
       var nm = cleanName(m[3]);
       if (nm || /^(uc|u\.c|use)/i.test(t)) { if (!u || busy() || u.no) start(); u.no = m[1].replace(/[\s.]/g, '').toUpperCase().replace(/^USECASE$/, 'UC') + m[2]; if (nm) u.name = nm; return true; }
     }
     if (SC_NORMAL.test(t)) { if (!u || u.normal.length) start(true); else if (title && !u.name) { u.name = title; title = ''; } sec = u.normal; state = 'flow'; return true; }
     if ((m = t.match(SC_ALT))) {
-      if (!u) start(true); var a = { title: scClean(m[m.length - 1]).replace(/^[:\-–—.)\s]+/, '') || ('Alternatif ' + (u.alts.length + 1)), steps: [] }; u.alts.push(a); sec = a.steps; state = 'flow'; return true;
+      if (!u) start(true); var a = { title: scClean(m[m.length - 1]).replace(/^[:\-–—.)\s]+/, '').replace(/^[(\[“"']\s*(.*?)\s*[)\]”"']$/, '$1') || ('Alternatif ' + (u.alts.length + 1)), steps: [] }; u.alts.push(a); sec = a.steps; state = 'flow'; return true;
     }
     if ((m = t.match(/^(?:tabel|table)\s*[\d.]+\s*[:.\-–—]?\s*(.*)$/i))) { var cap = cleanName(m[1]); if (cap && !/^(use\s*case|uc)$/i.test(cap)) { title = cap; if (busy()) { start(true); } else if (u && !u.name) { u.name = title; title = ''; } } return true; }
     if ((m = t.match(/^(?:skenario|scenario)\s*(?:use\s*case\s*)?[:\-–—]?\s*(.+)$/i))) { var nm2 = cleanName(m[1]); if (nm2 && nm2.split(' ').length <= 10 && !/[.?!]$/.test(nm2)) { title = nm2; if (busy()) start(true); else if (u && !u.name) { u.name = title; title = ''; } return true; } }
@@ -3754,6 +3770,16 @@ function scParse(rows) {
   rows.forEach(function (r, ri) {
     var filled = r.filter(function (c) { return c.length; }); if (!filled.length) return;
     var tx = r.map(txt), ft = filled.map(txt), m;
+    /* identitas mendatar: baris kepala "Nomor Use Case | Nama Use Case | Aktor" lalu baris isinya */
+    if (hkeys) {
+      var hk = hkeys; hkeys = null;
+      if (ft.length >= 2 && !tx.some(function (x) { return SC_COL_S.test(x) || SC_NORMAL.test(x) || SC_ALT.test(x) || isKey(x); })) {
+        tx.forEach(function (v, i) { if (v && hk[i]) line(hk[i] + ' : ' + v, hk[i], v); }); return;
+      }
+    }
+    if (ft.length >= 2 && ft.every(isKey) && ft.some(function (x) { x = scClean(x).replace(/\s*:\s*$/, ''); return SC_KEY_NAME.test(x) || SC_KEY_NO.test(x); })) {
+      hkeys = tx.map(function (x) { return scClean(x).replace(/\s*:\s*$/, ''); }); return;
+    }
     /* tabel baru yang bukan kelanjutan alur (mis. tabel kamus data) menutup alur sebelumnya */
     if (r.first && sec && !flowish(r, tx)) close();
     /* kepala tabel kamus data / atribut (juga di teks polos) bukan bagian alur */
@@ -3801,8 +3827,13 @@ function scParse(rows) {
     if (filled.length === 1 && !scNum(ft[0]) && /^[A-Za-z][\w \-\/]{1,30}\s*:\s*\S/.test(ft[0]) && !/^(sistem|system|aktor|actor|user|pengguna)\b/i.test(ft[0]) && !scVerb(ft[0])) return;
     var gA = steps(r[colA] || [], 'a'), gS = steps(r[colS] || [], 's');
     if (colN >= 0 && r[colN] && r[colN].length) { var n0 = parseInt(txt(r[colN]), 10); if (n0) { if (gA.length === 1 && gA[0].num == null) gA[0].num = n0; else if (gS.length === 1 && gS[0].num == null) gS[0].num = n0; } }
+    /* urutkan langkah sebaris (atau semua langkah dalam satu sel per kolom) menurut nomor + sub-nomor (7.1, 7a);
+       langkah tanpa nomor ikut langkah bernomor di atasnya; "Kembali ke langkah N"/"Selesai" selalu paling akhir */
+    function keys(g) { var last = -1, j = 0; g.forEach(function (s) { j++; if (s.num != null) last = s.num + (s.sub || 0) / 100; s._k = s.num != null ? last : (SC_BACK.test(scClean(s.t)) || SC_END.test(scClean(s.t))) ? 1e6 + j : last + j / 1e4; }); }
+    keys(gA); keys(gS);
     var got = gA.concat(gS);
-    got.sort(function (x, y) { return (x.num == null || y.num == null) ? 0 : x.num - y.num; });
+    if (got.some(function (x) { return x.num != null; })) got.sort(function (x, y) { return x._k - y._k; });
+    got.forEach(function (x) { delete x._k; });
     got.forEach(function (s) { sec.push(s); });
     if (got.length && r.src === 't') u.tbl = true;
   });
@@ -3816,8 +3847,10 @@ function scParse(rows) {
       var L = a.steps[a.steps.length - 1], mb;
       while (L && (mb = scClean(L.t).match(SC_BACK) || (SC_END.test(scClean(L.t)) ? ['end'] : null))) { a.steps.pop(); if (mb[0] === 'end') a.end = true; else a.back = +mb[1]; L = a.steps[a.steps.length - 1]; }
       fill(a.steps, a.steps.length && a.steps[0].num != null ? a.steps[0].num : 1);
-      if (a.steps.every(function (s) { return s.num != null && !s.auto; })) a.steps.sort(function (p, q) { return p.num - q.num; });
+      if (a.steps.every(function (s) { return s.num != null && !s.auto; })) a.steps.sort(function (p, q) { return p.num - q.num || (p.sub || 0) - (q.sub || 0); });
+      a.steps.forEach(function (s) { delete s.sub; });
     });
+    x.normal.forEach(function (s) { delete s.sub; });
     x.alts = x.alts.filter(function (a) { return a.steps.length || a.back != null; });
     x.name = x.name || (x.no ? x.no : 'Skenario ' + (i + 1)); x.actor = x.actor || 'Aktor';
     delete x.tbl;
@@ -3827,12 +3860,54 @@ function scParse(rows) {
 var SC_STOP = { kembali: 1, ke: 1, di: 1, dan: 1, yang: 1, pada: 1, untuk: 1, dari: 1, the: 1, a: 1 };
 function scWords(t) { return String(t).toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').split(' ').filter(function (w) { return w && !SC_STOP[w]; }); }
 function scSim(a, b) { var A = new Set(scWords(a)), B = new Set(scWords(b)), n = 0; A.forEach(function (w) { if (B.has(w)) n++; }); var m = Math.min(A.size, B.size); return m >= 2 ? n / m : 0; }
+/* alternatif tanpa "Kembali ke langkah N": langkah terakhirnya dianggap kembali ke langkah utama yang SAMA atau hampir sama.
+   Sama persis diutamakan; pesan tidak disamakan dengan bukan-pesan, dan kalimat gagal/kosong ("belum ada", "tidak valid") tidak disamakan dengan yang bukan. */
+var SC_MSG = /\b(pesan|notifikasi|peringatan|alert|pop\s*-?\s*up|message|warning|error)\b/i;
+var SC_NEG = /\b(belum|tidak|bukan|gagal|salah|kosong|kurang|habis|penuh|invalid|tak|not|no|failed|wrong|empty|error|kedaluwarsa)\b/i;
+function scJoinNorm(t) { return String(t).toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\b(kembali|lagi|ulang)\b/g, ' ').replace(/\s+/g, ' ').trim(); }
+function scJoinSim(a, b) {
+  if (scJoinNorm(a) === scJoinNorm(b)) return 1.01;
+  if (SC_MSG.test(a) !== SC_MSG.test(b) || SC_NEG.test(a) !== SC_NEG.test(b)) return 0;
+  /* hampir sama = semua kata langkah yang lebih pendek ada di langkah lainnya ("Menampilkan Form Ubah X" ~ "Menampilkan Form Ubah X Yang Terisi Data Lama") */
+  var A = new Set(scWords(a)), B = new Set(scWords(b)), n = 0; A.forEach(function (w) { if (B.has(w)) n++; });
+  return Math.min(A.size, B.size) >= 3 && n === Math.min(A.size, B.size) ? .9 : 0;
+}
 function scCap(t) { t = String(t || '').toLowerCase(); return t.charAt(0).toUpperCase() + t.slice(1); }
 var SC_VAL = /\b(memvalidasi|validasi|mengecek|cek|memeriksa|periksa|verifikasi|memverifikasi|validate|check|verify)\b/i;
 var SC_ACTBTN = /\b(tombol|button|klik|click|tekan|menekan|press|pilih|memilih|select)\b/i;
 /* letak decision bila nomor alternatif tidak bisa dipakai: cocokkan dengan langkah utama yang mirip */
-function scGuessFork(N, f) {
+function scGuessFork(N, f, title) {
   var k = -1, best = 0, i;
+  /* kata judul yang jarang (bukan nama objek yang ada di semua langkah) menunjuk langkah yang digantikan */
+  var df = {}; N.forEach(function (s) { new Set(scWords(s.t)).forEach(function (w) { df[w] = (df[w] || 0) + 1; }); });
+  var GEN = /^(data|tombol|menekan|klik|mengklik|tidak|batal|gagal|salah|belum|ada|sudah|halaman|menampilkan|pesan|form|yang|lain|lagi|ulang|kembali|baru)$/;
+  function rare(t, j) { var S = new Set(scWords(N[j].t)), sc = 0; new Set(scWords(t)).forEach(function (w) { if (!GEN.test(w) && S.has(w) && df[w] <= 2) sc += 1 / df[w]; }); return sc; }
+  if (f && f.lane === 's') {
+    var q0 = (title || '') + ' ' + f.t, EMPTY = /\b(belum\s+(ada|tersedia|terdaftar)|kosong|tidak\s+(ada|tersedia)|not\s+(found|available)|no\s+data|empty)\b/i, NF = /\b(tidak\s+ditemukan|not\s+found|tidak\s+cocok)\b/i;
+    if (NF.test(q0) || (EMPTY.test(q0) && !/\b(valid|lengkap|wajib|diisi|kolom|format|input|isian|field|required)\b/i.test(q0))) {
+      var want = NF.test(q0) ? /\b(hasil|pencarian|search|cari|result)/i : /\b(daftar|list|data|halaman|katalog|riwayat|semua)\b/i, bk = -1;
+      for (i = 1; i < N.length; i++) if (N[i].lane === 's' && N[i - 1].lane === 'a' && !SC_VAL.test(N[i].t) && want.test(N[i].t)) { bk = i; break; }
+      if (bk >= 0) return bk;
+    }
+  }
+  if (f && f.lane === 'a' && title && !/\b(batal|membatalkan|cancel)\b/i.test(title)) {
+    var bt = 0, bj = -1;
+    for (i = 0; i < N.length; i++) if (N[i].lane === 'a') { var r = rare(title, i); if (r > bt + 1e-9) { bt = r; bj = i; } }
+    if (bj >= 0) return bj;
+  }
+  if (f && f.lane === 's' && (SC_NEG.test(f.t) || SC_NEG.test(title || '') || SC_MSG.test(f.t))) {
+    var vs = []; for (i = 0; i < N.length - 1; i++) if (N[i].lane === 's' && SC_VAL.test(N[i].t)) vs.push(i);
+    if (vs.length) {
+      var q = (title || '') + ' ' + f.t, bv = vs[0], bs = -1;
+      var AV = /\b(stok|kuota|ketersediaan|tersedia|penuh|habis|slot|jadwal|saldo|limit|kapasitas|stock|available|quota)\b/i, VL = /\b(valid|validasi|lengkap|kelengkapan|wajib|kosong|diisi|format|benar|salah|sesuai|input|inputkan|required|empty)\b/i;
+      vs.forEach(function (j) { var st = N[j].t, w = scSim(q, st.replace(SC_VAL, '')) + (AV.test(q) && AV.test(st) ? 1 : 0) + (VL.test(q) && (VL.test(st) || /memvalidasi|validasi|validate/i.test(st)) && !AV.test(st) ? 1 : 0); if (w > bs + 1e-9) { bs = w; bv = j; } });
+      return bv + 1;
+    }
+  }
+  if (f && f.lane === 'a' && /\b(batal|membatalkan|cancel|tidak\s+jadi)\b/i.test(f.t)) {
+    /* "Batal" berpasangan dengan tombol kirim/simpan pertama setelah form (bukan tombol menu/cari) */
+    for (i = 0; i < N.length; i++) if (N[i].lane === 'a' && /\b(simpan|kirim|submit|save|ajukan|proses|bayar|hapus|daftar(kan)?|pesan(\s+sekarang)?|ya|ok|lanjut(kan)?|konfirmasi|send)\b["”]?\s*$/i.test(N[i].t.replace(/["“”]/g, ''))) return i;
+  }
   if (f && f.lane === 'a') {
     for (i = 0; i < N.length; i++) if (N[i].lane === 'a') { var v = scSimLoose(f.t, N[i].t); if (v > 0 && v >= best) { best = v; k = i; } }
     if (k < 0 && SC_ACTBTN.test(f.t)) for (i = 0; i < N.length; i++) if (N[i].lane === 'a' && SC_ACTBTN.test(N[i].t)) k = i;
@@ -3863,14 +3938,15 @@ function scPlan(u) {
         k = j >= 0 && j < N.length ? j : k;
       }
     }
-    if (k < 0) k = scGuessFork(N, f);
-    if (f && SC_VAL.test(N[k].t) && !SC_VAL.test(f.t) && k + 1 < N.length && f.lane === 's') k++;
+    var guessed = k < 0;
+    if (k < 0) k = scGuessFork(N, f, a.title);
+    if (!guessed && f && SC_VAL.test(N[k].t) && !SC_VAL.test(f.t) && k + 1 < N.length && f.lane === 's' && !(k > 0 && N[k - 1].lane === 's' && SC_VAL.test(N[k - 1].t))) k++;
     k = Math.max(0, Math.min(N.length - 1, k));
     var body = a.steps.slice(), loop = -1, best = 0;
     if (a.back != null) loop = N.findIndex(function (s) { return s.num === a.back; });
     else if (!a.end && body.length) {
       var last = body[body.length - 1];
-      N.forEach(function (s, j) { var v = scSim(last.t, s.t); if (v >= .75 && v > best) { best = v; loop = j; } });
+      N.forEach(function (s, j) { var v = scJoinSim(last.t, s.t); if (v >= .75 && v > best) { best = v; loop = j; } });
       if (loop >= 0) body.pop();
     }
     var tt = scClean(a.title), neg = /\btidak\b/i.test(tt);
@@ -3905,6 +3981,8 @@ function scMakeActivity(u, name) {
   });
   var fin = node('final', '', N[N.length - 1].lane, 0, take(N[N.length - 1].lane, 0, row++)); link(prev, fin, pend);
   var mainFlows = new Set(flows.map(function (f) { return f.id; }));
+  /* tanda alur utama disimpan di garisnya, supaya Rapikan berikutnya tetap tahu mana alur utama (garis lompat maju tidak dikira garis balik) */
+  flows.forEach(function (f) { f.main = 1; });
   /* cabang alternatif di kolom samping lane-nya */
   forks.forEach(function (fk) {
     var g = fk.g, r = fk.d._r, p0 = fk.d, lbl = g.yes;
@@ -3957,7 +4035,7 @@ function scGenerate(list, withUc) {
   umlToolbox(); setTool('select');
   toast(made.length + ' diagram dibuat dari skenario. Cek lagi nama dan cabangnya, lalu rapikan kalau perlu.');
 }
-function scSummary(u) { return u.normal.length + ' langkah' + (u.alts.length ? ', ' + u.alts.length + ' alternatif' : ''); }
+function scSummary(u) { return u.normal.length + ' langkah' + (u.alts.length ? ', ' + u.alts.length + ' alternatif' : ', <span class="scnoalt">belum ada alternative flow</span>'); }
 function scenarioModal(pre) {
   if (isDfd()) { dfdScenarioModal(pre); return; }
   var found = [];
@@ -3973,7 +4051,8 @@ function scenarioModal(pre) {
     function show(ucs, src) {
       found = ucs;
       if (!ucs.length) { $('#sclist', s).innerHTML = ''; msg.textContent = 'Tidak ada skenario yang terbaca dari ' + src + '. Pastikan tabelnya punya kolom Aktor dan Sistem.'; ok.disabled = true; return; }
-      msg.textContent = ucs.length + ' skenario terbaca dari ' + src + '.';
+      var noAlt = ucs.filter(function (u) { return !u.alts.length; }).length;
+      msg.textContent = ucs.length + ' skenario terbaca dari ' + src + '.' + (noAlt ? ' Catatan: ' + noAlt + ' skenario belum punya alternative flow (misalnya data tidak valid, batal, atau data belum ada). Biasanya skenario punya minimal satu; diagram tetap bisa dibuat.' : '');
       $('#sclist', s).innerHTML = '<div class="sclist">' + ucs.map(function (u, i) { return '<label class="scchk"><input type="checkbox" data-sc="' + i + '" checked> <span><b>' + esc((u.no ? u.no + ' · ' : '') + u.name) + '</b> <span class="mut">— ' + esc(u.actor) + ' · ' + scSummary(u) + '</span></span></label>'; }).join('') + '</div>';
       ok.disabled = false; ok.textContent = 'Buat ' + ucs.length + ' diagram';
     }
@@ -4216,12 +4295,30 @@ function shareModal() {
     make('all');
   });
 }
-window.addEventListener('hashchange', function () { if (/^#alir=/.test(location.hash)) shareBoot(); });
+window.addEventListener('hashchange', function () { if (/alir=/.test(location.hash)) shareBoot(); });
+/* isi link: ambil bagian base64url setelah "alir=" saja — tanda baca/teks yang ikut tersalin di belakang link (titik, kurung, spasi, %20…) diabaikan */
+function shareCode(h) {
+  h = String(h || ''); try { h = decodeURIComponent(h); } catch (x) { /* biarkan */ }
+  var m = /alir=([A-Za-z0-9_-]+)/.exec(h); return m ? m[1] : null;
+}
 function shareBoot() {
-  var m = /^#alir=([A-Za-z0-9_-]+)$/.exec(location.hash || ''); if (!m) return;
+  var h = location.hash || ''; if (!/alir=/.test(h)) return;
+  var code = shareCode(h);
   try { history.replaceState(null, '', location.pathname + location.search); } catch (x) { /* abaikan */ }
-  if (!window.DecompressionStream) { toast('Browser ini belum bisa membuka link berbagi. Perbarui browsermu.'); return; }
-  unpackDoc(m[1]).then(function (nd) { histSnap('Sebelum membuka link'); loadDoc(nd, 'link berbagi "' + (nd.name || 'Model') + '"'); }).catch(function () { toast('Link ini rusak atau terpotong. Minta pengirimnya mengirim ulang, atau kirim berkas .json.'); });
+  if (typeof closeStart === 'function') closeStart();
+  if (!code || code.length < 20) { toast('Link berbagi ini tidak lengkap (isinya hilang). Minta pengirimnya menyalin ulang link dari tombol "Salin link".'); return; }
+  if (!window.DecompressionStream) { toast('Browser ini belum bisa membuka link berbagi. Perbarui browsermu, atau minta berkas .json-nya.'); return; }
+  unpackDoc(code).then(function (nd) {
+    try {
+      histSnap('Sebelum membuka link'); loadDoc(nd, 'link berbagi "' + (nd.name || 'Model') + '"');
+      if (typeof closeStart === 'function') closeStart();
+      try { if (typeof modeUI === 'function') modeUI(); fhTitle(); } catch (x) { /* abaikan */ }
+    } catch (err) {
+      toast('Isi link terbaca, tapi proyeknya gagal dibuka (' + ((err && err.message) || err) + '). Coba muat ulang halaman, atau minta berkas .json-nya.');
+    }
+  }).catch(function () {
+    toast('Link ini terpotong (panjangnya ' + String(Math.round(code.length / 1024 * 10) / 10).replace('.', ',') + ' KB, seharusnya utuh dari awal sampai akhir). Biasanya aplikasi chat memotong link yang panjang; minta pengirimnya mengirim berkas .json saja.');
+  });
 }
 
 /* ---------- 3. jalankan alur (simulasi token seperti presentasi) ---------- */
@@ -4978,8 +5075,10 @@ function adLayout2(D, opt) {
   var depth = {}, bq = starts.map(function (s) { depth[s.id] = 0; return s.id; });
   while (bq.length) { var x0b = bq.shift(); outs(x0b).forEach(function (f) { if (depth[f.to] == null) { depth[f.to] = depth[x0b] + 1; bq.push(f.to); } }); }
   function reach(a, b) { var seen = {}, st = [a]; while (st.length) { var x = st.pop(); if (x === b) return true; if (seen[x]) continue; seen[x] = 1; outs(x).forEach(function (f) { st.push(f.to); }); } return false; }
-  var back = new Set();
-  flows.forEach(function (f) { var a = depth[f.from], b = depth[f.to]; if (a != null && b != null && b <= a && reach(f.to, f.from)) back.add(f.id); });
+  var back = new Set(), MF = opt.mainFlows || new Set(flows.filter(function (f) { return f.main; }).map(function (f) { return f.id; }));
+  if (!MF.size) MF = null;
+  /* garis alur utama (dari skenario) tidak pernah dianggap garis balik */
+  flows.forEach(function (f) { var a = depth[f.from], b = depth[f.to]; if (MF && MF.has(f.id)) return; if (a != null && b != null && b <= a && reach(f.to, f.from)) back.add(f.id); });
   var state = {}, order = [];
   function dfs(id) { state[id] = 1; outs(id).forEach(function (f) { if (back.has(f.id)) return; if (state[f.to] === 1) back.add(f.id); else if (!state[f.to]) dfs(f.to); }); state[id] = 2; order.push(id); }
   starts.forEach(function (s) { if (!state[s.id]) dfs(s.id); });
@@ -4990,7 +5089,7 @@ function adLayout2(D, opt) {
   var main = new Set(), cur0 = starts[0].id, g = 0;
   while (cur0 && !main.has(cur0) && g++ < 999) {
     main.add(cur0);
-    var o0 = outs(cur0).filter(function (f) { return !back.has(f.id); }).sort(function (a, b) { var mf = opt.mainFlows; return (mf ? (mf.has(b.id) ? 1 : 0) - (mf.has(a.id) ? 1 : 0) : 0) || (plen[b.to] - plen[a.to]) || (repPrefer(a) - repPrefer(b)); });
+    var o0 = outs(cur0).filter(function (f) { return !back.has(f.id); }).sort(function (a, b) { var mf = MF; return (mf ? (mf.has(b.id) ? 1 : 0) - (mf.has(a.id) ? 1 : 0) : 0) || (plen[b.to] - plen[a.to]) || (repPrefer(a) - repPrefer(b)); });
     cur0 = o0.length ? o0[0].to : null;
   }
   function fwdIn(id) { return (G.inn[id] || []).filter(function (f) { return byId.has(f.from) && !back.has(f.id) && f.from !== id; }); }
@@ -10843,11 +10942,13 @@ if (window.ResizeObserver) new ResizeObserver(function () { if (view().fresh) fi
   else { doc = normDoc(SAMPLE ? clone(SAMPLE) : blankDoc()); active = doc.diagrams[0].id; }
   if (isDfd()) pinImported();
   bumpSeq(); fixActive(); modeUI(); setTool('select'); tabs(); panel(); status(); syncBar();
+  try { fhTitle(); } catch (x) { /* abaikan */ }
   requestAnimationFrame(function () { fit(); });
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol) && !window.claude && document.querySelector('link[rel=manifest]')) navigator.serviceWorker.register('sw.js').catch(function () { /* tanpa offline */ });
   var seen = null; try { seen = localStorage.getItem('alir-help-seen'); localStorage.setItem('alir-help-seen', '1'); } catch (x) { seen = '1'; }
-  if (first && !SAMPLE) setTimeout(startPage, 50);
-  else if (!seen) setTimeout(function () { toast('Baru di Alir? Buka menu Bantuan → Cara pakai (atau tekan F1).'); }, 900);
+  var viaLink = /alir=/.test(location.hash || '');
+  if (first && !SAMPLE && !viaLink) setTimeout(startPage, 50);
+  else if (!seen && !viaLink) setTimeout(function () { toast('Baru di Alir? Buka menu Bantuan → Cara pakai (atau tekan F1).'); }, 900);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { draw(); });
   histBoot(); shareBoot();
 })();
