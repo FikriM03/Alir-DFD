@@ -422,7 +422,7 @@ ol.steps code, ol.steps kbd { font: 600 12px var(--f-mono); padding: 1px 5px; bo
 .pbq { width: 100%; height: 28px; padding: 0 8px 0 27px; border: 1px solid var(--bd); border-radius: 6px; background: var(--panel); color: var(--fg); font: 12.5px var(--f-body); }
 .pbq:focus { border-color: var(--acc); outline: none; box-shadow: 0 0 0 2px color-mix(in srgb, var(--acc) 22%, transparent); }
 .pbq::-webkit-search-cancel-button { cursor: pointer; }
-.pbcount { font: 500 10.5px var(--f-mono); color: var(--mut); white-space: nowrap; }
+.pbcount { font: 500 10.5px var(--f-mono); color: var(--mut); white-space: nowrap; } .pbcount:empty { display: none; }
 .btn.sm.ic { width: 28px; padding: 0; display: inline-grid; place-items: center; }
 .btn.sm.ic svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .pbbox { resize: vertical; min-height: 90px; }
@@ -441,6 +441,64 @@ ol.steps code, ol.steps kbd { font: 600 12px var(--f-mono); padding: 1px 5px; bo
 .tree.pb mark { background: color-mix(in srgb, var(--acc) 22%, transparent); color: inherit; border-radius: 2px; padding: 0 1px; }
 .pbnone { padding: 8px 6px; }
 @media (prefers-reduced-motion: reduce) { .tree.pb .tw svg { transition: none; } }
+
+/* v39: tombol "Diagram (N)" + Daftar diagram (pengelola tab) */
+.tbmgr { flex: none; display: flex; align-items: center; gap: 6px; padding: 0 10px 0 10px; margin: 0; border: 0; border-right: 1px solid var(--bd); background: none; color: var(--fg); font: 500 12.5px var(--f-body); cursor: pointer; white-space: nowrap; }
+.tbmgr svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.tbmgr svg.cv { width: 10px; height: 10px; color: var(--mut); transition: transform .14s ease; }
+.tbmgr b { font: 600 10.5px var(--f-mono); padding: 1px 6px; border-radius: 9px; background: var(--bg); border: 1px solid var(--bd); color: var(--mut); }
+.tbmgr:hover, .tbmgr[aria-expanded="true"] { background: var(--bg); }
+.tbmgr[aria-expanded="true"] { color: var(--acc); } .tbmgr[aria-expanded="true"] svg.cv { transform: rotate(180deg); }
+@media (max-width: 640px) { .tbmgr .lb { display: none; } }
+#tabpop { width: min(440px, calc(100vw - 16px)); max-height: min(76vh, 620px); overflow: hidden; }
+#tabpop .tm-h { display: flex; flex-direction: column; gap: 6px; padding: 8px 8px 6px; border-bottom: 1px solid var(--bd); }
+#tabpop .tm-s { position: relative; }
+#tabpop .tm-s svg { position: absolute; left: 10px; top: 50%; width: 14px; height: 14px; margin-top: -7px; fill: none; stroke: var(--mut); stroke-width: 1.6; stroke-linecap: round; pointer-events: none; }
+#tabpop .tm-s input { margin: 0; width: 100%; padding-left: 31px; }
+#tabpop .tm-k, #tabpop .tm-a { display: flex; flex-wrap: wrap; gap: 4px; }
+#tabpop .tm-k button, #tabpop .tm-a button { border: 1px solid var(--bd); background: var(--panel2); color: var(--fg); border-radius: 14px; padding: 3px 10px; font: 500 12px var(--f-body); cursor: pointer; }
+#tabpop .tm-k button i { font: 500 10.5px var(--f-mono); color: var(--mut); font-style: normal; }
+#tabpop .tm-k button[aria-pressed="true"] { border-color: var(--acc); color: var(--acc); background: var(--bg); }
+#tabpop .tm-a button:hover:not(:disabled), #tabpop .tm-k button:hover { border-color: var(--acc); }
+#tabpop .tm-a button:disabled { opacity: .45; cursor: default; }
+#tabpop .tl { flex: 1; min-height: 80px; padding: 4px; }
+#tabpop .ti { display: flex; align-items: center; gap: 0; padding: 0 4px 0 2px; border-radius: 6px; }
+#tabpop .ti.cur { background: var(--panel2); }
+#tabpop .ti.hot, #tabpop .ti:hover { background: color-mix(in srgb, var(--acc) 10%, transparent); }
+#tabpop .tm-cb { flex: none; display: grid; place-items: center; width: 30px; height: 30px; cursor: pointer; }
+#tabpop .tm-cb input { width: 15px; height: 15px; margin: 0; accent-color: var(--acc); cursor: pointer; }
+#tabpop .tm-go { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; border: 0; background: none; padding: 6px 4px; color: var(--fg); font: 13px var(--f-body); text-align: left; cursor: pointer; }
+#tabpop .ti[aria-selected="false"] .tm-go { color: var(--mut); }
+#tabpop .tm-go .n { font: 600 10.5px var(--f-mono); color: var(--mut); min-width: 22px; text-align: right; }
+#tabpop .tm-go .kb { margin-right: 0; }
+#tabpop .tm-nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tabpop .tm-st { flex: none; font: 600 10px var(--f-mono); color: var(--acc); }
+#tabpop .tm-g { padding: 8px 10px 2px; font: 600 11px var(--f-body); color: var(--mut); }
+#tabpop .tm-f { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 6px 10px; border-top: 1px solid var(--bd); font-size: 11.5px; color: var(--mut); background: var(--panel); }
+#tabpop .tm-f select { margin-left: 4px; height: 24px; border: 1px solid var(--bd); border-radius: 5px; background: var(--bg); color: var(--fg); font: 11.5px var(--f-body); }
+#tabpop .tm-c { font-family: var(--f-mono); font-size: 10.5px; }
+.btn.sm.pbfold { display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; }
+.btn.sm.pbfold svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.btn.sm.pbfold i { font: 600 10px var(--f-mono); font-style: normal; color: var(--acc); }
+.btn.sm.pbfold:disabled { opacity: .5; }
+
+/* v39: animasi ringan (hanya opacity/transform; aktif bila html.anim) */
+@keyframes al-pop { from { opacity: 0; transform: translateY(-4px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes al-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes al-rise { from { opacity: 0; transform: translate(-50%, 6px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes al-down { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+@keyframes al-bar { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.tab { position: relative; }
+.tab[aria-selected="true"]::before { content: ""; position: absolute; left: 8px; right: 8px; top: 0; height: 2px; border-radius: 0 0 2px 2px; background: var(--acc); transform-origin: center; }
+html.anim .menu, html.anim #tabpop, html.anim .modal, html.anim #colorpop { animation: al-pop .14s cubic-bezier(.2,.8,.2,1); transform-origin: top left; }
+html.anim .scrim { animation: al-fade .14s ease-out; }
+html.anim #toast:not([hidden]) { animation: al-rise .18s cubic-bezier(.2,.8,.2,1); }
+html.anim .tab[aria-selected="true"]::before { animation: al-bar .18s cubic-bezier(.2,.8,.2,1); }
+html.anim .tab, html.anim .tbmgr, html.anim .tree button, html.anim .btn, html.anim .tool, html.anim #tabpop .ti, html.anim .tm-a button, html.anim .tm-k button { transition: background-color .12s ease, color .12s ease, border-color .12s ease, opacity .12s ease; }
+html.anim .tab .x { transition: opacity .12s ease, background-color .12s ease; }
+html.anim .tree.pb ul.justopen { animation: al-down .16s ease-out; }
+html.anim .modal { transform-origin: center top; }
+@media (prefers-reduced-motion: reduce) { html.anim *, html.anim *::before { animation-duration: 1ms !important; transition-duration: 1ms !important; } }
 </style>
 <div id="app">
   <nav id="menubar" aria-label="Menu utama">
@@ -457,10 +515,10 @@ ol.steps code, ol.steps kbd { font: 600 12px var(--f-mono); padding: 1px 5px; bo
   </nav>
   <div id="toolbar" role="toolbar" aria-label="Bilah alat"></div>
   <div id="tabbar">
+    <button class="tbmgr" id="tabAll" aria-haspopup="dialog" aria-expanded="false" title="Daftar diagram: cari, buka, dan pilih yang tampil di tab (Ctrl+Shift+E)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4h11M2.5 8h11M2.5 12h7"/></svg><span class="lb">Diagram</span><b id="tabCount"></b><svg class="cv" viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 3.8L5 6.3l2.5-2.5"/></svg></button>
     <button class="tbs" id="tabL" aria-label="Geser tab ke kiri" title="Geser tab ke kiri">&#8249;</button>
     <nav id="tabs" role="tablist" aria-label="Diagram"></nav>
     <button class="tbs" id="tabR" aria-label="Geser tab ke kanan" title="Geser tab ke kanan">&#8250;</button>
-    <button class="tbs tball" id="tabAll" aria-haspopup="true" title="Semua diagram: cari dan lompat (Ctrl+Shift+E)"><span id="tabCount"></span> &#9662;</button>
   </div>
   <div id="main">
     <aside id="rail" aria-label="Palet alat"></aside>
@@ -2369,7 +2427,7 @@ function umlCheck(D) {
 
 /* ---------- Project Browser + properti ---------- */
 /* v38: isi diagram & paket bisa dilipat (bawaan terlipat), dicari, posisi gulir dipertahankan, tinggi bisa ditarik */
-var pbOpen = {}, pbFold = {}, PB_Q = '', pbLastActive = null;
+var pbOpen = {}, pbFold = {}, PB_Q = '', pbLastActive = null, pbJust = null;
 try { pbOpen = JSON.parse(localStorage.getItem('alir-pbopen') || '{}') || {}; pbFold = JSON.parse(localStorage.getItem('alir-pbfold') || '{}') || {}; } catch (x) { pbOpen = {}; pbFold = {}; }
 function pbSaveState() { try { localStorage.setItem('alir-pbopen', JSON.stringify(pbOpen)); localStorage.setItem('alir-pbfold', JSON.stringify(pbFold)); } catch (x) { /* abaikan */ } }
 function kindBadge(k) { return '<span class="kb kb-' + k + '">' + KINDS[k].short + '</span>'; }
@@ -2408,7 +2466,8 @@ function pbTree() {
             return '<li><button data-pbe="' + e.id + '" data-pbd2="' + d.id + '"' + (sel.has(e.id) && d.id === active ? ' class="sel"' : '') + '><svg class="i s" viewBox="0 0 24 24">' + TT[e.type].icon + '</svg>' + esc(e.name || TT[e.type].label) + '</button>' + (kids.length ? list(kids, lvl + 1) : '') + '</li>';
           }).join('') + '</ul>';
         };
-        s += list(tops.sort(function (a, b) { return (isContainer(b) - isContainer(a)) || (a.name || '').localeCompare(b.name || ''); }), 0);
+        var lh = list(tops.sort(function (a, b) { return (isContainer(b) - isContainer(a)) || (a.name || '').localeCompare(b.name || ''); }), 0);
+        s += d.id === pbJust ? lh.replace('<ul>', '<ul class="justopen">') : lh;
       }
       s += '</li>';
     });
@@ -2421,8 +2480,10 @@ function pbTree() {
   return h;
 }
 /* gambar ulang pohon saja (dipakai kotak cari & tombol lipat) supaya fokus ketik dan posisi gulir tidak hilang */
-function pbRefresh() { var b = panelEl.querySelector('.pbbox'); if (!b) { panel(); return; } var st = b.scrollTop; b.innerHTML = pbTree(); b.scrollTop = st; var c = panelEl.querySelector('.pbcount'); if (c) c.textContent = pbCountTxt(); }
-function pbCountTxt() { var n = doc.diagrams.length, m = PB_Q ? doc.diagrams.filter(pbHit).length : n; return PB_Q ? m + ' dari ' + n : n + ' diagram'; }
+function pbRefresh() { var b = panelEl.querySelector('.pbbox'); if (!b) { panel(); return; } var st = b.scrollTop; b.innerHTML = pbTree(); b.scrollTop = st; var c = panelEl.querySelector('.pbcount'); if (c) c.textContent = pbCountTxt(); var fb = panelEl.querySelector('.pbfold'); if (fb) fb.outerHTML = pbFoldBtn(); }
+function pbOpenN() { return doc.diagrams.filter(function (d) { return pbOpen[d.id] && d.elements.length; }).length; }
+function pbFoldBtn() { var n = pbOpenN(); return '<button class="btn sm pbfold" data-act="pbfoldall"' + (n ? '' : ' disabled') + ' title="' + (n ? 'Sembunyikan daftar elemen di ' + n + ' diagram yang sedang dibuka (tanda ›)' : 'Daftar elemen semua diagram sudah terlipat. Klik tanda › di kiri nama diagram untuk melihat isinya.') + '"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4-3 4 3M4 13l4-3 4 3"/></svg>Lipat' + (n ? ' <i>' + n + '</i>' : '') + '</button>'; }
+function pbCountTxt() { var n = doc.diagrams.length, m = PB_Q ? doc.diagrams.filter(pbHit).length : n; return PB_Q ? m + ' dari ' + n : ''; }
 function pbHeight() { try { var v = +localStorage.getItem('alir-pbh'); return v >= 90 ? v : 0; } catch (x) { return 0; } }
 /* sebelum/sesudah panel digambar ulang: pertahankan gulir, fokus cari, dan tampilkan diagram aktif */
 function pbKeep() {
@@ -2457,7 +2518,7 @@ function umlPanel() {
   /* paket yang memuat diagram aktif tidak boleh terlipat (supaya diagram yang sedang dibuka terlihat) */
   if (pbLastActive !== active && D.pkg) { var pp = D.pkg, g0 = 0; while (pp && g0++ < 20) { if (pbFold[pp]) { delete pbFold[pp]; pbSaveState(); } var P0 = doc.packages.find(function (x) { return x.id === pp; }); pp = P0 && P0.parent; } }
   h += '<div class="sec pbsec"><div class="pbhead"><h2>Project Browser</h2><div class="row tight"><button class="btn sm" data-act="newdiag" title="Diagram baru">+ Diagram</button><button class="btn sm" data-act="newpkg" title="Paket (folder) baru">+ Paket</button></div></div>' +
-    (doc.diagrams.length > 3 ? '<div class="pbtools"><div class="pbsearch"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg><input class="pbq" type="search" placeholder="Cari diagram…" aria-label="Cari diagram di Project Browser" value="' + esc(PB_Q) + '"></div><span class="pbcount">' + pbCountTxt() + '</span><button class="btn sm ic" data-act="pbfoldall" title="Lipat semua isi diagram" aria-label="Lipat semua isi diagram"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4-3 4 3M4 13l4-3 4 3"/></svg></button></div>' : '') +
+    (doc.diagrams.length > 3 ? '<div class="pbtools"><div class="pbsearch"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg><input class="pbq" type="search" placeholder="Cari diagram…" aria-label="Cari diagram di Project Browser" value="' + esc(PB_Q) + '"></div><span class="pbcount">' + pbCountTxt() + '</span>' + pbFoldBtn() + '</div>' : '') +
     '<div class="pbbox"' + (pbh ? ' style="height:' + pbh + 'px;max-height:none"' : '') + '>' + pbTree() + '</div></div>';
   if (ids.length === 1) {
     var e = elOf(D, ids[0]), f = e ? null : flOf(D, ids[0]);
@@ -2525,7 +2586,7 @@ function umlPanelChange(t) {
 }
 function umlPanelClick(e) {
   var tw = e.target.closest('[data-pbtw]');
-  if (tw) { var tid = tw.dataset.pbtw; if (pbOpen[tid]) delete pbOpen[tid]; else pbOpen[tid] = 1; pbSaveState(); pbRefresh(); return true; }
+  if (tw) { var tid = tw.dataset.pbtw; if (pbOpen[tid]) delete pbOpen[tid]; else { pbOpen[tid] = 1; pbJust = tid; } pbSaveState(); pbRefresh(); pbJust = null; return true; }
   var tp = e.target.closest('[data-pbtp]');
   if (tp) { var pid = tp.dataset.pbtp; if (pbFold[pid]) delete pbFold[pid]; else pbFold[pid] = 1; pbSaveState(); pbRefresh(); return true; }
   if (e.target.closest('[data-act="pbfoldall"]')) { pbOpen = {}; pbSaveState(); pbRefresh(); return true; }
@@ -4131,9 +4192,9 @@ function scGenerate(list, withUc) {
     if (made.length) { active = made[made.length > 1 && withUc ? 1 : 0].id; sel.clear(); made.forEach(function (D) { views[D.id] = { x: 0, y: 0, k: 1, fresh: true }; }); }
   });
   /* sedikit diagram: semua dibuka di tab; banyak: cukup satu tab, sisanya di Project Browser (tidak membanjiri bilah tab) */
-  if (made.length <= 4) { made.forEach(function (D) { tbPin(D.id); }); tabs(); }
+  if (tbOpenMode() === 'all' || made.length <= 4) { made.forEach(function (D) { tbPin(D.id); }); tabs(); }
   umlToolbox(); setTool('select');
-  toast(made.length + ' diagram dibuat dari skenario' + (made.length > 4 ? ' dan ada di Project Browser (yang pertama sudah dibuka)' : '') + '. Cek lagi nama dan cabangnya, lalu rapikan kalau perlu.');
+  toast(made.length + ' diagram dibuat dari skenario' + (tbOpenMode() !== 'all' && made.length > 4 ? ' dan ada di Project Browser (yang pertama sudah dibuka)' : made.length > 6 ? '. Pilih yang tampil di tab lewat tombol Diagram di kiri atas' : '') + '. Cek lagi nama dan cabangnya, lalu rapikan kalau perlu.');
 }
 function scSummary(u) { return u.normal.length + ' langkah' + (u.alts.length ? ', ' + u.alts.length + ' alternatif' : ', <span class="scnoalt">belum ada alternative flow</span>'); }
 function scenarioModal(pre) {
@@ -6060,7 +6121,7 @@ function tbInit(saved) {
   TB.key = tbKey(); TB.pchk = null;
   var ids = doc.diagrams.map(function (d) { return d.id; });
   if (saved && Array.isArray(saved.open) && saved.open.some(function (id) { return ids.indexOf(id) >= 0; })) { TB.open = saved.open.filter(function (id) { return ids.indexOf(id) >= 0; }); TB.preview = saved.preview && ids.indexOf(saved.preview) >= 0 && TB.open.indexOf(saved.preview) < 0 ? saved.preview : null; }
-  else { TB.open = ids.length <= 8 ? ids.slice() : [active].filter(Boolean); TB.preview = null; }
+  else { TB.open = tbOpenMode() === 'all' ? ids.slice() : [active].filter(Boolean); TB.preview = null; }
   tbClean();
 }
 function tbSig() { return (doc.name || '') + '#' + doc.diagrams.map(function (d) { return d.id; }).join(','); }
@@ -6121,11 +6182,151 @@ function tbCloseRight(id) {
 function tbBeforeChange() { TB.pchk = TB.preview && TB.preview === active && diag(active) ? { id: active, s: JSON.stringify(diag(active)) } : null; }
 function tbAfterChange() {
   if (TB.pchk) { var D = diag(TB.pchk.id); if (D && TB.preview === TB.pchk.id && JSON.stringify(D) !== TB.pchk.s) tbPin(TB.pchk.id); TB.pchk = null; }
-  tbEnsure(); tbSave();
+  tbEnsure(); tbSave(); animUpdate();
 }
 
-function TB_PREF_HTML() { return '<div class="sec"><h3>Tab diagram</h3><label class="cbx"><input type="checkbox" id="tb-pv"' + (tbPrevOn() ? ' checked' : '') + '> Tab pratinjau: klik diagram di ' + (isDfd() ? 'Pohon proses' : 'Project Browser') + ' membuka tab sementara (miring) yang diganti diagram berikutnya, supaya tab tidak menumpuk</label></div>'; }
-function tbPrefApply(s) { var c = s.querySelector('#tb-pv'); if (!c) return; try { localStorage.setItem('alir-tabpreview', c.checked ? '1' : '0'); } catch (x) { } if (!c.checked && TB.preview) tbPin(TB.preview); }
+function TB_PREF_HTML() { return ANIM_PREF_HTML() + '<div class="sec"><h3>Tab diagram</h3><div class="field"><label for="tb-om">Saat membuka proyek</label><select class="in" id="tb-om"><option value="all"' + (tbOpenMode() === 'all' ? ' selected' : '') + '>Tampilkan semua diagram di tab</option><option value="active"' + (tbOpenMode() === 'active' ? ' selected' : '') + '>Hanya diagram yang aktif (sisanya lewat tombol Diagram)</option></select></div><label class="cbx"><input type="checkbox" id="tb-pv"' + (tbPrevOn() ? ' checked' : '') + '> Tab pratinjau: klik diagram di ' + (isDfd() ? 'Pohon proses' : 'Project Browser') + ' membuka tab sementara (miring) yang diganti diagram berikutnya, supaya tab tidak menumpuk</label></div>'; }
+function tbPrefApply(s) { animPrefApply(s); var om = s.querySelector('#tb-om'); if (om) { try { localStorage.setItem('alir-tabopen', om.value); } catch (x) { } } var c = s.querySelector('#tb-pv'); if (!c) return; try { localStorage.setItem('alir-tabpreview', c.checked ? '1' : '0'); } catch (x) { } if (!c.checked && TB.preview) tbPin(TB.preview); }
+
+/* ===================== v39: Daftar diagram (pengelola tab) =====================
+   Tombol "Diagram (N)" di ujung kiri bilah tab. Cari, buka, dan CENTANG diagram yang ingin tampil di tab.
+   Aksi cepat: tampilkan semua / sembunyikan lainnya / tampilkan-sembunyikan hasil cari; saringan jenis; pengaturan saat membuka proyek. */
+function tbOpenMode() { try { return localStorage.getItem('alir-tabopen') === 'active' ? 'active' : 'all'; } catch (x) { return 'all'; } }
+/* tampilkan / sembunyikan satu diagram di bilah tab tanpa pindah diagram */
+function tbShow(id, on) {
+  if (on) { tbPin(id); return true; }
+  var vis = tbVisible(); if (vis.length < 2 && tbIsOpen(id)) return false;
+  if (TB.preview === id) TB.preview = null; TB.open = TB.open.filter(function (x) { return x !== id; });
+  if (id === active) { var i = vis.findIndex(function (d) { return d.id === id; }), nx = vis[i + 1] || vis[i - 1]; active = null; switchTo(nx.id); }
+  tbSave(); return true;
+}
+function tbShowAll() { orderedDiagrams().forEach(function (d) { if (TB.open.indexOf(d.id) < 0) TB.open.push(d.id); }); TB.preview = null; tbSave(); tabs(); panel(); }
+function tbManager() {
+  var old = $('#tabpop'); if (old) { old._close(); return; }
+  var btn = $('#tabAll'), box = document.createElement('div'); box.id = 'tabpop'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', 'Daftar diagram');
+  var kinds = {}; doc.diagrams.forEach(function (d) { if (d.kind && KINDS[d.kind]) kinds[d.kind] = (kinds[d.kind] || 0) + 1; });
+  var kf = '', hot = 0, shown = [], multiPkg = !isDfd() && doc.packages && doc.packages.length > 1;
+  box.innerHTML = '<div class="tm-h"><div class="tm-s"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg><input type="search" placeholder="Cari diagram (nama atau nomor)…" aria-label="Cari diagram"></div>' +
+    (Object.keys(kinds).length > 1 ? '<div class="tm-k" role="group" aria-label="Saring jenis"><button data-kf="" aria-pressed="true">Semua</button>' + Object.keys(kinds).map(function (k) { return '<button data-kf="' + k + '" aria-pressed="false">' + KINDS[k].short + ' <i>' + kinds[k] + '</i></button>'; }).join('') + '</div>' : '') +
+    '<div class="tm-a"></div></div><div class="tl" role="listbox" aria-multiselectable="true"></div>' +
+    '<div class="tm-f"><span class="tm-c"></span><label>Saat membuka proyek <select class="tm-m" aria-label="Tab saat membuka proyek"><option value="all">tampilkan semua tab</option><option value="active">hanya diagram aktif</option></select></label></div>';
+  document.body.appendChild(box);
+  btn.setAttribute('aria-expanded', 'true');
+  function place() { var r = btn.getBoundingClientRect(); box.style.top = (r.bottom + 4) + 'px'; box.style.left = Math.max(8, Math.min(window.innerWidth - box.offsetWidth - 8, r.left)) + 'px'; }
+  place();
+  var inp = box.querySelector('input'), tl = box.querySelector('.tl'), act = box.querySelector('.tm-a'), cnt = box.querySelector('.tm-c'), sel0 = box.querySelector('.tm-m');
+  sel0.value = tbOpenMode();
+  function q() { return norm(inp.value); }
+  function hits() {
+    var Q = q(), qn = /^\d+$/.test(Q) ? +Q : null;
+    return orderedDiagrams().map(function (d, i) { return { d: d, i: i + 1 }; }).filter(function (x) {
+      if (kf && x.d.kind !== kf) return false;
+      return !Q || x.i === qn || Q.split(' ').every(function (w) { return norm(diagLabel(x.d)).indexOf(w) >= 0 || norm(x.d.name).indexOf(w) >= 0; });
+    });
+  }
+  function render(keepScroll) {
+    var st = tl.scrollTop; shown = hits(); hot = Math.min(hot, Math.max(0, shown.length - 1));
+    var vis = tbVisible(), nOpen = vis.length, Q = q() || kf, inTab = shown.filter(function (x) { return tbIsOpen(x.d.id); }).length;
+    act.innerHTML = Q
+      ? '<button data-ta="showres"' + (inTab === shown.length ? ' disabled' : '') + '>Tampilkan ' + shown.length + ' hasil di tab</button><button data-ta="hideres"' + (!inTab || inTab === nOpen && shown.some(function (x) { return x.d.id === active; }) && nOpen === 1 ? ' disabled' : '') + '>Sembunyikan hasil</button>'
+      : '<button data-ta="all"' + (nOpen === doc.diagrams.length ? ' disabled' : '') + '>Tampilkan semua di tab</button><button data-ta="only"' + (nOpen < 2 ? ' disabled' : '') + '>Sembunyikan lainnya</button>';
+    var lastPkg = null;
+    tl.innerHTML = shown.length ? shown.map(function (x, k) {
+      var d = x.d, on = tbIsOpen(d.id), badge = isDfd() ? '<span class="k">L' + depth(d) + '</span>' : kindBadge(d.kind), head = '';
+      if (multiPkg && !Q && d.pkg !== lastPkg) { lastPkg = d.pkg; var P = doc.packages.find(function (p) { return p.id === d.pkg; }); head = '<div class="tm-g">' + esc(P ? P.name : '') + '</div>'; }
+      var ind = isDfd() ? ' style="padding-left:' + (8 + depth(d) * 14) + 'px"' : '';
+      return head + '<div class="ti' + (k === hot ? ' hot' : '') + (d.id === active ? ' cur' : '') + '" role="option" aria-selected="' + on + '" data-k="' + k + '"' + ind + '>' +
+        '<label class="tm-cb" title="' + (on ? 'Tampil di tab — hapus centang untuk menyembunyikan' : 'Centang untuk menampilkan di tab') + '"><input type="checkbox" data-show="' + d.id + '"' + (on ? ' checked' : '') + ' tabindex="-1" aria-label="Tampilkan ' + esc(diagLabel(d)) + ' di tab"></label>' +
+        '<button class="tm-go" data-go="' + d.id + '" tabindex="-1"><span class="n">' + x.i + '</span>' + badge + '<span class="tm-nm">' + esc(diagLabel(d)) + '</span>' + (d.id === active ? '<span class="tm-st">dibuka</span>' : TB.preview === d.id ? '<span class="tm-st">pratinjau</span>' : '') + '</button></div>';
+    }).join('') : '<p class="hint" style="padding:10px 12px">Tidak ada diagram yang cocok.</p>';
+    cnt.textContent = nOpen + ' dari ' + doc.diagrams.length + ' tampil di tab';
+    if (keepScroll) tl.scrollTop = st; else { var h = tl.querySelector('.hot'); if (h) h.scrollIntoView({ block: 'nearest' }); }
+  }
+  function close() { box.remove(); btn.setAttribute('aria-expanded', 'false'); document.removeEventListener('pointerdown', outside, true); window.removeEventListener('resize', place); }
+  box._close = close;
+  function outside(e) { if (!box.contains(e.target) && !e.target.closest('#tabAll') && !e.target.closest('.menu')) close(); }
+  document.addEventListener('pointerdown', outside, true); window.addEventListener('resize', place);
+  function toggle(id, on) { if (!tbShow(id, on)) toast('Minimal satu diagram harus tampil di tab.'); tabs(); panel(); render(true); }
+  function go(id) { close(); tbOpen(id); }
+  inp.addEventListener('input', function () { hot = 0; render(); });
+  inp.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); hot = Math.min(shown.length - 1, hot + 1); render(true); var h = tl.querySelector('.hot'); if (h) h.scrollIntoView({ block: 'nearest' }); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); hot = Math.max(0, hot - 1); render(true); var h2 = tl.querySelector('.hot'); if (h2) h2.scrollIntoView({ block: 'nearest' }); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (shown[hot]) go(shown[hot].d.id); }
+    else if (e.key === ' ' && (e.ctrlKey || !inp.value)) { if (shown[hot]) { e.preventDefault(); toggle(shown[hot].d.id, !tbIsOpen(shown[hot].d.id)); } }
+    else if (e.key === 'Escape') { e.preventDefault(); if (inp.value) { inp.value = ''; render(); } else close(); }
+  });
+  box.addEventListener('change', function (e) {
+    var c = e.target.closest('[data-show]'); if (c) { toggle(c.dataset.show, c.checked); return; }
+    if (e.target === sel0) { try { localStorage.setItem('alir-tabopen', sel0.value); } catch (x) { } toast(sel0.value === 'all' ? 'Saat membuka proyek, semua diagram ditampilkan di tab.' : 'Saat membuka proyek, hanya diagram aktif yang ditampilkan di tab.'); }
+  });
+  box.addEventListener('click', function (e) {
+    var g = e.target.closest('[data-go]'); if (g) { go(g.dataset.go); return; }
+    var k = e.target.closest('[data-kf]'); if (k) { kf = k.dataset.kf; $$('[data-kf]', box).forEach(function (b) { b.setAttribute('aria-pressed', b === k); }); hot = 0; render(); inp.focus(); return; }
+    var a = e.target.closest('[data-ta]'); if (!a) return;
+    var t = a.dataset.ta;
+    if (t === 'all') tbShowAll();
+    else if (t === 'only') { TB.open = [active]; TB.preview = null; tbSave(); tabs(); panel(); }
+    else if (t === 'showres') { shown.forEach(function (x) { tbPin(x.d.id); }); tabs(); panel(); }
+    else if (t === 'hideres') {
+      var ids = shown.map(function (x) { return x.d.id; }), keep = tbVisible().filter(function (d) { return ids.indexOf(d.id) < 0; });
+      if (!keep.length) { var a0 = ids.indexOf(active) >= 0 ? active : ids[0]; ids = ids.filter(function (x) { return x !== a0; }); toast('Diagram aktif tetap tampil (minimal satu tab).'); }
+      TB.open = TB.open.filter(function (x) { return ids.indexOf(x) < 0; }); if (ids.indexOf(TB.preview) >= 0) TB.preview = null;
+      if (ids.indexOf(active) >= 0) { var nx = tbVisible()[0]; if (nx) { active = null; switchTo(nx.id); } } tbSave(); tabs(); panel();
+    }
+    render(true); inp.focus();
+  });
+  hot = Math.max(0, orderedDiagrams().findIndex(function (d) { return d.id === active; }));
+  render(); inp.focus();
+}
+/* klik kanan di bagian kosong bilah tab */
+function tbBarMenu(x, y) {
+  var vis = tbVisible();
+  renderMenu([{ hd: 'Tab' }, item('Daftar diagram…', 'tb:list', 'Ctrl+Shift+E'), item('Tampilkan semua diagram di tab', 'tb:all', '', { dis: vis.length === doc.diagrams.length }), item('Sembunyikan tab lainnya', 'tb:only', '', { dis: vis.length < 2 })], x, y);
+}
+
+/* ===================== v39: animasi halus yang ringan =====================
+   Hanya opacity/transform (dikerjakan GPU) + kamera lewat drawView (satu atribut per frame).
+   Otomatis MATI bila: sistem minta gerak dikurangi, Mode ringan aktif, atau perangkat lemah (≤2 inti / RAM ≤2 GB).
+   Bisa dipaksa nyala/mati di Preferensi tampilan (localStorage 'alir-anim' = auto|on|off). */
+var ANIM = { on: false, raf: 0 };
+function animPref() { try { var v = localStorage.getItem('alir-anim'); return v === 'on' || v === 'off' ? v : 'auto'; } catch (x) { return 'auto'; } }
+function animLowEnd() { var c = navigator.hardwareConcurrency || 4, m = navigator.deviceMemory || 8; return c <= 2 || m <= 2; }
+function animUpdate() {
+  var p = animPref(), rm = false; try { rm = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (x) { rm = false; }
+  ANIM.on = p === 'on' ? true : p === 'off' ? false : !rm && !animLowEnd() && !(doc && doc.prefs && doc.prefs.light);
+  document.documentElement.classList.toggle('anim', ANIM.on);
+}
+try { window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', animUpdate); } catch (x) { /* abaikan */ }
+/* gerakkan kamera ke {x,y,k} dengan mulus (zoom geometris, pusat layar bergerak lurus) */
+function animView(to, ms) {
+  var v = view(); cancelAnimationFrame(ANIM.raf);
+  if (!ANIM.on || !isFinite(to.k) || !isFinite(to.x) || !isFinite(to.y)) { v.x = to.x; v.y = to.y; v.k = to.k; v.fresh = false; draw(); return; }
+  var s = stageBox(), f = { x: v.x, y: v.y, k: v.k }, d = ms || 240, t0 = performance.now();
+  var cF = { x: (s.w / 2 - f.x) / f.k, y: (s.h / 2 - f.y) / f.k }, cT = { x: (s.w / 2 - to.x) / to.k, y: (s.h / 2 - to.y) / to.k };
+  if (Math.abs(f.k - to.k) < 1e-4 && Math.hypot(f.x - to.x, f.y - to.y) < 1) { v.fresh = false; draw(); return; }
+  v.fresh = false;
+  (function step(now) {
+    var p = Math.min(1, (now - t0) / d), e = 1 - Math.pow(1 - p, 3), k = f.k * Math.pow(to.k / f.k, e);
+    v.k = k; v.x = s.w / 2 - (cF.x + (cT.x - cF.x) * e) * k; v.y = s.h / 2 - (cF.y + (cT.y - cF.y) * e) * k;
+    if (p < 1) { drawView(); ANIM.raf = requestAnimationFrame(step); } else { v.x = to.x; v.y = to.y; v.k = to.k; draw(); }
+  })(t0);
+}
+/* posisi Fit tanpa langsung menggambar */
+function fitTarget() {
+  var D = cur(), b = bbox(D), s = stageBox(); if (!b || s.w < 10) return null;
+  var pad = 56, k = Math.max(.15, Math.min((s.w - pad * 2) / b.w, (s.h - pad * 2) / b.h, 2.5));
+  return { k: k, x: (s.w - b.w * k) / 2 - b.x * k, y: (s.h - b.h * k) / 2 - b.y * k };
+}
+function fitSmooth() { var t = fitTarget(); if (t) animView(t, 260); else fit(); }
+function zoomSmooth(f) {
+  var s = stageBox(), v = view(), sx = s.w / 2, sy = s.h / 2, nk = Math.min(8, Math.max(.1, v.k * f));
+  animView({ k: nk, x: sx - (sx - v.x) * (nk / v.k), y: sy - (sy - v.y) * (nk / v.k) }, 170);
+}
+/* pudar singkat saat berganti diagram (kanvas saja) */
+function animSwap() { if (!ANIM.on || !cv.animate) return; try { cv.animate([{ opacity: .3 }, { opacity: 1 }], { duration: 180, easing: 'ease-out' }); } catch (x) { /* abaikan */ } }
+function ANIM_PREF_HTML() { var p = animPref(); return '<div class="sec"><h3>Animasi</h3><div class="field"><label for="an-m">Animasi halus (zoom, pindah diagram, menu)</label><select class="in" id="an-m"><option value="auto"' + (p === 'auto' ? ' selected' : '') + '>Otomatis (mati di perangkat lemah / Mode ringan)</option><option value="on"' + (p === 'on' ? ' selected' : '') + '>Selalu nyala</option><option value="off"' + (p === 'off' ? ' selected' : '') + '>Mati</option></select></div><p class="hint">Saat ini ' + (ANIM.on ? 'nyala' : 'mati') + (animLowEnd() ? ' (perangkat terdeteksi ringan)' : '') + '.</p></div>'; }
+function animPrefApply(s) { var m = s.querySelector('#an-m'); if (!m) return; try { localStorage.setItem('alir-anim', m.value); } catch (x) { } animUpdate(); }
 
 /* ================= Jelaskan diagram (tanpa AI, berbasis analisis alur) =================
    Alir membaca struktur diagram (lane, urutan, cabang, perulangan, paralel, ujung) lalu menyusun penjelasan dan
@@ -8194,6 +8395,13 @@ function runBrowse(a) {
     else if (op === 'del') removeDiagram(id);
     return true;
   }
+  if (a.indexOf('tb:') === 0) {
+    var t = a.slice(3);
+    if (t === 'list') tbManager();
+    else if (t === 'all') tbShowAll();
+    else if (t === 'only') { TB.open = [active]; TB.preview = null; tbSave(); tabs(); panel(); }
+    return true;
+  }
   if (a.indexOf('pk:') === 0) {
     var pid = pkMenuId, o2 = a.slice(3);
     if (o2 === 'rename') renamePkg(pid);
@@ -8383,7 +8591,7 @@ function dfdScenarioModal(pre) {
         res = dgBuild(pick, sys, deep); active = res.made[1] ? res.made[1].id : res.made[0].id; sel.clear();
         res.made.forEach(function (D) { views[D.id] = { x: 0, y: 0, k: 1, fresh: true }; });
       });
-      if (res.made.length <= 8) { res.made.forEach(function (D) { tbPin(D.id); }); tabs(); }
+      if (tbOpenMode() === 'all' || res.made.length <= 8) { res.made.forEach(function (D) { tbPin(D.id); }); tabs(); }
       toast('DFD dibuat: ' + res.made.length + ' diagram (konteks, level 1' + (res.made.length > 2 ? ', dan ' + (res.made.length - 2) + ' diagram level 2' : '') + '). Periksa dengan F4.');
     });
     if (pre) show(pre.ucs, pre.src);
@@ -9188,7 +9396,7 @@ function zoomAt(cx, cy, f) {
 function zoomCenter(f) { var s = stageBox(); zoomAt(s.l + s.w / 2, s.t + s.h / 2, f); }
 function setScale(k) { var s = stageBox(), v = view(); remember(); zoomAt(s.l + s.w / 2, s.t + s.h / 2, k / v.k); }
 function pt(e) { var s = stageBox(), v = view(); return { x: (e.clientX - s.l - v.x) / v.k, y: (e.clientY - s.t - v.y) / v.k }; }
-function switchTo(id) { if (id === active) return; if (sim) simStop(); active = id; sel.clear(); flowFrom = null; endRename(false); afterChange(); }
+function switchTo(id) { if (id === active) return; if (sim) simStop(); cancelAnimationFrame(ANIM.raf); active = id; sel.clear(); flowFrom = null; endRename(false); afterChange(); animSwap(); }
 function procLabel(d) { var P = diag(d.parent.d), e = P && elOf(P, d.parent.e); return e ? e.num + ' ' + e.name : d.name; }
 function crumbs() {
   var D = cur(), c = $('#crumbs'), chain = [], x = D;
@@ -9442,44 +9650,14 @@ function moveDiagramBefore(id, beforeId) {
   });
 }
 function diagLabel(d) { return d.parent ? procLabel(d) : d.name; }
-function tabPopup() {
-  var old = $('#tabpop'); if (old) { old.remove(); return; }
-  var list = orderedDiagrams(), box = document.createElement('div'); box.id = 'tabpop'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', 'Semua diagram');
-  box.innerHTML = '<input placeholder="Cari diagram (nama atau nomor urut)…" aria-label="Cari diagram"><div class="tl" role="listbox"></div>';
-  document.body.appendChild(box);
-  var r = $('#tabAll').getBoundingClientRect(); box.style.top = (r.bottom + 4) + 'px'; box.style.left = Math.max(12, Math.min(window.innerWidth - box.offsetWidth - 12, r.right - box.offsetWidth)) + 'px';
-  var inp = box.querySelector('input'), tl = box.querySelector('.tl'), hot = 0, shown = [];
-  function render() {
-    var q = norm(inp.value), qn = /^\d+$/.test(q) ? +q : null;
-    shown = list.map(function (d, i) { return { d: d, i: i + 1 }; }).filter(function (x) { return !q || x.i === qn || norm(diagLabel(x.d)).indexOf(q) >= 0 || norm(x.d.name).indexOf(q) >= 0; });
-    hot = Math.min(hot, Math.max(0, shown.length - 1));
-    tl.innerHTML = shown.length ? shown.map(function (x, k) {
-      var badge = isDfd() ? '<span class="k">L' + depth(x.d) + '</span>' : (x.d.kind && KINDS[x.d.kind] ? '<span class="k">' + KINDS[x.d.kind].short + '</span>' : '');
-      return '<button class="ti' + (k === hot ? ' hot' : '') + '" role="option" data-go="' + x.d.id + '" aria-current="' + (x.d.id === active) + '"><span class="n">' + x.i + '</span>' + badge + '<span>' + esc(diagLabel(x.d)) + '</span>' + (tbIsOpen(x.d.id) ? '<span class="op" title="Terbuka di tab">●</span>' : '') + '</button>';
-    }).join('') : '<p class="hint" style="padding:8px 10px">Tidak ada diagram yang cocok.</p>';
-    var h = tl.querySelector('.hot'); if (h) h.scrollIntoView({ block: 'nearest' });
-  }
-  function go(id) { box.remove(); document.removeEventListener('pointerdown', outside, true); tbOpen(id); }
-  function outside(e) { if (!box.contains(e.target) && !e.target.closest('#tabAll')) { box.remove(); document.removeEventListener('pointerdown', outside, true); } }
-  document.addEventListener('pointerdown', outside, true);
-  inp.addEventListener('input', function () { hot = 0; render(); });
-  inp.addEventListener('keydown', function (e) {
-    if (e.key === 'ArrowDown') { e.preventDefault(); hot = Math.min(shown.length - 1, hot + 1); render(); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); hot = Math.max(0, hot - 1); render(); }
-    else if (e.key === 'Enter') { e.preventDefault(); if (shown[hot]) go(shown[hot].d.id); }
-    else if (e.key === 'Escape') { e.preventDefault(); box.remove(); document.removeEventListener('pointerdown', outside, true); }
-  });
-  tl.addEventListener('click', function (e) { var b = e.target.closest('[data-go]'); if (b) go(b.dataset.go); });
-  hot = Math.max(0, list.findIndex(function (d) { return d.id === active; }));
-  render(); inp.focus();
-}
+function tabPopup() { tbManager(); }
 $('#tabAll').addEventListener('click', tabPopup);
 function tabStep(n) { var L = tbVisible(), i = L.findIndex(function (d) { return d.id === active; }); if (L.length > 1) switchTo(L[(i + n + L.length) % L.length].id); }
 tabsEl.addEventListener('dblclick', function (e) { if (e.target.closest('.x')) return; var t = e.target.closest('[data-tab]'); if (!t) return; if (TB.preview === t.dataset.tab) { tbPin(t.dataset.tab); tabs(); panel(); } else renameDiagram(t.dataset.tab); });
 /* klik tengah = tutup tab (seperti browser) */
 tabsEl.addEventListener('auxclick', function (e) { if (e.button !== 1) return; var t = e.target.closest('[data-tab]'); if (t) { e.preventDefault(); tbClose(t.dataset.tab); } });
 tabsEl.addEventListener('mousedown', function (e) { if (e.button === 1 && e.target.closest('[data-tab]')) e.preventDefault(); });
-tabsEl.addEventListener('contextmenu', function (e) { var t = e.target.closest('[data-tab]'); if (!t) return; e.preventDefault(); diagramMenu(t.dataset.tab, e.clientX, e.clientY); });
+tabsEl.addEventListener('contextmenu', function (e) { var t = e.target.closest('[data-tab]'); e.preventDefault(); if (!t) { tbBarMenu(e.clientX, e.clientY); return; } diagramMenu(t.dataset.tab, e.clientX, e.clientY); });
 tabsEl.addEventListener('click', function (e) {
   if (tabPanBlock && Date.now() - tabPanBlock < 250) { e.preventDefault(); return; }
   var x = e.target.closest('[data-xtab]');
@@ -10306,10 +10484,10 @@ function run(a, btn) {
     case 'tidy': tidy(selFlows().length ? selFlows() : null); break;
     case 'tidyall': tidy(null); break;
     case 'autotidy': (function () { var on = !autoTidyOn(); mutate(function () { doc.prefs.autoTidy = on; }); toast(on ? 'Rapikan otomatis menyala: garis dirapikan setiap kali ada perubahan, kecuali garis yang kamu atur sendiri.' : 'Rapikan otomatis dimatikan.'); })(); break;
-    case 'zin': remember(); zoomCenter(1.25); break;
-    case 'zout': remember(); zoomCenter(0.8); break;
+    case 'zin': remember(); zoomSmooth(1.25); break;
+    case 'zout': remember(); zoomSmooth(0.8); break;
     case 'z100': setScale(1); break;
-    case 'fit': remember(); fit(); break;
+    case 'fit': remember(); fitSmooth(); break;
     case 'prevview': if (prevView) { var pv = prevView; remember(); if (pv.d !== active) switchTo(pv.d); var v = view(); v.x = pv.x; v.y = pv.y; v.k = pv.k; v.fresh = false; draw(); } break;
     case 'viewsel': viewSel(); break;
     case 'grid': showGrid = !showGrid; draw(); break;
@@ -10322,7 +10500,7 @@ function viewSel() {
   var x0 = Math.min.apply(null, l.map(function (e) { return e.x; })), y0 = Math.min.apply(null, l.map(function (e) { return e.y; }));
   var x1 = Math.max.apply(null, l.map(function (e) { return e.x + e.w; })), y1 = Math.max.apply(null, l.map(function (e) { return e.y + e.h; }));
   var s = stageBox(), v = view(), k = Math.min((s.w - 120) / (x1 - x0), (s.h - 120) / (y1 - y0), 4);
-  v.k = k; v.x = (s.w - (x1 - x0) * k) / 2 - x0 * k; v.y = (s.h - (y1 - y0) * k) / 2 - y0 * k; v.fresh = false; draw();
+  animView({ k: k, x: (s.w - (x1 - x0) * k) / 2 - x0 * k, y: (s.h - (y1 - y0) * k) / 2 - y0 * k }, 280);
 }
 
 /* ---------- modal ---------- */
@@ -11142,7 +11320,7 @@ if (window.ResizeObserver) new ResizeObserver(function () { if (view().fresh) fi
   if (first && !SAMPLE && !viaLink) setTimeout(startPage, 50);
   else if (!seen && !viaLink) setTimeout(function () { toast('Baru di Alir? Buka menu Bantuan → Cara pakai (atau tekan F1).'); }, 900);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { draw(); });
-  histBoot(); shareBoot();
+  histBoot(); shareBoot(); animUpdate();
 })();
 })();
 
