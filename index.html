@@ -62,6 +62,12 @@ button { cursor: pointer; }
 .help .sw3 { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; vertical-align: 0; }
 .htabs { display: flex; gap: 4px; flex-wrap: wrap; } .htabs button { border: 1px solid var(--bd); background: var(--panel2); border-radius: 14px; padding: 4px 12px; font: 500 12.5px var(--f-body); color: var(--fg); } .htabs button[aria-selected="true"] { border-color: var(--acc); color: var(--acc); }
 .brand span { font: 600 10px/1 var(--f-mono); color: var(--mut); letter-spacing: .08em; }
+.brand { align-items: center; }
+.modesw { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--bd); border-radius: 7px; background: var(--panel2); }
+.modesw button { font: 600 10.5px/1 var(--f-mono); letter-spacing: .06em; padding: 4px 8px; border: 0; border-radius: 5px; background: transparent; color: var(--mut); cursor: pointer; }
+.modesw button:hover { color: var(--fg); }
+.modesw button[aria-pressed="true"] { background: var(--panel); color: var(--acc); box-shadow: 0 1px 2px rgba(15, 25, 40, .18); cursor: default; }
+.modesw button:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
 .mbtn { height: 28px; padding: 0 10px; border: 0; background: none; border-radius: 5px; flex: none; }
 .mbtn:hover, .mbtn[aria-expanded="true"] { background: var(--panel2); }
 #fname { margin-left: auto; flex: 0 1 200px; min-width: 110px; height: 26px; padding: 0 8px; background: var(--panel2); border: 1px solid var(--bd); border-radius: 5px; font-weight: 500; }
@@ -502,7 +508,7 @@ html.anim .modal { transform-origin: center top; }
 </style>
 <div id="app">
   <nav id="menubar" aria-label="Menu utama">
-    <div class="brand"><b>Alir</b><span>DFD</span></div>
+    <div class="brand"><b>Alir</b><span class="modesw" role="group" aria-label="Jenis proyek"><button type="button" data-mode="dfd" aria-pressed="true" title="DFD gaya PowerDesigner. Membuka proyek DFD terakhirmu.">DFD</button><button type="button" data-mode="uml" aria-pressed="false" title="Activity, Use Case, BPMN gaya Enterprise Architect. Membuka proyek UML terakhirmu.">UML</button></span></div>
     <button class="mbtn" data-menu="file" aria-haspopup="true" aria-expanded="false">Berkas</button>
     <button class="mbtn" data-menu="edit" aria-haspopup="true" aria-expanded="false">Edit</button>
     <button class="mbtn" data-menu="dict" aria-haspopup="true" aria-expanded="false">Kamus</button>
@@ -3052,7 +3058,7 @@ function modeUI() {
   var ea = !isDfd();
   $('#app').classList.toggle('ea', ea);
   var dm = $('.mbtn[data-menu="dict"]'); if (dm) dm.textContent = ea ? 'Diagram' : 'Kamus';
-  var bs = $('.brand span'); if (bs) bs.textContent = ea ? 'UML' : 'DFD';
+  modeSwUI();
   fileIn.setAttribute('accept', '.pam,.json,.txt,.zip,.eap,.xml,.xmi,.docx');
   buildToolbar(); buildRail();
 }
@@ -3061,6 +3067,9 @@ function useDoc(nd, act, label) {
   fhAdopt();
   if (doc && doc !== nd && doc.diagrams) histSnap('Sebelum membuka ' + String(label || 'proyek lain').replace(/^Dibuka: /, '')); if (sim) simStop();
   persistNow();
+  /* proyek jenis lain yang tersimpan (DFD / UML) akan tertimpa: simpan dulu ke Riwayat versi */
+  var tk = nd.kind === 'ea' ? LS_EA : LS;
+  if (doc && tk !== lsKey()) { var stk = storedDoc(tk); if (stk && stk.doc !== nd && JSON.stringify(stk.doc) !== JSON.stringify(nd)) histSnap('Sebelum diganti ' + String(label || 'proyek lain').replace(/^Dibuka: /, ''), stk.doc); }
   doc = nd.kind === 'ea' ? normEa(nd) : normDoc(nd);
   if (isDfd()) pinImported();
   bumpSeq(); views = {}; active = act && doc.diagrams.some(function (d) { return d.id === act; }) ? act : doc.diagrams[0].id; tbReset();
@@ -3103,8 +3112,8 @@ function startPage() {
     var k = b.dataset.st;
     if (k === 'close') closeStart();
     else if (k === 'open') { closeStart(); fileIn.click(); }
-    else if (k === 'neweap') { closeStart(); useDoc(blankEa('Proyek EA', 'activity'), null, 'Proyek UML baru dibuat.'); }
-    else if (k === 'newdfd') { closeStart(); useDoc(blankDoc(), null, 'DFD baru dibuat.'); }
+    else if (k === 'neweap') { closeStart(); newBlank('uml'); }
+    else if (k === 'newdfd') { closeStart(); newBlank('dfd'); }
     else openKind(k);
   });
   var f = $('.st-card', el); if (f) f.focus({ preventScroll: true });
@@ -4418,36 +4427,145 @@ function reportModal() {
 var SHARE_BASE = 'https://fikrim03.github.io/Alir-DFD/';
 function b64u(u8) { var s = ''; for (var i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
 function unb64u(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; var b = atob(s), u = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
-async function packDoc(d) {
-  var bytes = new TextEncoder().encode(JSON.stringify({ format: d.kind === 'ea' ? 'alir-uml' : 'alir-dfd', v: 2, doc: d }));
-  var z = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer());
-  return b64u(z);
+/* v3 (v40): link RINGKAS — id dibuat ulang berurutan (tidak disimpan), elemen & garis jadi larik [jenis, nama, x, y, w, h, sisa],
+   garis merujuk nomor urut elemen, nilai yang sama di sebagian besar garis disimpan sekali per diagram, warna bawaan tidak ikut.
+   Link lama (v2) tetap bisa dibuka. */
+var SL_TXT = { name: 1, code: 1, text: 1, note: 1, notes: 1, doc: 1, alias: 1, stereo: 1, guard: 1, cond: 1, desc: 1, label: 1, title: 1, guid: 1 };
+function slCanon(o) { if (Array.isArray(o)) return '[' + o.map(slCanon).join(',') + ']'; if (o && typeof o === 'object') return '{' + Object.keys(o).sort().map(function (k) { return JSON.stringify(k) + ':' + slCanon(o[k]); }).join(',') + '}'; return JSON.stringify(o); }
+function slR(v, k) { return typeof v === 'number' ? Math.round(v * k) / k : v; }
+function slSideOk(a) { return !a || (typeof a === 'object' && typeof a.s === 'string' && a.s.length === 1 && typeof a.p === 'number' && Object.keys(a).every(function (k) { return k === 's' || k === 'p'; })); }
+function slPad(v, w) { v = String(v); while (v.length < w) v = '0' + v; return v; }
+function slWidth(d) { var m = 0; d.diagrams.forEach(function (D) { m += Math.max((D.elements || []).length, 0) + (D.flows || []).length; }); return String(m + 1).length; }
+function slimDoc(d0, keepGuid) {
+  var d = JSON.parse(JSON.stringify(d0)), map = Object.create(null), n = { d: 0, e: 0, f: 0, p: 0 }, T = [], W = slWidth(d);
+  function nid(p) { return p + (++n[p]); }
+  (d.packages || []).forEach(function (p) { map[p.id] = nid('p'); });
+  /* id elemen baru berlebar tetap & urutannya mengikuti urutan abjad id lama (garis sejajar memakai urutan id untuk menentukan sisi) */
+  d.diagrams.forEach(function (D) {
+    map[D.id] = nid('d');
+    var els = D.elements || [], ord = els.map(function (e, i) { return i; }).sort(function (a, b) { var x = String(els[a].id), y = String(els[b].id); return x < y ? -1 : x > y ? 1 : a - b; }), rk = [];
+    ord.forEach(function (i, r) { rk[i] = r; });
+    if (rk.some(function (r, i) { return r !== i; })) D.o = rk;
+    els.forEach(function (e, i) { map[e.id] = 'e' + slPad(n.e + 1 + rk[i], W); }); n.e += els.length;
+    (D.flows || []).forEach(function (f) { map[f.id] = 'f' + slPad(++n.f, W); });
+  });
+  (function walk(o) {
+    if (Array.isArray(o)) { o.forEach(function (v, i) { if (typeof v === 'string') { if (map[v]) o[i] = map[v]; } else if (v && typeof v === 'object') walk(v); }); return; }
+    Object.keys(o).forEach(function (k) {
+      var v = o[k]; if (k === 'guid' && !keepGuid) { delete o[k]; return; }
+      if (k === 'pam' || k === 'pamKeep' || SL_TXT[k]) return;
+      if (typeof v === 'string') { if (map[v]) o[k] = map[v]; } else if (v && typeof v === 'object') walk(v);
+    });
+  })(d);
+  (d.packages || []).forEach(function (p) { delete p.id; });
+  var def = d.kind === 'ea' ? eaDefaults() : PRESETS.classic;
+  if (d.defaults && slCanon(d.defaults) === slCanon(def)) delete d.defaults;
+  d.diagrams.forEach(function (D) {
+    var els = D.elements || [], fls = D.flows || [], idx = {};
+    els.forEach(function (e, i) { idx[e.id] = i; });
+    D.E = els.map(function (e) {
+      var t = T.indexOf(e.type); if (t < 0) { T.push(e.type); t = T.length - 1; }
+      var a = [t, e.name || '', slR(e.x, 10), slR(e.y, 10), slR(e.w, 10), slR(e.h, 10)], r = {};
+      Object.keys(e).forEach(function (k) { if (['id', 'type', 'name', 'x', 'y', 'w', 'h'].indexOf(k) < 0 && !(k === 'style' && !Object.keys(e.style || {}).length)) r[k] = e[k]; });
+      if (Object.keys(r).length) a.push(r);
+      return a;
+    });
+    /* nilai yang sama di lebih dari separuh garis disimpan sekali (fd) */
+    var cnt = {}, fd = {};
+    fls.forEach(function (f) { Object.keys(f).forEach(function (k) { if (['id', 'from', 'to', 'name', 'bends', 'sa', 'ta'].indexOf(k) >= 0) return; var key = k + '\u0001' + JSON.stringify(f[k]); cnt[key] = (cnt[key] || 0) + 1; }); });
+    Object.keys(cnt).forEach(function (key) { var k = key.split('\u0001')[0]; if (cnt[key] * 2 > fls.length && fls.length > 1 && (!fd.hasOwnProperty(k) || cnt[key] > cnt[k + '\u0001' + JSON.stringify(fd[k])])) fd[k] = JSON.parse(key.slice(k.length + 1)); });
+    function side(a) { return a && a.s ? a.s + (a.p === 0.5 || a.p == null ? '' : String(slR(a.p, 1000))) : 0; }
+    D.F = fls.map(function (f) {
+      var b = []; (f.bends || []).forEach(function (p) { b.push(slR(p.x, 10), slR(p.y, 10)); });
+      var a = [idx.hasOwnProperty(f.from) ? idx[f.from] : f.from, idx.hasOwnProperty(f.to) ? idx[f.to] : f.to, f.name || '', b, side(f.sa), side(f.ta)], r = {}, miss = [];
+      Object.keys(f).forEach(function (k) { if (['id', 'from', 'to', 'name', 'bends', 'sa', 'ta'].indexOf(k) >= 0) return; if (fd.hasOwnProperty(k) && JSON.stringify(fd[k]) === JSON.stringify(f[k])) return; r[k] = f[k]; });
+      Object.keys(fd).forEach(function (k) { if (!f.hasOwnProperty(k)) miss.push(k); });
+      if (!slSideOk(f.sa) || !slSideOk(f.ta)) { if (f.sa) r.sa = f.sa; if (f.ta) r.ta = f.ta; a[4] = a[5] = 0; }
+      if (miss.length) r['~'] = miss;
+      if (Object.keys(r).length) a.push(r);
+      while (a.length > 3 && a.length < 7 && (a[a.length - 1] === 0 || (Array.isArray(a[a.length - 1]) && !a[a.length - 1].length))) a.pop();
+      return a;
+    });
+    if (Object.keys(fd).length) D.fd = fd;
+    delete D.id; delete D.elements; delete D.flows;
+  });
+  d.T = T; d.W = W;
+  return d;
+}
+function unslimDoc(z) {
+  var d = JSON.parse(JSON.stringify(z)), n = { d: 0, e: 0, f: 0, p: 0 }, T = d.T || [], W = d.W || 1;
+  function nid(p) { return p + (++n[p]); }
+  delete d.T; delete d.W;
+  if (d.packages) d.packages = d.packages.map(function (p) { return Object.assign({ id: nid('p') }, p); });
+  function side(s) { if (!s) return undefined; s = String(s); return { s: s[0], p: s.length > 1 ? parseFloat(s.slice(1)) : 0.5 }; }
+  d.diagrams = d.diagrams.map(function (D) {
+    var o = { id: nid('d') };
+    Object.keys(D).forEach(function (k) { if (k !== 'E' && k !== 'F' && k !== 'fd' && k !== 'o') o[k] = D[k]; });
+    var e0 = n.e; n.e += (D.E || []).length;
+    o.elements = (D.E || []).map(function (a, i) {
+      var e = { id: 'e' + slPad(e0 + 1 + (D.o ? D.o[i] : i), W), type: T[a[0]], name: a[1] || '', x: a[2], y: a[3], w: a[4], h: a[5] };
+      if (a[6]) Object.keys(a[6]).forEach(function (k) { e[k] = a[6][k]; });
+      if (!e.style) e.style = {};
+      return e;
+    });
+    var fd = D.fd || {};
+    o.flows = (D.F || []).map(function (a) {
+      function ref(v) { return typeof v === 'number' ? (o.elements[v] || {}).id : v; }
+      var f = { id: 'f' + slPad(++n.f, W), from: ref(a[0]), to: ref(a[1]), name: a[2] || '', bends: [] }, b = a[3] || [];
+      for (var i = 0; i + 1 < b.length; i += 2) f.bends.push({ x: b[i], y: b[i + 1] });
+      Object.keys(fd).forEach(function (k) { f[k] = JSON.parse(JSON.stringify(fd[k])); });
+      var sa = side(a[4]), ta = side(a[5]); if (sa) f.sa = sa; if (ta) f.ta = ta;
+      var r = a[6] || {}; Object.keys(r).forEach(function (k) { if (k !== '~') f[k] = r[k]; });
+      (r['~'] || []).forEach(function (k) { delete f[k]; });
+      if (!f.style) f.style = {};
+      return f;
+    });
+    return o;
+  });
+  return d;
+}
+async function zPack(obj) {
+  var bytes = new TextEncoder().encode(JSON.stringify(obj));
+  return b64u(new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer()));
+}
+async function zUnpack(s) { return await new Response(new Blob([unb64u(s)]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text(); }
+/* keepGuid: ikutkan ID EA (GUID) supaya impor ulang ke proyek EA yang sama memperbarui elemen, bukan menambah; link jauh lebih panjang */
+async function packDoc(d, old, keepGuid) {
+  if (old) return zPack({ format: d.kind === 'ea' ? 'alir-uml' : 'alir-dfd', v: 2, doc: d });
+  return zPack({ v: 3, z: slimDoc(d, keepGuid) });
 }
 async function unpackDoc(s) {
-  var u = unb64u(s), t = await new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text();
+  var t = await zUnpack(s), j = null;
+  try { j = JSON.parse(t); } catch (x) { /* bukan JSON: biarkan parseAny yang menilai */ }
+  if (j && j.v === 3 && j.z) return unslimDoc(j.z);
   return parseAny(t);
 }
 function shareBase() { return /^https?:$/.test(location.protocol) && /github\.io|localhost|127\.0\.0\.1/.test(location.hostname) ? location.origin + location.pathname : SHARE_BASE; }
 function shareModal() {
   if (!window.CompressionStream) { toast('Browser ini belum mendukung link berbagi. Pakai Simpan proyek (.json) lalu kirim berkasnya.'); return; }
-  var D = cur(), only = !isDfd() && doc.diagrams.length > 1;
+  var D = cur(), only = !isDfd() && doc.diagrams.length > 1, mode0 = 'all';
+  var hasGuid = !isDfd() && doc.diagrams.some(function (x) { return x.guid || x.elements.some(function (e) { return e.guid; }); });
   var body = '<p class="xp-lead">Seluruh isi diagram dimasukkan ke dalam link, jadi tidak perlu kirim berkas atau login. Siapa pun yang membuka link ini mendapat <b>salinannya sendiri</b>: perubahan mereka tidak mengubah punyamu.</p>' +
     (only ? '<div class="htabs" role="tablist"><button role="tab" data-sh="all" aria-selected="true">Seluruh proyek (' + doc.diagrams.length + ' diagram)</button><button role="tab" data-sh="one" aria-selected="false">Diagram ini saja</button></div>' : '') +
     '<textarea class="in sharebox" id="sharelink" readonly rows="3">Menyiapkan link…</textarea><p class="scmsg" id="sharemsg"></p>' +
+    (hasGuid ? '<label class="cbx"><input type="checkbox" id="shguid"> Sertakan ID EA (GUID). Perlu hanya kalau hasilnya nanti diimpor ulang ke proyek EA yang sama (supaya elemen diperbarui, bukan ditambah). Link jadi lebih panjang.</label>' : '') +
     '<div class="row"><a class="btn" id="sharewa" target="_blank" rel="noopener">Kirim lewat WhatsApp</a>' + (navigator.share ? '<button class="btn" id="sharenat">Bagikan…</button>' : '') + '</div>';
   modal('Bagikan lewat link', body, '<button class="btn" data-close>Tutup</button><button class="btn pri" data-ok disabled>Salin link</button>', function (s) {
     var link = '';
     async function make(mode) {
+      mode = mode || mode0; mode0 = mode;
+      var g = $('#shguid', s), keepG = !!(g && g.checked);
       $$('[data-sh]', s).forEach(function (b) { b.setAttribute('aria-selected', b.dataset.sh === mode); });
       var d = doc;
       if (mode === 'one') { d = JSON.parse(JSON.stringify(doc)); d.diagrams = d.diagrams.filter(function (x) { return x.id === D.id; }); d.name = D.name || d.name; }
-      try { link = shareBase() + '#alir=' + await packDoc(d); } catch (err) { $('#sharelink', s).value = 'Gagal membuat link: ' + (err && err.message); return; }
+      try { link = shareBase() + '#alir=' + await packDoc(d, false, keepG); } catch (err) { $('#sharelink', s).value = 'Gagal membuat link: ' + (err && err.message); return; }
       $('#sharelink', s).value = link; $('[data-ok]', s).disabled = false;
       var kb = Math.round(link.length / 1024 * 10) / 10;
-      $('#sharemsg', s).textContent = 'Panjang link ' + kb + ' KB.' + (link.length > 60000 ? ' Link ini sangat panjang; kalau tidak bisa dibuka di HP, kirim berkas .json saja.' : link.length > 8000 ? ' Link panjang tetap bisa dibuka, tapi di beberapa aplikasi chat mungkin terpotong. Kalau begitu, kirim berkas .json.' : '');
+      $('#sharemsg', s).textContent = 'Panjang link ' + String(kb).replace('.', ',') + ' KB.' + (link.length > 60000 ? ' Link ini sangat panjang; kalau tidak bisa dibuka di HP, kirim berkas .json saja' + (only && mode === 'all' ? ' atau pilih "Diagram ini saja"' : '') + '.' : link.length > 8000 ? ' Link panjang tetap bisa dibuka, tapi di beberapa aplikasi chat mungkin terpotong' + (only && mode === 'all' ? '. Pilih "Diagram ini saja" untuk link yang jauh lebih pendek, atau kirim berkas .json.' : '. Kalau begitu, kirim berkas .json.') : '');
       $('#sharewa', s).href = 'https://wa.me/?text=' + encodeURIComponent('Diagram dari Alir: ' + link);
     }
     s.addEventListener('click', function (e) { var b = e.target.closest('[data-sh]'); if (b) make(b.dataset.sh); });
+    var gb = $('#shguid', s); if (gb) gb.addEventListener('change', function () { make(); });
     $('[data-ok]', s).addEventListener('click', function () {
       var p; try { p = navigator.clipboard.writeText(link); } catch (x) { p = Promise.reject(x); }
       p.then(function () { toast('Link tersalin. Tempel di chat untuk dibagikan.'); }).catch(function () { var t = $('#sharelink', s); t.focus(); t.select(); toast('Tekan Ctrl+C untuk menyalin link.'); });
@@ -6327,6 +6445,195 @@ function zoomSmooth(f) {
 function animSwap() { if (!ANIM.on || !cv.animate) return; try { cv.animate([{ opacity: .3 }, { opacity: 1 }], { duration: 180, easing: 'ease-out' }); } catch (x) { /* abaikan */ } }
 function ANIM_PREF_HTML() { var p = animPref(); return '<div class="sec"><h3>Animasi</h3><div class="field"><label for="an-m">Animasi halus (zoom, pindah diagram, menu)</label><select class="in" id="an-m"><option value="auto"' + (p === 'auto' ? ' selected' : '') + '>Otomatis (mati di perangkat lemah / Mode ringan)</option><option value="on"' + (p === 'on' ? ' selected' : '') + '>Selalu nyala</option><option value="off"' + (p === 'off' ? ' selected' : '') + '>Mati</option></select></div><p class="hint">Saat ini ' + (ANIM.on ? 'nyala' : 'mati') + (animLowEnd() ? ' (perangkat terdeteksi ringan)' : '') + '.</p></div>'; }
 function animPrefApply(s) { var m = s.querySelector('#an-m'); if (!m) return; try { localStorage.setItem('alir-anim', m.value); } catch (x) { } animUpdate(); }
+
+/* ---------- v40: salin-tempel antar tab & antar browser (Chrome ↔ Firefox) ----------
+   Clipboard sistem TETAP hanya berisi GAMBAR PNG (seperti "Salin gambar HD"), jadi di Google Docs / Word yang tertempel gambar, bukan teks.
+   Data objeknya disisipkan tak terlihat di bit terendah warna piksel baris-baris atas (perubahan ±1 dari 255, mata tidak bisa melihat),
+   dengan penanda "AL" + panjang + CRC32. Saat Ctrl+V di Alir, gambar dari clipboard dibaca (dekoder PNG sendiri, tanpa kanvas) dan datanya dipulihkan.
+   Cadangan di browser yang sama: localStorage 'alir-oclip' (antar tab). */
+var OCLIP_KEY = 'alir-oclip';
+async function zBytes(str) { return new Uint8Array(await new Response(new Blob([new TextEncoder().encode(str)]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer()); }
+async function unzBytes(u8) { return await new Response(new Blob([u8]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text(); }
+function stegoCap(w, h, bpc) { return Math.floor(((w * h - 32) * 3 * bpc) / 8); }
+/* tulis data ke kanvas (2d) c; true bila muat */
+function stegoEmbed(c, data) {
+  var w = c.width, h = c.height, bpc = 1;
+  while (bpc <= 4 && stegoCap(w, h, bpc) < data.length) bpc++;
+  if (bpc > 4 || w * h < 64) return false;
+  var crc = crc32(data), hd = new Uint8Array([65, 76, 1, bpc, data.length >>> 24, (data.length >>> 16) & 255, (data.length >>> 8) & 255, data.length & 255, crc >>> 24, (crc >>> 16) & 255, (crc >>> 8) & 255, crc & 255]);
+  var px = 32 + Math.ceil(data.length * 8 / (3 * bpc)), rows = Math.min(h, Math.ceil(px / w)), g = c.getContext('2d'), im = g.getImageData(0, 0, w, rows), p = im.data, i, b;
+  function chan(ci) { return ((ci / 3) | 0) * 4 + ci % 3; }
+  for (i = 0; i < 96; i++) { b = (hd[i >> 3] >> (7 - (i & 7))) & 1; var q = chan(i); p[q] = (p[q] & 254) | b; p[q + 3 - q % 4] = 255; }
+  var ci = 96, acc = 0, nb = 0, mask = (1 << bpc) - 1;
+  for (i = 0; i < data.length; i++) {
+    acc = (acc << 8) | data[i]; nb += 8;
+    while (nb >= bpc) { nb -= bpc; var v = (acc >> nb) & mask, k = chan(ci++); p[k] = (p[k] & ~mask) | v; p[k + 3 - k % 4] = 255; }
+    acc &= (1 << nb) - 1;
+  }
+  if (nb) { var k2 = chan(ci++); p[k2] = (p[k2] & ~mask) | ((acc << (bpc - nb)) & mask); p[k2 + 3 - k2 % 4] = 255; }
+  g.putImageData(im, 0, 0);
+  return true;
+}
+/* baca data dari fungsi ch(i) = nilai kanal ke-i (urut piksel R,G,B); null bila tidak ada / rusak */
+function stegoRead(ch, total) {
+  if (total < 96) return null;
+  var hd = new Uint8Array(12), i;
+  for (i = 0; i < 96; i++) hd[i >> 3] |= (ch(i) & 1) << (7 - (i & 7));
+  if (hd[0] !== 65 || hd[1] !== 76 || hd[2] !== 1 || hd[3] < 1 || hd[3] > 4) return null;
+  var bpc = hd[3], len = ((hd[4] << 24) | (hd[5] << 16) | (hd[6] << 8) | hd[7]) >>> 0, crc = ((hd[8] << 24) | (hd[9] << 16) | (hd[10] << 8) | hd[11]) >>> 0;
+  if (!len || 96 + Math.ceil(len * 8 / bpc) > total) return null;
+  var out = new Uint8Array(len), ci = 96, acc = 0, nb = 0, o = 0, mask = (1 << bpc) - 1;
+  while (o < len) { acc = (acc << bpc) | (ch(ci++) & mask); nb += bpc; if (nb >= 8) { nb -= 8; out[o++] = (acc >> nb) & 255; acc &= (1 << nb) - 1; } }
+  return crc32(out) === crc ? out : null;
+}
+/* dekoder PNG sederhana (8-bit RGB/RGBA, tanpa interlace): hanya baris atas secukupnya, langsung dari byte berkas → tidak terpengaruh kanvas */
+async function pngChannels(blob) {
+  var u = new Uint8Array(await blob.arrayBuffer());
+  if (u.length < 33 || u[0] !== 137 || u[1] !== 80 || u[2] !== 78 || u[3] !== 71) return null;
+  var dv = new DataView(u.buffer, u.byteOffset, u.byteLength), pos = 8, w = 0, h = 0, ct = -1, idat = [];
+  while (pos + 8 <= u.length) {
+    var len = dv.getUint32(pos), ty = String.fromCharCode(u[pos + 4], u[pos + 5], u[pos + 6], u[pos + 7]);
+    if (ty === 'IHDR') { w = dv.getUint32(pos + 8); h = dv.getUint32(pos + 12); if (u[pos + 16] !== 8 || u[pos + 20] !== 0) return null; ct = u[pos + 17]; }
+    else if (ty === 'IDAT') idat.push(u.subarray(pos + 8, pos + 8 + len));
+    else if (ty === 'IEND') break;
+    pos += 12 + len;
+  }
+  if (ct !== 2 && ct !== 6 || !w || !idat.length) return null;
+  var bpp = ct === 6 ? 4 : 3, stride = w * bpp, rd = new Blob(idat).stream().pipeThrough(new DecompressionStream('deflate')).getReader();
+  var buf = new Uint8Array(0), rows = [], prev = new Uint8Array(stride);
+  async function needRows(n) {
+    while (rows.length < Math.min(n, h)) {
+      while (buf.length < stride + 1) { var r = await rd.read(); if (r.done) return; var nb2 = new Uint8Array(buf.length + r.value.length); nb2.set(buf); nb2.set(r.value, buf.length); buf = nb2; }
+      var f = buf[0], line = buf.slice(1, stride + 1); buf = buf.subarray(stride + 1);
+      for (var x = 0; x < stride; x++) {
+        var a = x >= bpp ? line[x - bpp] : 0, b = prev[x], c2 = x >= bpp ? prev[x - bpp] : 0, v = line[x];
+        if (f === 1) v += a; else if (f === 2) v += b; else if (f === 3) v += (a + b) >> 1;
+        else if (f === 4) { var pp = a + b - c2, pa = Math.abs(pp - a), pb = Math.abs(pp - b), pc = Math.abs(pp - c2); v += pa <= pb && pa <= pc ? a : pb <= pc ? b : c2; }
+        line[x] = v & 255;
+      }
+      rows.push(line); prev = line;
+    }
+  }
+  /* kanal ke-i: piksel i/3, kanal i%3 */
+  await needRows(Math.ceil(32 / w) + 1);
+  return { w: w, h: h, total: w * h * 3, need: needRows, ch: function (i) { var pxi = (i / 3) | 0, y = (pxi / w) | 0, x = pxi - y * w; var row = rows[y]; return row ? row[x * bpp + i % 3] : 0; }, done: function () { try { rd.cancel(); } catch (x) { } } };
+}
+async function readAlirImage(blob) {
+  try {
+    var P = await pngChannels(blob), out = null;
+    if (P) {
+      /* baca kepala dulu untuk tahu berapa baris yang dibutuhkan */
+      var hd0 = new Uint8Array(12); for (var i = 0; i < 96; i++) hd0[i >> 3] |= (P.ch(i) & 1) << (7 - (i & 7));
+      if (hd0[0] !== 65 || hd0[1] !== 76) { P.done(); return null; }
+      var len = ((hd0[4] << 24) | (hd0[5] << 16) | (hd0[6] << 8) | hd0[7]) >>> 0, bpc = hd0[3] || 1;
+      await P.need(Math.ceil((32 + Math.ceil(len * 8 / (3 * bpc))) / P.w) + 1); P.done();
+      out = stegoRead(P.ch, P.total);
+    } else if (window.createImageBitmap) {
+      var bm = await createImageBitmap(blob, { premultiplyAlpha: 'none', colorSpaceConversion: 'none' }), c = document.createElement('canvas'); c.width = bm.width; c.height = bm.height;
+      var g = c.getContext('2d'); g.drawImage(bm, 0, 0); var d = g.getImageData(0, 0, c.width, c.height).data;
+      out = stegoRead(function (i) { return d[((i / 3) | 0) * 4 + i % 3]; }, c.width * c.height * 3);
+    }
+    if (!out) return null;
+    var j = JSON.parse(await unzBytes(out));
+    return j && j.a === 'alir-clip' ? j : null;
+  } catch (x) { return null; }
+}
+function clipImageFile(dt) {
+  if (!dt) return null;
+  var it = Array.prototype.slice.call(dt.items || []).find(function (x) { return x.kind === 'file' && /^image\/png$/i.test(x.type); });
+  if (it) return it.getAsFile();
+  var f = Array.prototype.slice.call(dt.files || []).find(function (x) { return /^image\/png$/i.test(x.type); });
+  return f || null;
+}
+function localClip() { try { var s = localStorage.getItem(OCLIP_KEY); return s ? JSON.parse(s) : null; } catch (x) { return null; } }
+function hasLocalClip() { try { return !!localStorage.getItem(OCLIP_KEY); } catch (x) { return false; } }
+function canPaste() { return !!(clipb || hasLocalClip() || (navigator.clipboard && navigator.clipboard.read)); }
+function clipMode() { return isDfd() ? 'dfd' : 'uml'; }
+/* terima isi salinan (dari gambar clipboard / localStorage) */
+function pasteAlirClip(c) {
+  if (!c) return false;
+  if (c.mode !== clipMode()) { toast(c.mode === 'dfd' ? 'Yang disalin objek DFD. Tempel di mode DFD.' : 'Yang disalin objek UML (Activity / Use Case / BPMN). Tempel di mode UML.'); return true; }
+  if (c.k === 'diag') { pasteDiagram(isDfd() ? null : (cur() && cur().pkg), c.d); return true; }
+  if (!c.els || !c.els.length) return false;
+  if (!clipb || clipb.t !== c.t) { clipb = { t: c.t, els: c.els, flows: c.flows || [], mode: c.mode }; pasteN = 0; }
+  pasteClip(); return true;
+}
+/* Ctrl+V tanpa gambar Alir di clipboard / tombol Tempel: salinan terbaru di tab ini atau tab lain (localStorage) */
+function pasteLocal() {
+  var L = localClip(), m = clipb;
+  var c = L && (!m || (L.t || 0) > (m.t || 0)) ? L : m ? { a: 'alir-clip', k: 'obj', t: m.t, mode: m.mode || clipMode(), els: m.els, flows: m.flows } : null;
+  return c ? pasteAlirClip(c) : false;
+}
+function pasteSmart() {
+  if (pasteLocal()) return;
+  if (!(navigator.clipboard && navigator.clipboard.read)) { toast('Belum ada yang disalin.'); return; }
+  navigator.clipboard.read().then(async function (items) {
+    for (var i = 0; i < items.length; i++) {
+      var t = items[i].types.find(function (x) { return /^image\/png$/i.test(x); }); if (!t) continue;
+      var c = await readAlirImage(await items[i].getType(t)); if (c && pasteAlirClip(c)) return;
+    }
+    toast('Clipboard tidak berisi objek Alir. Salin dulu objek di Alir (Ctrl+C), lalu tempel dengan Ctrl+V.');
+  }).catch(function () { toast('Tekan Ctrl+V di kanvas untuk menempel dari tab atau browser lain.'); });
+}
+/* tulis gambar + data ke clipboard sistem. x = hasil exportSVG */
+function clipWrite(x, payload, okMsg, quiet) {
+  if (!(navigator.clipboard && navigator.clipboard.write && window.ClipboardItem)) { if (!quiet) toast('Browser ini belum bisa menyalin gambar. Pakai Berkas → Ekspor gambar PNG, atau perbarui browsermu.'); return; }
+  var k = Math.max(1, Math.min(4, Math.sqrt(24e6 / (x.w * x.h)), 9000 / Math.max(x.w, x.h)));
+  var blobP = svgCanvas(x, k).then(async function (c) {
+    if (payload && window.CompressionStream) {
+      try {
+        var data = await zBytes(JSON.stringify(payload));
+        /* gambar terlalu kecil untuk datanya: perbesar kanvas (tepi putih) */
+        if (stegoCap(c.width, c.height, 4) < data.length) { var need = Math.ceil(Math.sqrt(data.length * 8 / 12 + 64)) + 2, c2 = document.createElement('canvas'); c2.width = Math.max(c.width, need); c2.height = Math.max(c.height, need); var g2 = c2.getContext('2d'); g2.fillStyle = '#fff'; g2.fillRect(0, 0, c2.width, c2.height); g2.drawImage(c, 0, 0); c = c2; }
+        stegoEmbed(c, data);
+      } catch (err) { /* data tidak ikut; gambar tetap tersalin */ }
+    }
+    return canvasBlob(c, 'image/png');
+  });
+  var p; try { p = navigator.clipboard.write([new ClipboardItem({ 'image/png': blobP })]); } catch (err) { p = Promise.reject(err); }
+  return p.then(function () { if (okMsg) toast(okMsg); }).catch(function () { if (!quiet) toast('Gagal menyalin ke clipboard. Klik dulu di area diagram lalu coba lagi' + (payload ? ' (di tab ini tetap bisa ditempel).' : ', atau pakai Berkas → Ekspor gambar PNG.')); });
+}
+function clipStore(c) { try { localStorage.setItem(OCLIP_KEY, JSON.stringify(c)); } catch (x) { /* penuh: abaikan */ } }
+
+/* ---------- v40: proyek baru (kosong) langsung dari menu Berkas & sakelar DFD | UML ---------- */
+function newBlank(kind) {
+  var dfd = kind === 'dfd', same = dfd === isDfd();
+  var old = same ? (doc && { doc: doc }) : storedDoc(dfd ? LS : LS_EA);
+  var has = !!(old && old.doc.diagrams.some(function (x) { return x.elements.length; }));
+  var nm0 = dfd ? 'Model_1' : 'Proyek EA';
+  var body = '<div class="field"><label for="nb-n">Nama ' + (dfd ? 'model' : 'proyek') + '</label><input class="in" id="nb-n" value="' + esc(nm0) + '"></div>' +
+    (dfd ? '' : '<div class="field"><label for="nb-k">Diagram pertama</label><select class="in" id="nb-k"><option value="activity">Activity Diagram</option><option value="usecase">Use Case Diagram</option><option value="bpmn">BPMN</option></select></div>') +
+    (has ? '<p class="hint">' + (same ? 'Proyek yang sedang dibuka' : 'Proyek ' + (dfd ? 'DFD' : 'UML') + ' terakhirmu') + ' "' + esc(old.doc.name || '') + '" disimpan dulu ke Berkas → Riwayat versi' +
+      (same ? ', dan bisa dikembalikan dengan Ctrl+Z.' : '. Kalau hanya ingin membukanya, klik ' + (dfd ? 'DFD' : 'UML') + ' di kiri atas.') + '</p>' : '');
+  modal(dfd ? 'DFD baru (kosong)' : 'Proyek UML baru (kosong)', body, '<button class="btn" data-close>Batal</button><button class="btn pri" data-ok>Buat</button>', function (s, close) {
+    function go() {
+      var nm = ($('#nb-n', s).value || '').trim() || nm0, k = dfd ? null : $('#nb-k', s).value;
+      close();
+      if (has) histSnap('Sebelum proyek baru', old.doc, true);
+      fhPending = null; closeStart(); if (sim) simStop();
+      if (same) {
+        push(); fhAdopt();
+        doc = dfd ? normDoc(blankDoc(nm)) : normEa(blankEa(nm, k));
+        bumpSeq(); views = {}; active = doc.diagrams[0].id; tbReset(); sel.clear(); flowFrom = null; modeUI(); setTool('select'); afterChange();
+        toast((dfd ? 'DFD' : 'Proyek UML') + ' baru "' + nm + '" dibuat.' + (has ? ' Ctrl+Z untuk kembali ke proyek sebelumnya.' : ''));
+      } else useDoc(dfd ? blankDoc(nm) : blankEa(nm, k), null, (dfd ? 'DFD' : 'Proyek UML') + ' baru "' + nm + '" dibuat.');
+    }
+    $('[data-ok]', s).addEventListener('click', go);
+    var i = $('#nb-n', s); i.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); go(); } }); i.select();
+  });
+}
+/* DFD | UML: pindah ke proyek terakhir jenis itu (masing-masing tersimpan terpisah), tanpa halaman mulai */
+function modeSwitch(m) {
+  closeMenus(); closePop();
+  var toDfd = m === 'dfd';
+  if (toDfd === isDfd() && doc) { closeStart(); toast('Sudah di mode ' + (toDfd ? 'DFD' : 'UML') + '. Proyek baru: Berkas → ' + (toDfd ? 'DFD baru (kosong)' : 'Proyek UML baru (kosong)') + '.'); return; }
+  closeStart();
+  if (toDfd) { var s0 = storedDoc(LS); useDoc(s0 ? s0.doc : blankDoc(), s0 && s0.active, s0 ? 'Mode DFD: melanjutkan "' + s0.doc.name + '".' : 'Mode DFD: model baru.'); return; }
+  var s1 = storedDoc(LS_EA);
+  useDoc(s1 ? s1.doc : blankEa('Proyek EA', 'activity'), s1 && s1.active, s1 ? 'Mode UML: melanjutkan "' + s1.doc.name + '".' : 'Mode UML: proyek baru. Pilih elemen di Toolbox lalu klik di kanvas.');
+}
+function modeSwUI() { $$('.modesw [data-mode]').forEach(function (b) { b.setAttribute('aria-pressed', String((b.dataset.mode === 'dfd') === isDfd())); }); }
+document.addEventListener('click', function (e) { var b = e.target.closest && e.target.closest('.modesw [data-mode]'); if (b) { e.preventDefault(); modeSwitch(b.dataset.mode); } });
 
 /* ================= Jelaskan diagram (tanpa AI, berbasis analisis alur) =================
    Alir membaca struktur diagram (lane, urutan, cabang, perulangan, paralel, ujung) lalu menyusun penjelasan dan
@@ -8234,13 +8541,20 @@ function copyDiagram(id) {
   var list = subtreeOf(id); if (!list.length) return;
   dclip = { t: 'alir-diagram', mode: isDfd() ? 'dfd' : 'uml', diagrams: list.map(clone), packages: [] };
   try { localStorage.setItem(DCLIP_KEY, JSON.stringify(dclip)); } catch (x) { /* abaikan */ }
-  toast('Diagram "' + diagLabel(list[0]) + '" disalin. Klik kanan diagram/paket lalu Tempel diagram (bisa juga di proyek lain).');
+  var msg = 'Diagram "' + diagLabel(list[0]) + '" disalin. Klik kanan diagram/paket lalu Tempel diagram, atau tekan ' + pasteKey() + ' di kanvas (bisa di tab atau browser lain).';
+  toast(msg); dclipSys(list[0], msg);
 }
 function copyPackage(pid) {
   var ids = pkgDescendants(pid), pk = doc.packages.filter(function (p) { return ids.indexOf(p.id) >= 0; });
   dclip = { t: 'alir-diagram', mode: 'uml', root: pid, packages: pk.map(clone), diagrams: doc.diagrams.filter(function (d) { return ids.indexOf(d.pkg) >= 0; }).map(clone) };
   try { localStorage.setItem(DCLIP_KEY, JSON.stringify(dclip)); } catch (x) { /* abaikan */ }
-  toast('Paket "' + (pk[0] && pk.find(function (p) { return p.id === pid; }).name) + '" beserta ' + dclip.diagrams.length + ' diagram disalin.');
+  var msg = 'Paket "' + (pk[0] && pk.find(function (p) { return p.id === pid; }).name) + '" beserta ' + dclip.diagrams.length + ' diagram disalin. Tempel lewat klik kanan paket, atau ' + pasteKey() + ' di kanvas (bisa di tab atau browser lain).';
+  toast(msg); if (!copyPackage.quiet) dclipSys(dclip.diagrams[0], msg);
+}
+/* salinan diagram juga ke clipboard sistem: gambar diagram + data tersembunyi (lihat clipWrite di features2.js) */
+function dclipSys(D, msg) {
+  var x = D && exportSVG(D); if (!x) return;
+  clipWrite(x, { a: 'alir-clip', v: 1, k: 'diag', t: Date.now(), mode: dclip.mode, d: dclip }, null, true);
 }
 function readDclip() {
   var c = dclip;
@@ -8248,8 +8562,8 @@ function readDclip() {
   return c && c.t === 'alir-diagram' ? c : null;
 }
 function canPasteDiagram() { var c = readDclip(); return !!(c && c.mode === (isDfd() ? 'dfd' : 'uml') && c.diagrams.length); }
-function pasteDiagram(targetPkg) {
-  var c = readDclip();
+function pasteDiagram(targetPkg, c0) {
+  var c = c0 && c0.t === 'alir-diagram' ? c0 : readDclip();
   if (!c) { toast('Belum ada diagram yang disalin. Klik kanan diagram → Salin diagram.'); return; }
   if (c.mode !== (isDfd() ? 'dfd' : 'uml')) { toast(c.mode === 'dfd' ? 'Yang disalin diagram DFD. Tempel di mode DFD.' : 'Yang disalin diagram UML. Tempel di mode Activity/Use Case/BPMN.'); return; }
   var first;
@@ -8329,7 +8643,7 @@ function newDiagramIn(pid, kind) {
   mutate(function () { var D = newDiagram(kind, pid); active = D.id; sel.clear(); });
   umlToolbox();
 }
-function dupPackage(pid) { var keep = dclip, ks = null; try { ks = localStorage.getItem(DCLIP_KEY); } catch (x) { } copyPackage(pid); var p = doc.packages.find(function (x) { return x.id === pid; }); pasteDiagram(p ? p.parent : null); dclip = keep; try { if (ks != null) localStorage.setItem(DCLIP_KEY, ks); else localStorage.removeItem(DCLIP_KEY); } catch (x) { } toast('Paket diduplikat beserta isinya. Ctrl+Z untuk membatalkan.'); }
+function dupPackage(pid) { var keep = dclip, ks = null; try { ks = localStorage.getItem(DCLIP_KEY); } catch (x) { } copyPackage.quiet = 1; copyPackage(pid); copyPackage.quiet = 0; var p = doc.packages.find(function (x) { return x.id === pid; }); pasteDiagram(p ? p.parent : null); dclip = keep; try { if (ks != null) localStorage.setItem(DCLIP_KEY, ks); else localStorage.removeItem(DCLIP_KEY); } catch (x) { } toast('Paket diduplikat beserta isinya. Ctrl+Z untuk membatalkan.'); }
 function deletePkg(pid) {
   var p = doc.packages.find(function (x) { return x.id === pid; }); if (!p) return;
   if (!p.parent && doc.packages.filter(function (q) { return !q.parent; }).length < 2) { toast('Paket utama tidak bisa dihapus.'); return; }
@@ -9747,16 +10061,22 @@ function removeDiagram(id) {
   mutate(function () { dropDiagram(id); if (!diag(active)) active = D.parent ? D.parent.d : doc.diagrams[0].id; fixActive(); });
   toast((D.parent ? 'Dekomposisi' : 'Diagram') + ' dihapus. Ctrl+Z untuk membatalkan.');
 }
-function copySel() {
-  var D = cur(), ids = new Set(sel); if (!ids.size) { copyImage(null); return; }
-  clipb = { els: D.elements.filter(function (e) { return ids.has(e.id); }).map(clone), flows: [] };
+function copySel(noSys) {
+  var D = cur(), ids = new Set(sel); if (!ids.size) { if (!noSys) copyImage(null); return; }
+  clipb = { t: Date.now(), mode: isDfd() ? 'dfd' : 'uml', els: D.elements.filter(function (e) { return ids.has(e.id); }).map(clone), flows: [] };
   var have = new Set(clipb.els.map(function (e) { return e.id; }));
   clipb.flows = D.flows.filter(function (f) { return have.has(f.from) && have.has(f.to); }).map(clone);
-  pasteN = 0; toast(clipb.els.length + ' objek disalin');
-  copyImage(ids, true);
+  pasteN = 0;
+  if (noSys) return;
+  var c = { a: 'alir-clip', v: 1, k: 'obj', t: clipb.t, mode: clipb.mode, dk: D.kind || 'dfd', els: clipb.els, flows: clipb.flows };
+  clipStore(c);
+  var n = clipb.els.length, x = exportSVG(null, ids);
+  toast(n + ' objek disalin.');
+  if (x) clipWrite(x, c, n + ' objek disalin. Tempel di Alir dengan ' + pasteKey() + ' (tab lain atau browser lain juga bisa), atau di Google Docs / Word sebagai gambar.', true);
 }
 function pasteClip() {
   if (!clipb || !clipb.els.length) return;
+  if (clipb.mode && clipb.mode !== (isDfd() ? 'dfd' : 'uml')) { toast(clipb.mode === 'dfd' ? 'Yang disalin objek DFD. Tempel di mode DFD.' : 'Yang disalin objek UML. Tempel di mode UML.'); return; }
   pasteN++;
   mutate(function () {
     var D = cur(), map = {}, gmap = {}, ns = new Set(), off = 20 * pasteN;
@@ -9793,7 +10113,7 @@ function segHitsRect(a, b, x0, y0, x1, y1) {
   for (var i = 0; i < 4; i++) if (cross(a, b, c[i], c[(i + 1) % 4])) return true;
   return false;
 }
-function dupSel() { copySel(); pasteClip(); }
+function dupSel() { var keep = clipb, kn = pasteN; copySel(true); pasteN = 0; pasteClip(); clipb = keep; pasteN = kn; }
 function selectAll() { var D = cur(); sel = new Set(D.elements.map(function (e) { return e.id; }).concat(D.flows.map(function (f) { return f.id; }))); draw(); panel(); syncBar(); }
 /* Mode "pilih beberapa" (seperti Canva): tiap klik menambah/membuang objek dari pilihan, tanpa Shift. Berguna juga di HP. */
 var multiPick = false;
@@ -10211,7 +10531,7 @@ buildToolbar();
 function syncBar() { if (typeof mpUpdate === "function") mpUpdate();
   var n = sel.size, st = curStyleOf(), hasF = selFlows().length > 0, nE = selEls().length;
   $$('#toolbar [data-need]').forEach(function (b) { var need = b.dataset.need; b.disabled = need === 'f' ? !hasF : need === 'e' ? !nE : need === '2' ? nE < 2 : n < 1; });
-  $('#bUndo').disabled = !undoS.length; $('#bRedo').disabled = !redoS.length; $('#bPaste').disabled = !clipb;
+  $('#bUndo').disabled = !undoS.length; $('#bRedo').disabled = !redoS.length; $('#bPaste').disabled = !canPaste();
   function sw(id, c) { $(id).style.background = !c || c === 'none' ? 'repeating-linear-gradient(45deg,#fff 0 3px,#d33 3px 4px)' : c; }
   var d = doc.defaults.process || doc.defaults.action;
   sw('#swS', st ? st.stroke : d.stroke); sw('#swF', st ? st.fill : d.fill); sw('#swT', st ? st.text : d.text);
@@ -10267,10 +10587,10 @@ function item(label, act, key, opt) { return { l: label, a: act, k: key || '', o
 var HR = { hr: 1 };
 function menuItems(name) {
   var D = cur(), one = selEls().length === 1 ? selEls()[0] : null, proc = one && one.type === 'process' ? one : null, has = sel.size > 0, nE = selEls().length, f = selFlows()[0], st = curStyleOf();
-  if (name === 'file' && !isDfd()) return [item('Halaman mulai…', 'start'), item('Buka .eap / .xml / .alir / .json…', 'open', 'Ctrl+O')].concat(FSA ? [item('Simpan' + (FH.h ? ' ke ' + FH.name : ' proyek (.alir)'), 'save', 'Ctrl+S'), item('Simpan sebagai…', 'saveas', 'Ctrl+Shift+S')] : []).concat([ item('Buat diagram dari skenario (.docx / tabel)…', 'scen'), HR, item('Jelaskan diagram ini (tanya jawab)…', 'explain', 'F3'), item('Teks untuk laporan (narasi & tabel)…', 'report'), item('Bagikan lewat link…', 'share'), item('Riwayat versi…', 'hist'), HR, item('Ekspor ke Enterprise Architect…', 'exportea', FSA ? 'Ctrl+E' : 'Ctrl+S'), item('Simpan proyek Alir (.json)', 'saveproj'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Gambar untuk laporan (pas lebar A4 / tabel)…', 'repimg'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar JPG', 'jpg'), item('Ekspor gambar SVG', 'svg'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Preferensi tampilan…', 'dispref')]);
+  if (name === 'file' && !isDfd()) return [item('Halaman mulai…', 'start'), item('Proyek UML baru (kosong)…', 'newuml'), item('DFD baru (kosong)…', 'new'), item('Buka .eap / .xml / .alir / .json…', 'open', 'Ctrl+O')].concat(FSA ? [item('Simpan' + (FH.h ? ' ke ' + FH.name : ' proyek (.alir)'), 'save', 'Ctrl+S'), item('Simpan sebagai…', 'saveas', 'Ctrl+Shift+S')] : []).concat([ item('Buat diagram dari skenario (.docx / tabel)…', 'scen'), HR, item('Jelaskan diagram ini (tanya jawab)…', 'explain', 'F3'), item('Teks untuk laporan (narasi & tabel)…', 'report'), item('Bagikan lewat link…', 'share'), item('Riwayat versi…', 'hist'), HR, item('Ekspor ke Enterprise Architect…', 'exportea', FSA ? 'Ctrl+E' : 'Ctrl+S'), item('Simpan proyek Alir (.json)', 'saveproj'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Gambar untuk laporan (pas lebar A4 / tabel)…', 'repimg'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar JPG', 'jpg'), item('Ekspor gambar SVG', 'svg'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Preferensi tampilan…', 'dispref')]);
   if (name === 'dict' && !isDfd()) return [{ hd: 'Diagram baru' }, item('Activity Diagram', 'newdiag:activity'), item('Use Case Diagram', 'newdiag:usecase'), item('BPMN (Business Process)', 'newdiag:bpmn'), item('Dari skenario use case (tabel / .docx)…', 'scen'), HR, item('Jalankan alur ▶', 'sim', '', { dis: !(D.kind === 'activity' || D.kind === 'bpmn') }), item('Jelaskan diagram ini…', 'explain', 'F3'), item('Teks untuk laporan…', 'report'), HR, item('Ganti nama diagram…', 'renamediag'), item('Hapus diagram ini', 'deldiag', '', { dis: doc.diagrams.length < 2 }), item('Paket (folder) baru', 'newpkg'), HR, item('Periksa diagram', 'check', 'F4')];
-  if (name === 'file') return [item('Halaman mulai…', 'start'), item('Model DFD baru', 'new'), item('Buka .pam / .alir / .json / .zip…', 'open', 'Ctrl+O'), item('Buat DFD dari skenario (.docx / tabel)…', 'dfdscen')].concat(FSA ? [item('Simpan' + (FH.h ? ' ke ' + FH.name : ''), 'save', 'Ctrl+S'), item('Simpan sebagai…', 'saveas', 'Ctrl+Shift+S')] : []).concat([HR, item('Jelaskan diagram ini (tanya jawab)…', 'explain', 'F3'), item('Teks untuk laporan (tabel alur data)…', 'report'), item('Bagikan lewat link…', 'share'), item('Riwayat versi…', 'hist'), HR, item('Simpan sebagai .pam', 'savepam', 'Ctrl+S'), item('Simpan proyek (.json)', 'savejson'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Gambar untuk laporan (pas lebar A4 / tabel)…', 'repimg'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar JPG', 'jpg'), item('Ekspor gambar SVG', 'svg'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Opsi model…', 'modelopt'), item('Preferensi tampilan…', 'dispref')]);
-  if (name === 'edit') return [item('Urungkan', 'undo', 'Ctrl+Z', { dis: !undoS.length }), item('Ulangi', 'redo', 'Ctrl+Y', { dis: !redoS.length }), HR, item('Potong', 'cut', 'Ctrl+X', { dis: !has }), item('Salin', 'copy', 'Ctrl+C', { dis: !has }), item('Tempel', 'paste', 'Ctrl+V', { dis: !clipb }), item('Hapus', 'del', 'Del', { dis: !has }), HR, item('Pilih simbol terhubung', 'selconn', '', { dis: !has }), item('Pilih semua', 'selall', 'Ctrl+A'), item('Pilih beberapa (klik satu per satu)', 'multipick', '', { ck: multiPick }), item('Pilih semua yang sejenis', 'selsame', '', { dis: !has }), item('Cari elemen…', 'find', 'Ctrl+F'), HR, item('Kunci / buka kunci posisi', 'lock', '', { dis: !nE }), item('Kelompokkan', 'group', 'Ctrl+G', { dis: nE < 2 }), item('Pisahkan kelompok', 'ungroup', 'Ctrl+Shift+G', { dis: !nE }), HR, item('Duplikat', 'dup', 'Ctrl+D', { dis: !has }), item('Ubah nama', 'rename', 'F2', { dis: sel.size !== 1 })];
+  if (name === 'file') return [item('Halaman mulai…', 'start'), item('DFD baru (kosong)…', 'new'), item('Proyek UML baru (kosong)…', 'newuml'), item('Buka .pam / .alir / .json / .zip…', 'open', 'Ctrl+O'), item('Buat DFD dari skenario (.docx / tabel)…', 'dfdscen')].concat(FSA ? [item('Simpan' + (FH.h ? ' ke ' + FH.name : ''), 'save', 'Ctrl+S'), item('Simpan sebagai…', 'saveas', 'Ctrl+Shift+S')] : []).concat([HR, item('Jelaskan diagram ini (tanya jawab)…', 'explain', 'F3'), item('Teks untuk laporan (tabel alur data)…', 'report'), item('Bagikan lewat link…', 'share'), item('Riwayat versi…', 'hist'), HR, item('Simpan sebagai .pam', 'savepam', 'Ctrl+S'), item('Simpan proyek (.json)', 'savejson'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Gambar untuk laporan (pas lebar A4 / tabel)…', 'repimg'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar JPG', 'jpg'), item('Ekspor gambar SVG', 'svg'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Opsi model…', 'modelopt'), item('Preferensi tampilan…', 'dispref')]);
+  if (name === 'edit') return [item('Urungkan', 'undo', 'Ctrl+Z', { dis: !undoS.length }), item('Ulangi', 'redo', 'Ctrl+Y', { dis: !redoS.length }), HR, item('Potong', 'cut', 'Ctrl+X', { dis: !has }), item('Salin', 'copy', 'Ctrl+C', { dis: !has }), item('Tempel', 'paste', 'Ctrl+V', { dis: !canPaste() }), item('Hapus', 'del', 'Del', { dis: !has }), HR, item('Pilih simbol terhubung', 'selconn', '', { dis: !has }), item('Pilih semua', 'selall', 'Ctrl+A'), item('Pilih beberapa (klik satu per satu)', 'multipick', '', { ck: multiPick }), item('Pilih semua yang sejenis', 'selsame', '', { dis: !has }), item('Cari elemen…', 'find', 'Ctrl+F'), HR, item('Kunci / buka kunci posisi', 'lock', '', { dis: !nE }), item('Kelompokkan', 'group', 'Ctrl+G', { dis: nE < 2 }), item('Pisahkan kelompok', 'ungroup', 'Ctrl+Shift+G', { dis: !nE }), HR, item('Duplikat', 'dup', 'Ctrl+D', { dis: !has }), item('Ubah nama', 'rename', 'F2', { dis: sel.size !== 1 })];
   if (name === 'dict') return [item('Properti model…', 'modelopt'), { hd: 'Sub-proses' }, item(proc && childOf(D, proc) ? 'Buka diagram turunan' : 'Dekomposisi proses terpilih', 'decomp', 'Alt+↓', { dis: !proc }), item('Naik satu level', 'up', 'Alt+↑', { dis: !D.parent }), item('Hapus dekomposisi', 'undecomp', '', { dis: !(proc && childOf(D, proc)) }), item('Pohon proses…', 'tree'), HR, item('Daftar objek…', 'objlist'), item('Urutkan ulang nomor objek', 'renum'), item('Auto-balance alur', 'autobal', '', { dis: !D.parent }), item('Tambah konektor off-page', 'offadd'), item('Buat DFD dari skenario use case…', 'dfdscen'), item('Migrasikan alur terpilih ke induk', 'migrate', '', { dis: !D.parent || !f }), HR, item('Periksa model…', 'check', 'F4')];
   if (name === 'arrange') return [item('Sesuaikan dengan teks', 'adjust', 'Ctrl+J', { dis: !nE }), item('Ukuran normal', 'normsize', '', { dis: !nE }), HR, { hd: 'Ratakan' }, item('Kiri', 'alL', '', { dis: nE < 2 }), item('Tengah (sumbu vertikal)', 'alC', '', { dis: nE < 2 }), item('Kanan', 'alR', '', { dis: nE < 2 }), item('Atas', 'alT', '', { dis: nE < 2 }), item('Tengah (sumbu horizontal)', 'alM', '', { dis: nE < 2 }), item('Bawah', 'alB', '', { dis: nE < 2 }), item('Samakan lebar', 'sameW', '', { dis: nE < 2 }), item('Samakan tinggi', 'sameH', '', { dis: nE < 2 }), item('Samakan lebar & tinggi', 'sameS', '', { dis: nE < 2 }), HR, item('Sebar horizontal', 'distH', '', { dis: nE < 3 }), item('Sebar vertikal', 'distV', '', { dis: nE < 3 }), HR, { hd: 'Alur' }, item('Rapikan alur terpilih', 'tidy', 'Ctrl+L', { dis: !selFlows().length }), item('Rapikan semua alur… (pilih tampilan)', 'tidyall', 'Ctrl+Shift+L'), item('Rapikan tata letak (pindahkan objek, proporsional)', 'relayout', 'Ctrl+Shift+K', { dis: !(isDfd() || D.kind === 'activity' || D.kind === 'usecase' || D.kind === 'bpmn') }), item('Pengaturan & pilihan perapian…', 'tidyset', '', { dis: !(isDfd() || D.kind === 'activity' || D.kind === 'usecase') }), item('Rapikan yang terpilih saja (objek lain tetap)', 'tidysel', '', { dis: nE < 2 }), item('Pilih alur objek terpilih', 'selflows', '', { dis: !nE }), item('Rapikan otomatis setiap ada perubahan', 'autotidy', '', { ck: autoTidyOn() }), HR, { hd: 'Urutan' }, item('Bawa ke depan', 'front', 'Ctrl+]', { dis: !has }), item('Kirim ke belakang', 'back', 'Ctrl+[', { dis: !has }), item('Maju satu', 'fwd', '', { dis: !has }), item('Mundur satu', 'bwd', '', { dis: !has })];
   if (name === 'format') return [item('Bayangan (shadow)', 'shadow', '', { ck: doc.prefs.shadow }), HR, item('Warnai semua alur sesuai ' + (isDfd() ? 'entitasnya' : 'aktor / partition') + '', 'colallflows'), item('Warnai alur objek terpilih sesuai warnanya', 'colflows', '', { dis: !nE }), HR, item('Warna garis…', 'pop:stroke', '', { dis: !has }), item('Warna isi…', 'pop:fill', '', { dis: !nE }), item('Warna teks…', 'pop:text', '', { dis: !has }), HR, { hd: 'Pola garis' }]
@@ -10345,7 +10665,7 @@ function contextMenu(e, id) {
       if (labHasMoved(o)) items.push(HR, item('Kembalikan posisi label', 'labreset'));
       items.push(HR, item('Bawa ke depan', 'front'), item('Kirim ke belakang', 'back'));
     } else {
-      items = items.concat([item('Jelaskan diagram ini…', 'explain', 'F3'), HR, item('Tempel', 'paste', 'Ctrl+V', { dis: !clipb }), item('Salin diagram sebagai gambar HD', 'copyimg', 'Ctrl+Alt+C'), item('Pilih semua', 'selall', 'Ctrl+A'), item(multiPick ? 'Selesai memilih' : 'Pilih beberapa (klik satu per satu)', 'multipick'), item('Cari elemen…', 'find', 'Ctrl+F'), HR, item('Rapikan semua garis…', 'tidyall', 'Ctrl+Shift+L'), item('Tampilan global', 'fit', 'F8')].concat(D.kind === 'activity' || D.kind === 'bpmn' ? [item('Jalankan alur ▶', 'sim')] : []).concat([HR, item('Ganti nama diagram…', 'renamediag'), item('Diagram baru…', 'newdiag'), item('Periksa diagram', 'check', 'F4')]));
+      items = items.concat([item('Jelaskan diagram ini…', 'explain', 'F3'), HR, item('Tempel', 'paste', 'Ctrl+V', { dis: !canPaste() }), item('Salin diagram sebagai gambar HD', 'copyimg', 'Ctrl+Alt+C'), item('Pilih semua', 'selall', 'Ctrl+A'), item(multiPick ? 'Selesai memilih' : 'Pilih beberapa (klik satu per satu)', 'multipick'), item('Cari elemen…', 'find', 'Ctrl+F'), HR, item('Rapikan semua garis…', 'tidyall', 'Ctrl+Shift+L'), item('Tampilan global', 'fit', 'F8')].concat(D.kind === 'activity' || D.kind === 'bpmn' ? [item('Jalankan alur ▶', 'sim')] : []).concat([HR, item('Ganti nama diagram…', 'renamediag'), item('Diagram baru…', 'newdiag'), item('Periksa diagram', 'check', 'F4')]));
     }
     renderMenu(items, e.clientX, e.clientY); return;
   }
@@ -10365,7 +10685,7 @@ function contextMenu(e, id) {
     if (!o.type) { items.push(HR, { hd: 'Gaya garis' }); routeNames().forEach(function (r, i) { items.push(item(r, 'route:' + i, '', { ck: fs(o).route === i })); }); items.push(item('Rapikan garis', 'tidy', 'Ctrl+L'), item('Balik arah', 'flip')); if (D.parent) items.push(item('Migrasikan ke induk', 'migrate')); }
     items.push(HR, item('Bawa ke depan', 'front'), item('Kirim ke belakang', 'back'));
   } else {
-    items.push(item('Jelaskan diagram ini…', 'explain', 'F3'), HR, item('Tempel', 'paste', 'Ctrl+V', { dis: !clipb }), item('Salin diagram sebagai gambar HD', 'copyimg', 'Ctrl+Alt+C'), item('Pilih semua', 'selall', 'Ctrl+A'), item(multiPick ? 'Selesai memilih' : 'Pilih beberapa (klik satu per satu)', 'multipick'), item('Cari elemen…', 'find', 'Ctrl+F'), HR);
+    items.push(item('Jelaskan diagram ini…', 'explain', 'F3'), HR, item('Tempel', 'paste', 'Ctrl+V', { dis: !canPaste() }), item('Salin diagram sebagai gambar HD', 'copyimg', 'Ctrl+Alt+C'), item('Pilih semua', 'selall', 'Ctrl+A'), item(multiPick ? 'Selesai memilih' : 'Pilih beberapa (klik satu per satu)', 'multipick'), item('Cari elemen…', 'find', 'Ctrl+F'), HR);
     if (D.parent) items.push(item('Naik satu level', 'up', 'Alt+↑'), item('Auto-balance alur', 'autobal'), item('Tambah konektor off-page', 'offadd'), HR);
     items.push(item('Tampilan global', 'fit', 'F8'), item('Periksa model…', 'check', 'F4'), item('Preferensi tampilan…', 'dispref'));
   }
@@ -10403,7 +10723,8 @@ function run(a, btn) {
     case 'deldiag': removeDiagram(active); return;
     case 'exportea': eaExportModal(); return;
     case 'saveproj': saveJ(); return;
-    case 'new': push(); doc = blankDoc(); views = {}; active = doc.diagrams[0].id; sel.clear(); afterChange(); toast('Model baru. Ctrl+Z untuk kembali ke model sebelumnya.'); break;
+    case 'new': newBlank('dfd'); break;
+    case 'newuml': newBlank('uml'); break;
     case 'open': if (FSA) fhOpen(); else fileIn.click(); break;
     case 'save': fhSave(false); break;
     case 'saveas': fhSave(true); break;
@@ -10442,7 +10763,7 @@ function run(a, btn) {
     case 'redo': redo(); break;
     case 'cut': copySel(); delSel(); break;
     case 'copy': copySel(); syncBar(); break;
-    case 'paste': pasteClip(); break;
+    case 'paste': pasteSmart(); break;
     case 'del': delSel(); break;
     case 'dup': dupSel(); break;
     case 'selall': selectAll(); break;
@@ -10900,7 +11221,13 @@ cv.addEventListener('dblclick', function (e) {
 var pasteT = 0;
 document.addEventListener('paste', function (e) {
   if ($('.scrim')) return; var tg = e.target; if (tg && tg.closest && tg.closest('input,textarea,[contenteditable]')) return;
-  if (scFromClipboardEvent(e)) { e.preventDefault(); clearTimeout(pasteT); pasteT = 0; }
+  if (scFromClipboardEvent(e)) { e.preventDefault(); clearTimeout(pasteT); pasteT = 0; return; }
+  /* gambar dari Alir (tab / browser lain) membawa data objek di dalamnya */
+  var f = clipImageFile(e.clipboardData);
+  if (f) {
+    e.preventDefault(); clearTimeout(pasteT); pasteT = 0;
+    readAlirImage(f).then(function (c) { if (!(c && pasteAlirClip(c))) pasteLocal(); });
+  }
 });
 window.addEventListener('keydown', function (e) {
   if ($('.scrim')) return;
@@ -10919,7 +11246,7 @@ window.addEventListener('keydown', function (e) {
   if (mod && e.shiftKey && k === 'e') { e.preventDefault(); tabPopup(); return; }
   if (mod && (e.key === 'PageDown' || e.key === 'PageUp')) { e.preventDefault(); tabStep(e.key === 'PageDown' ? 1 : -1); return; }
   /* Ctrl+V tidak dicegah dulu: kalau isi clipboard berupa tabel skenario, jendela Skenario → Activity Diagram yang dibuka */
-  if (mod && k === 'v' && !e.shiftKey && !e.altKey) { clearTimeout(pasteT); pasteT = setTimeout(function () { pasteT = 0; run('paste'); }, 80); return; }
+  if (mod && k === 'v' && !e.shiftKey && !e.altKey) { clearTimeout(pasteT); pasteT = setTimeout(function () { pasteT = 0; if (!pasteLocal()) toast('Belum ada objek Alir yang disalin.'); }, 80); return; }
   if (mod) {
     var map = { a: 'selall', c: 'copy', x: 'cut', v: 'paste', d: 'dup', y: 'redo', s: FSA ? (e.shiftKey ? 'saveas' : 'save') : isDfd() ? 'savepam' : 'exportea', e: isDfd() ? null : 'exportea', o: 'open', 0: 'fit', j: 'adjust', l: 'tidy', ']': 'front', '[': 'back' };
     var act = (k === 'l' && e.shiftKey) ? 'tidyall' : k === 'g' ? (e.shiftKey ? 'ungroup' : 'group') : k === 'f' ? 'find' : k === 'z' ? (e.shiftKey ? 'redo' : 'undo') : (k === '=' || k === '+') ? 'zin' : k === '-' ? 'zout' : map[k];
@@ -11171,13 +11498,8 @@ var IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent ||
 function pasteKey() { return IS_MAC ? '⌘V' : 'Ctrl+V'; }
 function copyImage(ids, quiet) {
   var x = exportSVG(null, ids && ids.size ? ids : null); if (!x) { if (!quiet) toast('Diagram masih kosong.'); return; }
-  if (!(navigator.clipboard && navigator.clipboard.write && window.ClipboardItem)) { if (!quiet) toast('Browser ini belum bisa menyalin gambar. Pakai Berkas → Ekspor gambar PNG, atau perbarui browsermu.'); return; }
   var k = Math.max(1, Math.min(4, Math.sqrt(24e6 / (x.w * x.h)), 9000 / Math.max(x.w, x.h))), pw = Math.round(x.w * k), ph = Math.round(x.h * k);
-  var blobP = svgCanvas(x, k).then(function (c) { return canvasBlob(c, 'image/png'); });
-  var p; try { p = navigator.clipboard.write([new ClipboardItem({ 'image/png': blobP })]); } catch (err) { p = Promise.reject(err); }
-  p.then(function () {
-    toast((ids && ids.size ? 'Objek terpilih' : 'Diagram') + ' tersalin sebagai gambar HD (' + pw + '×' + ph + ' px). Buka Google Docs atau Word lalu tekan ' + pasteKey() + '.');
-  }).catch(function () { if (!quiet) toast('Gagal menyalin gambar. Klik dulu di area diagram lalu coba lagi, atau pakai Berkas → Ekspor gambar PNG.'); });
+  clipWrite(x, null, (ids && ids.size ? 'Objek terpilih' : 'Diagram') + ' tersalin sebagai gambar HD (' + pw + '×' + ph + ' px). Buka Google Docs atau Word lalu tekan ' + pasteKey() + '.', quiet);
 }
 function withContent() { return orderedDiagrams().filter(function (D) { return D.elements.length; }); }
 async function doAllPNG() {
@@ -11267,7 +11589,7 @@ var HELP = {
     '<h4>Panel kanan</h4><ul><li><b>Tidak memilih apa pun:</b> ringkasan diagram, Pemeriksaan, dan Pohon proses.</li><li><b>Satu objek:</b> nama, kode, nomor, dekomposisi, dan daftar alur yang terhubung.</li><li><b>Satu alur:</b> nama, arah, bentuk garis, Balik arah, Rapikan garis.</li><li><b>Banyak objek:</b> ratakan dan sebar.</li></ul>' +
     '<h4>Menyimpan</h4><ul><li>Pekerjaan tersimpan otomatis di browser ini, tapi tetap simpan berkas sebagai cadangan.</li>' +
     '<li><b>Simpan .pam</b> untuk dibuka di PowerDesigner. <b>Simpan proyek (.json)</b> untuk dibuka lagi di Alir atau dikirim ke teman.</li>' +
-    '<li><b>Ke Google Docs / Word</b>: klik <b>Salin gambar</b> di bilah atas (atau Ctrl+Alt+C), lalu Ctrl+V di dokumen. Gambarnya HD (4x), tetap tajam saat diperbesar, lengkap dengan bingkai dan nama diagram seperti hasil ekspor. Ctrl+C pada objek terpilih juga langsung bisa ditempel sebagai gambar.</li><li>Untuk laporan: Berkas → <b>Ekspor semua ke PDF</b> (satu diagram per halaman) atau <b>Ekspor semua ke PNG (ZIP)</b>.</li></ul>',
+    '<li><b>Ke Google Docs / Word</b>: klik <b>Salin gambar</b> di bilah atas (atau Ctrl+Alt+C), lalu Ctrl+V di dokumen. Gambarnya HD (4x), tetap tajam saat diperbesar, lengkap dengan bingkai dan nama diagram seperti hasil ekspor. Ctrl+C pada objek terpilih juga langsung bisa ditempel sebagai gambar.</li><li><b>Pindah ke tab / browser lain</b> (mis. Chrome → Firefox): pilih objek, Ctrl+C, lalu Ctrl+V di Alir yang lain. Klik kanan diagram → Salin diagram juga bisa. Yang masuk clipboard tetap gambar (di Docs/Word tertempel gambar, bukan teks); data objeknya tersimpan tak terlihat di dalam gambar itu.</li><li><b>DFD | UML</b> di kiri atas: pindah ke proyek DFD atau UML terakhirmu (keduanya tersimpan terpisah). Proyek kosong: Berkas → DFD baru / Proyek UML baru.</li><li>Untuk laporan: Berkas → <b>Ekspor semua ke PDF</b> (satu diagram per halaman) atau <b>Ekspor semua ke PNG (ZIP)</b>.</li></ul>',
   cek: '<p>Pemeriksaan berjalan otomatis setiap ada perubahan. Ringkasannya selalu tampil di kanan atas, dan detailnya di panel kanan (klik area kosong) atau lewat <kbd>F4</kbd>. Klik satu baris untuk langsung menuju objeknya.</p>' +
     '<table><tr><td><span class="sw3" style="background:var(--bad)"></span><b>Merah: salah</b></td><td>Melanggar aturan DFD dan sebaiknya diperbaiki. Contoh: alur dari entitas langsung ke data store tanpa lewat proses, proses tanpa input atau output, level turunan tidak seimbang dengan induknya.</td></tr>' +
     '<tr><td><span class="sw3" style="background:var(--warn)"></span><b>Kuning: peringatan</b></td><td>Boleh, tapi perlu dicek. Contoh: alur belum diberi nama, data store hanya diisi tapi tidak pernah dibaca, entitas belum terhubung, nama proses dipakai dua kali.</td></tr>' +
@@ -11283,7 +11605,7 @@ var HELP = {
     '<li>Garis dirapikan otomatis setiap ada perubahan. Garis yang kamu atur sendiri tidak diubah. Matikan lewat Susun → Rapikan otomatis.</li></ul><h4>Mengatur garis (seperti EA)</h4><ul><li><b>Seret garisnya langsung</b> ke mana saja: naik-turun dan kiri-kanan sekaligus. Tahan <b>Shift</b> untuk mengunci ke satu arah. Berlaku juga di DFD. Kalau ruas di ujung digeser keluar dari objek, tikungan kecil dibuat sendiri; kalau dikembalikan, garis lurus lagi.</li><li>Garis <b>Direct</b> yang lurus digeser sejajar (naik-turun atau kiri-kanan), ujungnya ikut menyusuri tepi objek seperti di EA. Tahan Alt sambil menyeret untuk membuat tikungan.</li><li><b>Label bisa digeser</b>: nama decision, merge, gateway, initial/final, nama garis, [guard], dan «include». Saat dipilih muncul kotak dan garis bantu putus-putus seperti EA. Label ikut bergerak bersama objek atau garisnya, dan posisinya ikut terbawa ke EA. Klik kanan → Kembalikan posisi label untuk mengembalikannya.</li><li><b>Ctrl+klik</b> di garis menambah titik (kotak kecil). Seret titiknya untuk membuat tikungan. Ctrl+klik titiknya untuk menghapus.</li><li>Kotak di <b>ujung garis</b> bisa digeser menyusuri tepi objek. Tarik menjauh dari objek untuk memindah sambungan ke objek lain; lepas di tempat kosong untuk membatalkan.</li><li>Bentuk garis sama seperti EA: Direct / Custom Line, Orthogonal - Square, Orthogonal - Rounded, Tree Style (vertikal/horizontal), dan Lateral (vertikal/horizontal). Pilih di panel kanan atau klik kanan garis.</li><li>Garis yang bersilangan diberi lompatan kecil seperti EA (bisa dimatikan di Format → Preferensi tampilan).</li><li>Tarik panah biru ke tempat kosong: elemen baru muncul tepat di titik kamu melepasnya.</li></ul>' +
     '<h4>Project Browser</h4><ul><li><b>Klik kanan diagram</b>: ganti nama, duplikat beserta isinya, salin/tempel, pindah ke paket lain, pindah urutan, ekspor PNG, hapus. <b>Klik kanan paket</b>: ganti nama, tambah diagram/paket di dalamnya, duplikat/salin/tempel paket beserta isinya, pindah ke paket lain, hapus.</li><li>Seret diagram ke paket untuk memindahkannya; seret paket ke paket lain untuk menjadikannya sub-paket. Klik dua kali untuk ganti nama.</li></ul>' +
     '<h4>Dari skenario use case</h4><ul><li>Salin tabel skenario (kolom Aktor dan Sistem, Normal Flow, Alternative Flow) dari Google Docs atau Word, lalu tekan <b>Ctrl+V di kanvas</b>. Bisa juga buka berkas <b>.docx</b> laporan (Berkas → Buat diagram dari skenario). Tiap use case langsung jadi Activity Diagram: partition aktor dan sistem, initial, aktivitas, decision Ya/Tidak untuk alur alternatif, dan final.</li><li>Nomor langkah di alur alternatif menentukan letak decision. Kalau langkah terakhirnya sama dengan langkah di Normal Flow (misalnya kembali ke form), garisnya dikembalikan ke langkah itu.</li><li>Bisa sekaligus membuat Use Case Diagram dari semua skenario.</li></ul><h4>Fitur pembantu tugas</h4><ul><li><b>Simpan seperti Word</b> (Chrome/Edge di laptop): buka berkas lewat Alir, lalu <b>Ctrl+S</b> langsung menimpa berkas itu (.pam untuk DFD, .alir untuk proyek UML). Ctrl+Shift+S = Simpan sebagai. Ekspor ke EA pindah ke Ctrl+E. Pasang Alir sebagai aplikasi (ikon pasang di kolom alamat) supaya berkas .alir / .pam / .eap bisa dibuka dengan klik dua kali.</li><li><b>Tanya diagram</b> (F3, menu Diagram, atau klik kanan objek → Jelaskan objek ini): panel yang bisa digeser dan diubah ukurannya, jadi diagram tetap kelihatan. Klik nama objek di jawaban untuk menunjuknya di diagram. Ngobrol tentang diagram dengan bahasa santai. Alir menjelaskan alur seperti bercerita, menjawab <i>kalau datanya kosong gimana?</i>, <i>kenapa ada validasi?</i> (plus kalimat yang bisa dipakai saat ditanya penguji), <i>terus abis itu?</i>, <i>emang iya?</i> (ditunjukkan buktinya), konsep seperti <i>trigger</i>, <i>include vs extend</i>, <i>DFD level 1</i>, sampai <i>bikinin skenario dong</i>. Semua jawaban diambil dari diagram dan konsep umum, tanpa AI; kalau sesuatu tidak ada di diagram, Alir bilang tidak ada.</li><li><b>Teks untuk laporan</b> (Berkas): tabel skenario Aktor/Sistem dan narasi bernomor disusun dari activity diagram, tabel alur data dari DFD, tabel aktor dan use case dari use case diagram. Klik Salin lalu tempel di Google Docs/Word.</li><li><b>Jalankan alur ▶</b> (menu Diagram atau klik kanan kanvas): titik biru berjalan mengikuti alur; di decision kamu memilih cabangnya. Spasi = lanjut, Esc = berhenti. Cocok untuk presentasi dan menemukan alur buntu.</li><li><b>Bagikan lewat link</b> (Berkas): seluruh diagram dimasukkan ke dalam link, kirim lewat WhatsApp. Penerima mendapat salinannya sendiri.</li><li><b>Riwayat versi</b> (Berkas): salinan otomatis saat dibuka, tiap 10 menit, dan sebelum membuka berkas lain. Bisa dipulihkan atau diunduh.</li><li><b>Use case ↔ Activity</b>: klik dua kali use case yang punya activity diagram untuk membukanya (ada tanda ∞ kecil). Klik kanan use case → Buat Activity Diagram.</li></ul><h4>Merapikan tata letak</h4><ul><li><b>Susun → Rapikan tata letak</b> (Ctrl+Shift+K) memindah objek supaya seimbang: di Activity, alur utama lurus di tengah lane, pindah lane dibuat sebaris, cabang di samping, garis kembali lewat sisi luar. Di DFD, proses di tengah, data store di bawah prosesnya, entitas kiri-kanan, ukuran objek proporsional. Bisa dibatalkan dengan Ctrl+Z.</li><li>Klik kanan objek → <b>Pilih semua alurnya</b> untuk memilih semua garis masuk dan keluar objek itu (lalu ganti warna, pola, atau Ctrl+L untuk merapikan garis itu saja). <b>Warnai alurnya sesuai warna objek</b> mewarnai garisnya sekaligus. Format → Warnai semua alur sesuai entitas melakukannya untuk semua entitas.</li></ul><h4>Swimlane, pool, dan batas sistem</h4><ul><li>Seperti di EA, tiap <b>partition</b> (swimlane) adalah elemen sendiri, bukan satu tabel. Klik di dekat partition lain untuk menaruh partition baru menempel di sampingnya.</li><li>Saat digeser atau diubah ukurannya, tepinya <b>menempel otomatis</b> ke partition lain (seperti opsi Dockable di EA). Tahan Alt untuk mematikan.</li><li>Klik kanan partition → <b>Rapatkan semua partition</b> untuk menjejerkan tanpa celah dan menyamakan tingginya. Klik kanan → Jadikan mendatar/tegak untuk mengubah arah.</li><li>Lane yang ditaruh di dalam pool otomatis menyesuaikan lebar pool.</li><li>Geser bingkai lewat <b>judul atau tepinya</b>. Isi di dalamnya ikut berpindah.</li></ul>' +
-    '<h4>Ke Enterprise Architect</h4><ul><li><b>Buka .eap</b>: Berkas → Buka. Activity, Use Case, dan BPMN dibaca, diagram jenis lain dilewati.</li><li><b>Ekspor ke EA</b> (Ctrl+S) membuat berkas .xml (XMI) untuk diimpor ke EA. Langkahnya ditampilkan di jendela ekspor.</li><li><b>Ke Google Docs / Word</b>: klik <b>Salin gambar</b> di bilah atas (atau Ctrl+Alt+C), lalu Ctrl+V di dokumen. Gambarnya HD (4x), tetap tajam saat diperbesar, lengkap dengan bingkai dan nama diagram seperti hasil ekspor. Ctrl+C pada objek terpilih juga langsung bisa ditempel sebagai gambar.</li><li>Untuk laporan: Berkas → Ekspor semua ke PDF atau PNG.</li></ul>',
+    '<h4>Ke Enterprise Architect</h4><ul><li><b>Buka .eap</b>: Berkas → Buka. Activity, Use Case, dan BPMN dibaca, diagram jenis lain dilewati.</li><li><b>Ekspor ke EA</b> (Ctrl+S) membuat berkas .xml (XMI) untuk diimpor ke EA. Langkahnya ditampilkan di jendela ekspor.</li><li><b>Ke Google Docs / Word</b>: klik <b>Salin gambar</b> di bilah atas (atau Ctrl+Alt+C), lalu Ctrl+V di dokumen. Gambarnya HD (4x), tetap tajam saat diperbesar, lengkap dengan bingkai dan nama diagram seperti hasil ekspor. Ctrl+C pada objek terpilih juga langsung bisa ditempel sebagai gambar.</li><li><b>Pindah ke tab / browser lain</b> (mis. Chrome → Firefox): pilih objek, Ctrl+C, lalu Ctrl+V di Alir yang lain. Klik kanan diagram → Salin diagram juga bisa. Yang masuk clipboard tetap gambar (di Docs/Word tertempel gambar, bukan teks); data objeknya tersimpan tak terlihat di dalam gambar itu.</li><li><b>DFD | UML</b> di kiri atas: pindah ke proyek DFD atau UML terakhirmu (keduanya tersimpan terpisah). Proyek kosong: Berkas → DFD baru / Proyek UML baru.</li><li>Untuk laporan: Berkas → Ekspor semua ke PDF atau PNG.</li></ul>',
   tentang: '<p><b>Alir</b> adalah editor diagram di browser: DFD yang bisa membuka dan menyimpan berkas <b>.pam</b> PowerDesigner 6, serta Activity, Use Case, dan BPMN yang bisa membuka <b>.eap</b> dan mengekspor ke Enterprise Architect.</p><p><b>Jangan jadikan Alir sebagai patokan.</b> Alir bukan produk resmi PowerDesigner, SAP, atau Sparx Systems. Selalu buka hasil akhir di aplikasi aslinya sebelum dikumpulkan.</p><p>Semua data tersimpan di browser masing-masing pengguna. Tidak ada yang dikirim ke server.</p>'
 };
 function helpModal(tab) {
