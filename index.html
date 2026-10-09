@@ -1187,7 +1187,7 @@ function snap(v, e) { return (e && e.altKey) ? Math.round(v) : Math.round(v / 5)
 function es(e) {
   var d = doc.defaults[e.type] || (e.type === 'offpage' || e.type === 'spmg' || e.type === 'pgfx' || e.type === 'ptext' ? doc.defaults.flow : null) || {}, s = e.style || {};
   var f = Object.assign({ family: 'Arial', size: 8 }, d.font || {}, s.font || {});
-  return { stroke: s.stroke || d.stroke, fill: s.fill || d.fill, text: s.text || d.text || '#000000', textSet: !!s.text, dash: s.dash || 'solid', font: f };
+  return { et: e.type, stroke: s.stroke || d.stroke, fill: s.fill || (e.eaAct && e.type === 'action' && typeof EA_ACTION !== 'undefined' ? EA_ACTION : d.fill), text: s.text || d.text || '#000000', textSet: !!s.text, dash: s.dash || 'solid', font: f };
 }
 function fs(fl) {
   var d = doc.defaults.flow, s = fl.style || {};
@@ -1214,7 +1214,7 @@ function fixActive() {
 function undo() { if (!undoS.length) return; redoS.push(snapshot()); doc = JSON.parse(undoS.pop()); fixActive(); afterChange(); }
 function redo() { if (!redoS.length) return; undoS.push(snapshot()); doc = JSON.parse(redoS.pop()); fixActive(); afterChange(); }
 function syncOffpage() { if (!isDfd()) return; doc.diagrams.forEach(function (D) { D.elements.forEach(function (e) { if (e.type === 'offpage' && !e.loose) { var p = offRef(e); if (p) e.name = p.name; } }); }); }
-function afterChange() { tbAfterChange(); syncOffpage(); if (view().fresh) fit(); scheduleAutoTidy(); persist(); draw(); panel(); tabs(); status(); syncBar(); }
+function afterChange() { if (doc && !isDfd()) ucAspectAll(cur()); tbAfterChange(); syncOffpage(); if (view().fresh) fit(); scheduleAutoTidy(); persist(); draw(); panel(); tabs(); status(); syncBar(); }
 var atT = 0, atSig = {};
 function geoSig(D) { return D.elements.map(function (e) { return e.id + ':' + Math.round(e.x) + ',' + Math.round(e.y) + ',' + Math.round(e.w) + ',' + Math.round(e.h); }).join('|') + '#' + D.flows.map(function (f) { return f.id + f.from + f.to + (f.manual ? 'm' : '') + (f.kind || ''); }).join('|'); }
 function autoTidyOn() { return doc.prefs.autoTidy != null ? doc.prefs.autoTidy : !isDfd(); }
@@ -2022,7 +2022,9 @@ var KINDS = {
 var EA_FILL = '#f9e791', EA_LINE = '#000000', EA_TEXT = '#000000';
 /* warna bawaan Enterprise Architect 12 (diukur dari gambar yang dibuat EA sendiri) */
 var EA_THEME = { action: '#f9e791', task: '#f9e791', object: '#00ffff', datastore: '#99ccff', decision: '#bde077', merge: '#bde077', gateway: '#bde077', final: '#bde077', flowfinal: '#bde077',
-  initial: '#000000', fork: '#404040', forkv: '#404040', note: '#e3fbeb', usecase: '#b2d8ff', actor: '#f8e2c1', boundary: '#fcf2e3', start: '#ff6f6f', intermediate: '#ff6f6f', end: '#ff6f6f', dataobject: '#73d8b7', bstore: '#73d8b7' };
+  initial: '#000000', fork: '#404040', forkv: '#404040', note: '#e3fbeb', usecase: '#b2d8ff', actor: '#f8e2c1', boundary: 'none', start: '#ff6f6f', intermediate: '#ff6f6f', end: '#ff6f6f', dataobject: '#73d8b7', bstore: '#73d8b7', message: '#ffffff' };
+/* EA 12: elemen Action (beda dari Activity) berwarna oranye */
+var EA_ACTION = '#fcbf83';
 var EA_FLAT = { note: 1, boundary: 1, fork: 1, forkv: 1, initial: 1 };
 /* EA mewarnai dengan gradasi mendatar: warna asli di kiri, makin gelap ke kanan (lightness turun ±9,5%) */
 var gradUsed = {};
@@ -2036,7 +2038,7 @@ function darkerL(hex, d) {
   var q2 = l < .5 ? l * (1 + sat) : l + sat - l * sat, p2 = 2 * l - q2, o = sat === 0 ? [l, l, l] : [f(p2, q2, h + 1 / 3), f(p2, q2, h), f(p2, q2, h - 1 / 3)];
   return '#' + o.map(function (v) { return ('0' + Math.round(v * 255).toString(16)).slice(-2); }).join('');
 }
-function gradOf(fill) { var k = String(fill).toLowerCase().replace('#', ''); if (!/^[0-9a-f]{6}$/.test(k)) return fill; gradUsed[k] = 1; return 'url(#eg' + k + ')'; }
+function gradOf(fill, at) { var k = String(fill).toLowerCase().replace('#', ''); if (!/^[0-9a-f]{6}$/.test(k)) return fill; k += '_' + (at || 18); gradUsed[k] = 1; return 'url(#eg' + k + ')'; }
 var GW_TYPES = { xor: 'Eksklusif (kosong)', xorx: 'Eksklusif (tanda X)', and: 'Paralel (+)', or: 'Inklusif (O)', ev: 'Berbasis event' };
 var EV_DEFS = { none: 'Polos', message: 'Pesan', timer: 'Waktu' };
 function ufont(bold, size) { return { family: 'Tahoma', size: size || 8, b: !!bold }; }
@@ -2045,7 +2047,13 @@ function lbl2(e, w, f, color, cx, cy) { return tblock(wrap(e.name, w, f), cx, cy
 var fastDraw = false, inExport = false;
 function lightOn() { return !inExport && (fastDraw || doc.prefs.light === true); }
 function shadowAttr() { return doc.prefs.shadow !== false && !lightOn() ? ' filter="url(#eaSh)"' : ''; }
-function fillOf(st) { return !st.fill || st.fill === 'none' ? 'none' : (doc.prefs.gradient !== false && !lightOn() ? gradOf(st.fill) : st.fill); }
+/* profil gradasi EA 12 (diukur): Activity UML mulai menggelap dari 18% lebar, elemen BPMN dari 45%, Start Event BPMN polos */
+var GRAD_BPMN = { task: 1, intermediate: 1, end: 1, gateway: 1, dataobject: 1, bstore: 1 };
+function fillOf(st) {
+  if (!st.fill || st.fill === 'none') return 'none';
+  if (doc.prefs.gradient === false || lightOn() || st.et === 'start') return st.fill;
+  return gradOf(st.fill, GRAD_BPMN[st.et] ? 45 : 18);
+}
 /* teks nama di dalam kotak: EA menaruhnya di bagian atas (jarak ±7px), kecuali kalau tidak muat */
 function leftText(lines, x, ytop, f, color) { var lh = f.size * 4 / 3 * 1.2; return '<text text-anchor="start" dominant-baseline="central" ' + fontAttr(f, color) + '>' + lines.map(function (l, i) { return '<tspan x="' + x.toFixed(1) + '" y="' + (ytop + lh / 2 + i * lh).toFixed(1) + '">' + esc(l) + '</tspan>'; }).join('') + '</text>'; }
 function topText(e, w, f, color, pad) { var lines = wrap(e.name, w, f), lh = f.size * 4 / 3 * 1.2, hh = lines.length * lh, cy = hh + (pad || 7) * 2 <= e.h ? e.y + (pad || 7) + hh / 2 : e.y + e.h / 2; return tblock(lines, e.x + e.w / 2, cy, f, color); }
@@ -2057,11 +2065,15 @@ function labPos(e) { return e.type === 'decision' || e.type === 'merge' ? 'top' 
 function elLabGeom(e, st, pos) {
   if (!e.name) return null;
   st = st || es(e); pos = pos || labPos(e);
-  var f = st.font, lh = f.size * 4 / 3 * 1.2, lines = wrap(e.name, Math.max(90, e.w * 2.4), f), w = Math.max.apply(null, lines.map(function (l) { return textW(l, fontCss(f)); })), h = lh * lines.length, cx, cy;
+  var f = st.font, lh = f.size * 4 / 3 * 1.2, lines = wrap(e.name, Math.max(60, e.w * 3), f), /* EA 12 memotong nama di luar simbol pada ±3 × lebar simbol */ w = Math.max.apply(null, lines.map(function (l) { return textW(l, fontCss(f)); })), h = lh * lines.length, cx, cy;
   if (e.lo) { var bx = e.x + e.lo.x, by = e.y + e.lo.y; return { lines: lines, f: f, x: bx, y: by, w: w + 2, h: h, cx: bx + (w + 2) / 2, cy: by + h / 2 }; }
   var u = diaUsed[e.id] || {}, side = pos === 'top' ? 'n' : 's';
-  if (u[side]) { cx = e.x + e.w / 2 - 8 - w / 2; cy = pos === 'top' ? e.y - 2 - h / 2 : e.y + e.h + 2 + h / 2; }
-  else { cx = e.x + e.w / 2; cy = pos === 'top' ? e.y - 4 - h / 2 : e.y + e.h + 4 + lh * .5 + (lines.length - 1) * lh / 2; }
+  /* EA 12: nama di bawah simbol selalu di tengah & menempel tepi bawah (walau tertimpa garis) */
+  if (pos !== 'top') { cx = w > e.w ? e.x + w / 2 : e.x + e.w / 2; cy = e.y + e.h + lh * .5 + (lines.length - 1) * lh / 2; } /* EA: nama lebih lebar dari simbol → rata kiri dengan simbol, selain itu di tengah */
+  /* EA 12: nama decision/merge di kiri atas — ujung kanan teks 6px sebelum titik puncak, bagian atas teks sejajar puncak (diukur) */
+  else if (e.type === 'decision' || e.type === 'merge') { cx = e.x + e.w / 2 - 6 - w / 2; cy = e.y - 2 + h / 2; }
+  else if (u[side]) { cx = e.x + e.w / 2 - 8 - w / 2; cy = e.y - 2 - h / 2; }
+  else { cx = e.x + e.w / 2; cy = e.y - 4 - h / 2; }
   return { lines: lines, f: f, x: cx - w / 2 - 1, y: cy - h / 2, w: w + 2, h: h, cx: cx, cy: cy };
 }
 function diaLabel(e, st, pos) {
@@ -2074,16 +2086,16 @@ function outsideLabel(e, st, pos) { return diaLabel(e, st, pos); }
 var BOLD_NAMES = ['action', 'object', 'datastore', 'usecase', 'actor'];
 function T(o) { return Object.assign({ geom: 'rect', size: [110, 45], grow: true, font: ufont(false) }, o); }
 TT.action = T({ k: 'activity', label: 'Activity', name: 'Aktivitas', ea: 'Activity', icon: '<rect x="3.5" y="6.5" width="17" height="11" rx="4"/>',
-  draw: function (e, st) { var r = Math.min(15, e.h / 2.6, e.w / 4); return '<rect x="' + e.x + '" y="' + e.y + '" width="' + e.w + '" height="' + e.h + '" rx="' + r + '" fill="' + fillOf(st) + '" stroke="' + st.stroke + '"' + shadowAttr() + '/>' + topText(e, e.w - 8, st.font, st.text); } });
+  draw: function (e, st) { var r = Math.min(15, e.h / 2.6, e.w / 4); return '<rect x="' + e.x + '" y="' + e.y + '" width="' + e.w + '" height="' + e.h + '" rx="' + r + '" fill="' + fillOf(st) + '" stroke="' + st.stroke + '"' + shadowAttr() + '/>' + (e.eaAct ? lbl2(e, e.w - 8, st.font, st.text, e.x + e.w / 2, e.y + e.h / 2) : topText(e, e.w - 8, st.font, st.text)); } }); /* EA: teks Action di tengah, teks Activity di atas */
 TT.initial = T({ k: 'activity', label: 'Initial', name: 'Mulai', ea: 'StateNode', nType: 100, geom: 'dot', size: [20, 20], grow: false, fill: '#000000', font: ufont(false), lpos: 'bottom', icon: '<circle cx="12" cy="12" r="6" fill="currentColor"/>',
-  draw: function (e, st) { var c = (e.style && (e.style.stroke || e.style.fill)) || '#000000'; return '<ellipse cx="' + (e.x + e.w / 2) + '" cy="' + (e.y + e.h / 2) + '" rx="' + e.w / 2 + '" ry="' + e.h / 2 + '" fill="' + c + '" stroke="' + c + '"/>' + diaLabel(e, st, 'bottom'); } });
+  draw: function (e, st) { var c = (e.style && (e.style.stroke || e.style.fill)) || '#000000'; return '<ellipse cx="' + (e.x + e.w / 2) + '" cy="' + (e.y + e.h / 2) + '" rx="' + e.w / 2 + '" ry="' + e.h / 2 + '" fill="' + c + '" stroke="' + c + '"' + shadowAttr() + '/>' + diaLabel(e, st, 'bottom'); } });
 TT.final = T({ k: 'activity', label: 'Final', name: 'Selesai', ea: 'StateNode', nType: 101, geom: 'dot', size: [22, 22], grow: false, font: ufont(false), icon: '<circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="4" fill="currentColor"/>',
   draw: function (e, st) { var cx = e.x + e.w / 2, cy = e.y + e.h / 2; return '<ellipse cx="' + cx + '" cy="' + cy + '" rx="' + e.w / 2 + '" ry="' + e.h / 2 + '" fill="' + fillOf(st) + '" stroke="' + st.stroke + '"' + shadowAttr() + '/><ellipse cx="' + cx + '" cy="' + cy + '" rx="' + e.w * .24 + '" ry="' + e.h * .24 + '" fill="#000000"/>' + diaLabel(e, st, 'bottom'); } });
 TT.flowfinal = T({ k: 'activity', label: 'Flow Final', name: '', ea: 'StateNode', nType: 102, geom: 'dot', size: [22, 22], grow: false, font: ufont(false), icon: '<circle cx="12" cy="12" r="7.5"/><path d="M7 7l10 10M17 7L7 17"/>',
   draw: function (e, st) { var cx = e.x + e.w / 2, cy = e.y + e.h / 2, a = e.w * .35, b = e.h * .35; return '<ellipse cx="' + cx + '" cy="' + cy + '" rx="' + e.w / 2 + '" ry="' + e.h / 2 + '" fill="' + fillOf(st) + '" stroke="' + st.stroke + '"' + shadowAttr() + '/><path d="M' + (cx - a) + ' ' + (cy - b) + 'L' + (cx + a) + ' ' + (cy + b) + 'M' + (cx + a) + ' ' + (cy - b) + 'L' + (cx - a) + ' ' + (cy + b) + '" stroke="' + st.stroke + '"/>' + diaLabel(e, st, 'bottom'); } });
 function diamond(e, st, extra) {
   var cx = e.x + e.w / 2, cy = e.y + e.h / 2;
-  return '<path d="M' + cx + ' ' + e.y + 'L' + (e.x + e.w) + ' ' + cy + 'L' + cx + ' ' + (e.y + e.h) + 'L' + e.x + ' ' + cy + 'z" fill="' + fillOf(st) + '" stroke="' + st.stroke + '"' + shadowAttr() + '/>' + (extra || '');
+  return '<path d="M' + cx + ' ' + e.y + 'L' + (e.x + e.w) + ' ' + cy + 'L' + cx + ' ' + (e.y + e.h) + 'L' + e.x + ' ' + cy + 'z" fill="' + fillOf(st) + '" stroke="' + st.stroke + '"/>' + (extra || ''); /* EA 12: decision/merge/gateway tanpa bayangan */
 }
 TT.decision = T({ k: 'activity', label: 'Decision', name: '', ea: 'Decision', geom: 'diamond', size: [30, 40], grow: false, font: ufont(false), icon: '<path d="M12 3l8 9-8 9-8-9z"/>',
   draw: function (e, st) { return diamond(e, st) + diaLabel(e, st, 'top'); } });
@@ -2119,26 +2131,27 @@ function laneHead(e, st, vert, band, open) {
   }
   return s;
 }
-TT.partition = T({ k: 'activity', label: 'Partition (swimlane)', name: 'Partisi', ea: 'ActivityPartition', container: true, size: [230, 520], fill: 'none', head: 20, font: ufont(true),
+TT.partition = T({ k: 'activity', label: 'Partition (swimlane)', name: 'Partisi', ea: 'ActivityPartition', container: true, size: [230, 520], fill: 'none', head: 20, font: ufont(false),
   icon: '<rect x="3.5" y="3.5" width="17" height="17"/><path d="M3.5 8h17M12 3.5v17"/>',
   hit: function (e) { return e.horiz ? { x: e.x, y: e.y, w: 24, h: e.h } : { x: e.x, y: e.y, w: e.w, h: 24 }; },
   draw: function (e, st) { return laneHead(e, st, !e.horiz, 20, true); } });
 TT.note = T({ k: 'any', label: 'Note', name: 'Catatan', ea: 'Note', size: [130, 60], font: ufont(false), icon: '<path d="M5 3.5h10l4 4v13H5z"/><path d="M15 3.5v4h4"/>',
   draw: function (e, st) { var c = 10; return '<path d="M' + e.x + ' ' + e.y + 'H' + (e.x + e.w - c) + 'L' + (e.x + e.w) + ' ' + (e.y + c) + 'V' + (e.y + e.h) + 'H' + e.x + 'z" fill="' + st.fill + '" stroke="' + st.stroke + '"/><path d="M' + (e.x + e.w - c) + ' ' + e.y + 'V' + (e.y + c) + 'H' + (e.x + e.w) + '" fill="none" stroke="' + st.stroke + '"/>' + leftText(wrap(e.name, e.w - 22, st.font), e.x + 6, e.y + 6, st.font, st.text); } });
 /* use case */
-TT.actor = T({ k: 'usecase', label: 'Actor', name: 'Aktor', ea: 'Actor', size: [34, 66], grow: false, font: ufont(false), icon: '<circle cx="12" cy="5.5" r="2.6"/><path d="M12 8v7M7 11h10M12 15l-4 6M12 15l4 6"/>',
+TT.actor = T({ k: 'usecase', label: 'Actor', name: 'Aktor', ea: 'Actor', size: [30, 60], grow: false, font: ufont(false), icon: '<circle cx="12" cy="5.5" r="2.6"/><path d="M12 8v7M7 11h10M12 15l-4 6M12 15l4 6"/>',
   draw: function (e, st) {
-    /* seperti EA: orang-orangan di bagian atas kotak, nama di bagian bawah kotak */
-    var cx = e.x + e.w / 2, y0 = e.y + e.h * .13, y1 = e.y + e.h * .7, fh = y1 - y0, hw = e.w * .34, hr = Math.min(fh * .17, e.w * .2), hy = y0 + hr, arm = y0 + fh * .42, hip = y0 + fh * .66, sw = 1;
-    var lines = e.name ? wrap(e.name, Math.max(90, e.w * 2.4), st.font) : [];
-    return '<circle cx="' + cx + '" cy="' + hy + '" r="' + hr + '" fill="' + fillOf(st) + '" stroke="' + st.stroke + '" stroke-width="' + sw + '"' + shadowAttr() + '/><path d="M' + cx + ' ' + (hy + hr) + 'V' + hip + 'M' + (cx - hw) + ' ' + arm + 'H' + (cx + hw) + 'M' + cx + ' ' + hip + 'L' + (cx - hw * .85) + ' ' + y1 + 'M' + cx + ' ' + hip + 'L' + (cx + hw * .85) + ' ' + y1 + '" fill="none" stroke="' + st.stroke + '" stroke-width="' + sw + '"/>' + (lines.length ? tblock(lines, cx, e.y + e.h * .86 + (lines.length - 1) * st.font.size * .67, st.font, st.text) : '');
+    /* ukuran diukur dari EA 12 (kotak 30×60): kepala Ø15 mulai 4px dari atas, lengan di 22 selebar 17, pinggul 32, kaki sampai 43 selebar 15, nama tepat di bawahnya */
+    var kx = e.w / 30, ky = e.h / 60, cx = e.x + e.w / 2, hr = 7.5 * Math.min(kx, ky), hy = e.y + 4 * ky + hr, arm = e.y + 22 * ky, hip = e.y + 31 * ky, y1 = e.y + 42 * ky, hw = 8.5 * kx, lw = 7.5 * kx, sw = 1;
+    var lines = e.name ? wrap(e.name, Math.max(90, e.w * 2.4), st.font) : [], lh = st.font.size * 4 / 3 * 1.2;
+    return '<circle cx="' + cx + '" cy="' + hy + '" r="' + hr + '" fill="' + fillOf(st) + '" stroke="' + st.stroke + '" stroke-width="' + sw + '"' + shadowAttr() + '/><path d="M' + cx + ' ' + (hy + hr) + 'V' + hip + 'M' + (cx - hw) + ' ' + arm + 'H' + (cx + hw) + 'M' + cx + ' ' + hip + 'L' + (cx - lw) + ' ' + y1 + 'M' + cx + ' ' + hip + 'L' + (cx + lw) + ' ' + y1 + '" fill="none" stroke="' + st.stroke + '" stroke-width="' + sw + '"/>' + (lines.length ? tblock(lines, cx, e.y + 43 * ky + lh / 2 + (lines.length - 1) * lh / 2, st.font, st.text) : '');
   } });
-TT.usecase = T({ k: 'usecase', label: 'Use Case', name: 'Use case', ea: 'UseCase', geom: 'ell', size: [120, 60], icon: '<ellipse cx="12" cy="12" rx="9" ry="6"/>',
-  draw: function (e, st) { var cx = e.x + e.w / 2, cy = e.y + e.h / 2; return '<ellipse cx="' + cx + '" cy="' + cy + '" rx="' + e.w / 2 + '" ry="' + e.h / 2 + '" fill="' + fillOf(st) + '" stroke="' + st.stroke + '"' + shadowAttr() + '/>' + lbl2(e, e.w * .76, st.font, st.text, cx, cy); } });
+TT.usecase = T({ k: 'usecase', label: 'Use Case', name: 'Use case', ea: 'UseCase', geom: 'ell', size: [90, 60], icon: '<ellipse cx="12" cy="12" rx="9" ry="6"/>',
+  draw: function (e, st) { var cx = e.x + e.w / 2, cy = e.y + e.h / 2; return '<ellipse cx="' + cx + '" cy="' + cy + '" rx="' + e.w / 2 + '" ry="' + e.h / 2 + '" fill="' + fillOf(st) + '" stroke="' + st.stroke + '"' + shadowAttr() + '/>' + lbl2(e, e.w - 4, st.font, st.text, cx, cy); } });
 TT.boundary = T({ k: 'usecase', label: 'Boundary (batas sistem)', name: 'Sistem', ea: 'Boundary', container: true, size: [380, 460], font: ufont(false),
   icon: '<rect x="3.5" y="3.5" width="17" height="17"/>',
   hit: function (e) { return { x: e.x, y: e.y, w: e.w, h: 22 }; },
-  draw: function (e, st) { return '<rect x="' + e.x + '" y="' + e.y + '" width="' + e.w + '" height="' + e.h + '" rx="3" fill="' + (st.fill || 'none') + '" stroke="' + st.stroke + '"' + shadowAttr() + '/>' + tblock([e.name], e.x + e.w / 2, e.y + 12, st.font, st.text); } });
+  /* EA 12: batas sistem = kotak bersudut tajam, tanpa isi & tanpa bayangan (diukur dari gambar EA) */
+  draw: function (e, st) { return '<rect x="' + e.x + '" y="' + e.y + '" width="' + e.w + '" height="' + e.h + '" fill="' + (st.fill && st.fill !== 'none' ? st.fill : '#ffffff') + '" fill-opacity="' + (st.fill && st.fill !== 'none' ? 1 : 0) + '" stroke="' + st.stroke + '"/>' + tblock([e.name], e.x + e.w / 2, e.y + 12, st.font, st.text); } });
 /* BPMN */
 TT.task = T({ k: 'bpmn', label: 'Activity (task)', name: 'Tugas', ea: 'Activity', stereo: 'Activity', size: [110, 55], font: ufont(false), icon: '<rect x="3.5" y="6.5" width="17" height="11" rx="2.5"/>',
   draw: function (e, st) { var s = '<rect x="' + e.x + '" y="' + e.y + '" width="' + e.w + '" height="' + e.h + '" rx="4" fill="' + fillOf(st) + '" stroke="' + st.stroke + '"' + shadowAttr() + '/>' + lbl2(e, e.w - 12, st.font, st.text, e.x + e.w / 2, e.y + e.h / 2); if (e.sub) { var bx = e.x + e.w / 2 - 6, by = e.y + e.h - 14; s += '<rect x="' + bx + '" y="' + by + '" width="12" height="12" fill="none" stroke="' + st.stroke + '"/><path d="M' + (bx + 3) + ' ' + (by + 6) + 'h6M' + (bx + 6) + ' ' + (by + 3) + 'v6" stroke="' + st.stroke + '"/>'; } return s; } });
@@ -2149,7 +2162,7 @@ function evDef(e, st, cx, cy, r) {
 }
 function evShape(kind) {
   return function (e, st) {
-    var cx = e.x + e.w / 2, cy = e.y + e.h / 2, r = Math.min(e.w, e.h) / 2, s = '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="' + fillOf(st) + '" stroke="' + st.stroke + '" stroke-width="' + (kind === 'end' ? 3 : 1.1) + '"' + shadowAttr() + '/>';
+    var cx = e.x + e.w / 2, cy = e.y + e.h / 2, r = Math.min(e.w, e.h) / 2, s = '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="' + fillOf(st) + '" stroke="' + st.stroke + '" stroke-width="' + (kind === 'end' ? 3 : 1) + '"/>' /* EA 12: event BPMN tanpa bayangan */;
     if (kind === 'mid') s += '<circle cx="' + cx + '" cy="' + cy + '" r="' + (r - 3) + '" fill="none" stroke="' + st.stroke + '"/>';
     return s + evDef(e, st, cx, cy, r) + diaLabel(e, st, 'bottom');
   };
@@ -2160,9 +2173,9 @@ TT.end = T({ k: 'bpmn', label: 'End Event', name: 'End', ea: 'Event', stereo: 'E
 TT.gateway = T({ k: 'bpmn', label: 'Gateway', name: '', ea: 'Decision', stereo: 'Gateway', geom: 'diamond', size: [40, 40], grow: false, font: ufont(false), icon: '<path d="M12 3l9 9-9 9-9-9z"/>',
   draw: function (e, st) {
     var cx = e.x + e.w / 2, cy = e.y + e.h / 2, k = Math.min(e.w, e.h) * .2, m = '', g = e.gw || 'xor';
-    if (g === 'xorx') m = '<path d="M' + (cx - k) + ' ' + (cy - k) + 'L' + (cx + k) + ' ' + (cy + k) + 'M' + (cx + k) + ' ' + (cy - k) + 'L' + (cx - k) + ' ' + (cy + k) + '" stroke="' + st.stroke + '" stroke-width="2.6"/>';
-    else if (g === 'and') m = '<path d="M' + cx + ' ' + (cy - k * 1.2) + 'V' + (cy + k * 1.2) + 'M' + (cx - k * 1.2) + ' ' + cy + 'H' + (cx + k * 1.2) + '" stroke="' + st.stroke + '" stroke-width="2.6"/>';
-    else if (g === 'or') m = '<circle cx="' + cx + '" cy="' + cy + '" r="' + k * 1.15 + '" fill="none" stroke="' + st.stroke + '" stroke-width="2.4"/>';
+    if (g === 'xorx') m = '<path d="M' + (cx - k) + ' ' + (cy - k) + 'L' + (cx + k) + ' ' + (cy + k) + 'M' + (cx + k) + ' ' + (cy - k) + 'L' + (cx - k) + ' ' + (cy + k) + '" stroke="' + st.stroke + '" stroke-width="4.5"/>'; /* EA 12: tanda X tebal */
+    else if (g === 'and') m = '<path d="M' + cx + ' ' + (cy - k * 1.2) + 'V' + (cy + k * 1.2) + 'M' + (cx - k * 1.2) + ' ' + cy + 'H' + (cx + k * 1.2) + '" stroke="' + st.stroke + '" stroke-width="4.5"/>';
+    else if (g === 'or') m = '<circle cx="' + cx + '" cy="' + cy + '" r="' + k * 1.15 + '" fill="none" stroke="' + st.stroke + '" stroke-width="3"/>';
     else if (g === 'ev') m = '<circle cx="' + cx + '" cy="' + cy + '" r="' + k * 1.3 + '" fill="none" stroke="' + st.stroke + '"/><circle cx="' + cx + '" cy="' + cy + '" r="' + k * 1.05 + '" fill="none" stroke="' + st.stroke + '"/>';
     return diamond(e, st, m) + diaLabel(e, st, 'bottom');
   } });
@@ -2177,12 +2190,17 @@ TT.lane = T({ k: 'bpmn', label: 'Lane', name: 'Lane', ea: 'ActivityPartition', s
 TT.group = T({ k: 'bpmn', label: 'Group', name: 'Grup', ea: 'Boundary', stereo: 'Group', container: true, size: [200, 140], fill: 'none', font: ufont(false), icon: '<rect x="3.5" y="5.5" width="17" height="13" rx="3" stroke-dasharray="3 2"/>',
   hit: function (e) { return { x: e.x, y: e.y, w: e.w, h: 20 }; },
   draw: function (e, st) { return '<rect x="' + e.x + '" y="' + e.y + '" width="' + e.w + '" height="' + e.h + '" rx="10" fill="none" stroke="' + st.stroke + '" stroke-dasharray="8 4 2 4"/>' + tblock([e.name], e.x + e.w / 2, e.y + 12, st.font, st.text); } });
+/* BPMN Message: amplop putih 30×20 tanpa bayangan, nama di bawah (seperti EA 12; di EA: Class «Message») */
+TT.message = T({ k: 'bpmn', label: 'Message', name: 'Pesan', ea: 'Class', stereo: 'Message', geom: 'rect', size: [30, 20], grow: false, fill: '#ffffff', font: ufont(false), lpos: 'bottom', icon: '<rect x="3.5" y="6.5" width="17" height="11"/><path d="M3.5 6.5L12 13l8.5-6.5"/>',
+  draw: function (e, st) { return '<rect x="' + e.x + '" y="' + e.y + '" width="' + e.w + '" height="' + e.h + '" fill="' + (st.fill && st.fill !== 'none' ? st.fill : '#ffffff') + '" stroke="' + st.stroke + '"' + shadowAttr() + '/><path d="M' + e.x + ' ' + e.y + 'L' + (e.x + e.w / 2) + ' ' + (e.y + e.h * .55) + 'L' + (e.x + e.w) + ' ' + e.y + '" fill="none" stroke="' + st.stroke + '"/>' + diaLabel(e, st, 'bottom'); } });
 TT.annotation = T({ k: 'bpmn', label: 'Text Annotation', name: 'Keterangan', ea: 'Text', stereo: 'TextAnnotation', size: [120, 44], fill: 'none', font: ufont(false), icon: '<path d="M9 4H5v16h4"/><path d="M11 9h8M11 13h6"/>',
   draw: function (e, st) { return '<rect x="' + e.x + '" y="' + e.y + '" width="' + e.w + '" height="' + e.h + '" fill="transparent"/><path d="M' + (e.x + Math.min(60, e.w / 2)) + ' ' + e.y + 'H' + e.x + 'V' + (e.y + e.h) + 'H' + (e.x + Math.min(60, e.w / 2)) + '" fill="none" stroke="' + st.stroke + '"/>' + (function () { var ls = wrap(e.name, e.w - 16, st.font), lh = st.font.size * 4 / 3 * 1.2; return leftText(ls, e.x + 10, e.y + e.h / 2 - ls.length * lh / 2, st.font, st.text); })(); } });
+/* v42 "persis EA 12": nama activity, object, data store, use case & aktor tebal; judul partition normal (diukur dari gambar EA). Bisa diubah di Preferensi tampilan. */
+BOLD_NAMES.forEach(function (k) { if (TT[k]) TT[k].font = ufont(true); });
 var TOOLBOX = {
   activity: [['Activity', ['action', 'partition', 'object', 'datastore', 'decision', 'merge', 'initial', 'final', 'flowfinal', 'fork', 'forkv', 'note']], ['Activity Relationships', ['c:control', 'c:object', 'c:notelink']]],
   usecase: [['Use Case', ['actor', 'usecase', 'boundary', 'note']], ['Use Case Relationships', ['c:assoc', 'c:include', 'c:extend', 'c:general', 'c:depend', 'c:notelink']]],
-  bpmn: [['BPMN 2.0 - Business Process', ['task', 'start', 'intermediate', 'end', 'gateway', 'pool', 'lane', 'dataobject', 'bstore', 'group', 'annotation']], ['BPMN 2.0 - Connectors', ['c:seq', 'c:msg', 'c:bassoc', 'c:dassoc']]]
+  bpmn: [['BPMN 2.0 - Business Process', ['task', 'start', 'intermediate', 'end', 'gateway', 'pool', 'lane', 'dataobject', 'bstore', 'message', 'group', 'annotation']], ['BPMN 2.0 - Connectors', ['c:seq', 'c:msg', 'c:bassoc', 'c:dassoc']]]
 };
 /* ---------- tipe garis ---------- */
 function C(o) { return Object.assign({ dash: 'solid', head: 'open', tail: '' }, o); }
@@ -2257,6 +2275,9 @@ function blankEa(name, kind) {
   var D = { id: 'd1', kind: kind || 'activity', name: kind === 'usecase' ? 'Use Case Diagram' : kind === 'bpmn' ? 'Business Process' : 'Activity Diagram', pkg: 'p1', parent: null, elements: [], flows: [] };
   return { kind: 'ea', name: name || 'Proyek EA', prefs: { shadow: true, gradient: true, showFlowName: true }, defaults: eaDefaults(), packages: [{ id: 'p1', name: name || 'Proyek EA', parent: null }], diagrams: [D] };
 }
+/* EA 12 menggambar elips use case selebar 1,5 × tinggi, rata kiri pada kotaknya — Alir menyamakan ukurannya */
+function ucAspect(e) { if (e && e.type === 'usecase' && e.h > 0) { var w = Math.round(e.h * 1.5); if (Math.abs(e.w - w) > 0.5) e.w = w; } }
+function ucAspectAll(D) { if (D && D.elements) D.elements.forEach(ucAspect); }
 function normEa(d) {
   d.kind = 'ea';
   d.prefs = Object.assign({ shadow: true, gradient: true, showFlowName: true }, d.prefs || {});
@@ -2265,12 +2286,15 @@ function normEa(d) {
   var OLD = { fill: ['#f6dfbd', '#fffbe6', '#ffffff'], stroke: ['#3b3b3b'] };
   Object.keys(d.defaults).forEach(function (k) { var o = d.defaults[k]; if (!o || k === 'flow' || !def[k]) return; if (OLD.fill.indexOf(String(o.fill).toLowerCase()) >= 0 || (o.fill === '#000000' && (k === 'final' || k === 'fork' || k === 'forkv'))) delete o.fill; if (OLD.stroke.indexOf(String(o.stroke).toLowerCase()) >= 0) delete o.stroke; if (o.font && ['pool', 'lane'].indexOf(k) >= 0 && o.font.b && !d.themeV) o.font.b = false; if (o.font && k === 'partition' && (d.themeV || 0) < 3) o.font.b = true; });
   if ((d.themeV || 0) < 4) BOLD_NAMES.forEach(function (k) { var o = d.defaults[k]; if (o && o.font && o.font.b) o.font.b = false; });
-  d.themeV = 4;
+  /* v42: batas sistem EA 12 tidak berwarna (dulu krem) */
+  if ((d.themeV || 0) < 5 && d.defaults.boundary && String(d.defaults.boundary.fill).toLowerCase() === '#fcf2e3') delete d.defaults.boundary.fill;
+  if ((d.themeV || 0) < 6) { BOLD_NAMES.forEach(function (k) { var o = d.defaults[k]; if (o && o.font) o.font.b = true; }); if (d.defaults.partition && d.defaults.partition.font) d.defaults.partition.font.b = false; }
+  d.themeV = 6;
   Object.keys(def).forEach(function (k) { d.defaults[k] = Object.assign(def[k], d.defaults[k] || {}); });
   d.packages = d.packages && d.packages.length ? d.packages : [{ id: 'p1', name: d.name || 'Proyek EA', parent: null }];
   d.diagrams.forEach(function (x) {
     x.kind = x.kind || 'activity'; x.pkg = x.pkg || d.packages[0].id; x.parent = null; x.elements = x.elements || []; x.flows = x.flows || [];
-    x.elements.forEach(function (e) { e.style = e.style || {}; if (!TT[e.type]) e.type = 'note'; });
+    x.elements.forEach(function (e) { e.style = e.style || {}; if (!TT[e.type]) e.type = 'note'; ucAspect(e); });
     x.flows.forEach(function (f) { f.style = f.style || {}; f.bends = f.bends || []; if (!CT[f.kind]) f.kind = x.kind === 'usecase' ? 'assoc' : x.kind === 'bpmn' ? 'seq' : 'control'; });
   });
   return d;
@@ -2298,9 +2322,9 @@ function umlMarkers(set) {
   set.forEach(function (k) {
     if (k.indexOf('|') < 0) return;
     var p = k.split('|'), kind = p[0], c = p[1], id = mkId(kind, c);
-    if (kind === 'open') s += '<marker id="' + id + '" viewBox="0 0 12 10" refX="11.5" refY="5" markerWidth="12" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><path d="M0 0.5L11.5 5L0 9.5" fill="none" stroke="' + c + '" stroke-width="1.1"/></marker>';
-    else if (kind === 'tri') s += '<marker id="' + id + '" viewBox="0 0 12 10" refX="12" refY="5" markerWidth="12" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><path d="M0 0L12 5L0 10z" fill="' + c + '"/></marker>';
-    else if (kind === 'htri') s += '<marker id="' + id + '" viewBox="0 0 14 12" refX="13.5" refY="6" markerWidth="14" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M0.5 0.5L13.5 6L0.5 11.5z" fill="#fff" stroke="' + c + '"/></marker>';
+    if (kind === 'open') s += '<marker id="' + id + '" viewBox="0 0 14 10" refX="13.5" refY="5" markerWidth="14" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><path d="M0 0.5L13.5 5L0 9.5" fill="none" stroke="' + c + '" stroke-width="1"/></marker>';
+    else if (kind === 'tri') s += '<marker id="' + id + '" viewBox="0 0 16 13" refX="16" refY="6.5" markerWidth="16" markerHeight="13" markerUnits="userSpaceOnUse" orient="auto"><path d="M0 0L16 6.5L0 13z" fill="' + c + '"/></marker>';
+    else if (kind === 'htri') s += '<marker id="' + id + '" viewBox="0 0 17 14" refX="16.5" refY="7" markerWidth="17" markerHeight="14" markerUnits="userSpaceOnUse" orient="auto"><path d="M0.5 0.5L16.5 7L0.5 13.5z" fill="#fff" stroke="' + c + '"/></marker>';
     else if (kind === 'circ') s += '<marker id="' + id + '" viewBox="0 0 10 10" refX="0" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><circle cx="5" cy="5" r="4" fill="#fff" stroke="' + c + '"/></marker>';
   });
   return s;
@@ -2348,7 +2372,7 @@ function umlPlaceLabels(D, out) {
   });
 }
 function umlFlowMarkup(f, r, on, markers) {
-  var st = fs(f), c = CT[f.kind], col = st.stroke, d = pathD(r.pts, st.route === 2), dash = DASHARR[st.dash] || '', dv = r.jumps && st.route !== 2 ? lnJumpPath(r.pts, r.jumps) : d;
+  var st = fs(f), c = CT[f.kind], col = st.stroke, d = pathD(r.pts.map(function (p) { return { x: Math.round(p.x), y: Math.round(p.y) }; }), st.route === 2) /* titik bulat: garis 1px tajam seperti EA */, dash = DASHARR[st.dash] || '', dv = r.jumps && st.route !== 2 ? lnJumpPath(r.pts, r.jumps) : d;
   var attrs = ' stroke="' + col + '" stroke-width="' + (on ? 1.6 : 1) + '"' + (dash ? ' stroke-dasharray="' + dash + '"' : '');
   var head = f.rev ? c.tail : c.head, tail = f.rev ? c.head : c.tail;
   if (f.kind === 'assoc' && f.nav) head = 'open';
@@ -2362,8 +2386,8 @@ function umlFlowMarkup(f, r, on, markers) {
   return s + '</g>';
 }
 function umlDefs() {
-  return Object.keys(gradUsed).map(function (k) { return '<linearGradient id="eg' + k + '" x1="0" y1="0" x2="1" y2="0"><stop offset=".18" stop-color="#' + k + '"/><stop offset="1" stop-color="' + darkerL('#' + k, .094) + '"/></linearGradient>'; }).join('') +
-    '<filter id="eaSh" x="-10%" y="-10%" width="130%" height="140%"><feDropShadow dx="2" dy="2" stdDeviation="1" flood-color="#000" flood-opacity=".42"/></filter>';
+  return Object.keys(gradUsed).map(function (k) { var c = '#' + k.split('_')[0], at = (+k.split('_')[1] || 18) / 100; return '<linearGradient id="eg' + k + '" x1="0" y1="0" x2="1" y2="0"><stop offset="' + at + '" stop-color="' + c + '"/><stop offset="1" stop-color="' + darkerL(c, .094) + '"/></linearGradient>'; }).join('') +
+    '<filter id="eaSh" x="-10%" y="-10%" width="130%" height="140%"><feDropShadow dx="1" dy="1" stdDeviation="1" flood-color="#000" flood-opacity=".35"/></filter>';
 }
 function zOrder(D) {
   var boxes = D.elements.filter(isContainer).sort(function (a, b) { return b.w * b.h - a.w * a.h; });
@@ -2532,6 +2556,7 @@ function umlPanel() {
       var t = TT[e.type];
       h += '<div class="sec"><h2>' + esc(t.label) + '</h2><div class="field"><label for="p-name">Nama</label>' + (e.type === 'note' || e.type === 'annotation' ? '<textarea class="in ta" id="p-name" data-f="name" rows="3">' + esc(e.name) + '</textarea>' : '<input class="in" id="p-name" data-f="name" value="' + esc(e.name) + '">') + '</div>';
       if (!t.stereo && !isNoteish(e)) h += '<div class="field"><label for="p-st">Stereotype</label><input class="in" id="p-st" data-f="stereo" value="' + esc(e.stereo || '') + '" placeholder="opsional"></div>';
+      if (e.type === 'action') h += '<div class="field"><label for="p-ea">Jenis (EA)</label><select class="in" id="p-ea" data-f="eaAct"><option value=""' + (e.eaAct ? '' : ' selected') + '>Activity (kuning)</option><option value="1"' + (e.eaAct ? ' selected' : '') + '>Action (oranye)</option></select></div>';
       if (e.type === 'gateway') h += '<div class="field"><label for="p-gw">Jenis gateway</label><select class="in" id="p-gw" data-f="gw">' + Object.keys(GW_TYPES).map(function (k) { return '<option value="' + k + '"' + ((e.gw || 'xor') === k ? ' selected' : '') + '>' + GW_TYPES[k] + '</option>'; }).join('') + '</select></div>';
       if (e.type === 'start' || e.type === 'intermediate' || e.type === 'end') h += '<div class="field"><label for="p-ev">Penanda event</label><select class="in" id="p-ev" data-f="ev">' + Object.keys(EV_DEFS).map(function (k) { return '<option value="' + k + '"' + ((e.ev || 'none') === k ? ' selected' : '') + '>' + EV_DEFS[k] + '</option>'; }).join('') + '</select></div>';
       if (e.type === 'task') h += '<label class="cbx"><input type="checkbox" data-f="sub"' + (e.sub ? ' checked' : '') + '> Sub-proses (tanda +)</label>';
@@ -2583,6 +2608,7 @@ function umlPanelChange(t) {
     else if (f === 'stereo') { v = String(v).replace(/[«»]/g, '').trim(); if (v) o.stereo = v; else delete o.stereo; }
     else if (f === 'note') { if (v) o.note = v; else delete o.note; }
     else if (f === 'gw' || f === 'ev') o[f] = v;
+    else if (f === 'eaAct') { if (v) o.eaAct = 1; else delete o.eaAct; }
     else if (f === 'sub' || f === 'horiz' || f === 'nav') { if (v) o[f] = true; else delete o[f]; }
     else if (f === 'guard') { v = String(v).replace(/^\[|\]$/g, '').trim(); if (v) o.guard = v; else delete o.guard; }
     else if (f === 'kind') o.kind = v;
@@ -2741,6 +2767,7 @@ function eaTypeOf(o, kind, w, h) {
   if (t === 'UseCase') return 'usecase';
   if (t === 'Boundary') return st === 'Group' ? 'group' : 'boundary';
   if (t === 'Event') return st === 'StartEvent' ? 'start' : st === 'EndEvent' ? 'end' : 'intermediate';
+  if (t === 'Class' && st === 'Message') return 'message';
   if (t === 'Artifact') return st === 'DataStore' ? 'bstore' : st === 'DataObject' ? 'dataobject' : 'dataobject';
   if (t === 'Package' || t === 'Text' || t === 'Sequence' || t === 'Interaction') return null;
   return 'note';
@@ -2782,6 +2809,7 @@ function buildEaDoc(M, name) {
       var w = Math.max(4, go.r - go.l), h = Math.max(4, go.b - go.t), type = eaTypeOf(o, kind, w, h);
       if (!type) { skipped.els++; return; }
       var e = { id: 'e' + (++n), type: type, name: type === 'note' ? (o.note || o.name || '') : (o.name || ''), x: go.l, y: go.t, w: w, h: h, style: {}, guid: o.guid };
+      if (o.type === 'Action' && type === 'action') e.eaAct = 1;
       if (o.note && type !== 'note') e.note = o.note;
       if (o.stereo && !TT[type].stereo && type !== 'datastore' && !/::/.test(o.stereo)) e.stereo = o.stereo;
       var ds = styleKV(go.style), fill = colorFromRef(ds.BCol != null ? ds.BCol : o.back), line = colorFromRef(ds.LCol != null ? ds.LCol : o.border), fc = colorFromRef(ds.BFol != null ? ds.BFol : o.font);
@@ -2800,8 +2828,21 @@ function buildEaDoc(M, name) {
       if (c.guard) f.guard = c.guard;
       var gk0 = styleKV(gl.geometry), lmap = { LMT: 'mt', LMB: 'mb', LRT: 'rt' }; Object.keys(lmap).forEach(function (sk) { var q = labKV(gk0[sk]); if (q && (+q.OX || +q.OY)) { f.lo = f.lo || {}; f.lo[lmap[sk]] = { x: +q.OX || 0, y: +q.OY || 0 }; } });
       var gs = styleKV(gl.style), pts = parsePath(styleKV(gl.geometry).Path);
+      /* Mode=1 = garis langsung (Direct): EA mengabaikan titik belok lama di Path (sisa dari mode sebelumnya) */
+      if (String(gs.Mode) === '1') pts = [];
       f.manual = true; f.bends = pts;
       var gk2 = styleKV(gl.geometry); if (gk2.SX != null) f.eaSE = { g: 'SX=' + gk2.SX + ';SY=' + gk2.SY + ';EX=' + gk2.EX + ';EY=' + gk2.EY + ';' + (gk2.EDGE ? 'EDGE=' + gk2.EDGE + ';' : ''), b: JSON.stringify(pts), a: f.from, z: f.to }; f.style.route = ({ OS: 1, OR: 2, V: 3, H: 4, LV: 5, LH: 6 })[(String(gl.style || '').match(/TREE=([A-Z]+)/) || [])[1]] || 0; if (f.style.route >= 3) f.bends = [];
+      /* garis lurus yang ujungnya digeser di EA (SX/SY/EX/EY ≠ 0): titik ujung = pusat elemen + geser (sumbu Y EA ke atas), dipotong di tepi elemen */
+      if (!f.bends.length && !(f.style.route > 0) && gk2.SX != null && (+gk2.SX || +gk2.SY || +gk2.EX || +gk2.EY)) {
+        try {
+          var EA1 = D.elements.find(function (q) { return q.id === a; }), EB1 = D.elements.find(function (q) { return q.id === b; });
+          if (EA1 && EB1) {
+            var RA1 = rect(EA1), RB1 = rect(EB1), PS = { x: RA1.cx + (+gk2.SX || 0), y: RA1.cy - (+gk2.SY || 0) }, PT = { x: RB1.cx + (+gk2.EX || 0), y: RB1.cy - (+gk2.EY || 0) };
+            var S1 = clip(RA1, PS, PT), T1 = clip(RB1, PT, PS);
+            if (S1 && T1) { f.sa = anchorFromRoute(RA1, S1); f.ta = anchorFromRoute(RB1, T1); }
+          }
+        } catch (x) { /* biarkan otomatis */ }
+      }
       var col = colorFromRef(gs.Color != null ? gs.Color : c.color); if (col) f.style.stroke = col;
       if (kd === 'assoc' && c.nav) f.nav = true;
       D.flows.push(f);
@@ -2894,8 +2935,8 @@ function normGuid(g) {
 function xid(g, pre) { var n = normGuid(g); return (pre || 'EAID_') + (n || String(g)).replace(/[{}]/g, '').replace(/-/g, '_'); }
 function xa(s) { return esc(String(s == null ? '' : s)).replace(/'/g, '&apos;').replace(/\r?\n/g, '&#xA;'); }
 function nowStr() { var d = new Date(), p = function (n) { return String(n).padStart(2, '0'); }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()); }
-var BPMN_TV = {"DataStore": {"auditing": "", "capacity": "", "categoryValue": "", "dataState": "", "dataStoreRef": "", "documentation": "", "isUnlimited": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "itemKind": "Information#NOTES#Values: Physical,Information\r\nDefault: Information\r\n", "itemSubjectRef": "", "monitoring": ""}, "EndEvent": {"activityRef": "", "assignments": "", "auditing": "", "categoryValue": "", "documentation": "", "errorRef": "", "escalationRef": "", "eventDefinition": "None#NOTES#Values: None,Cancel,Compensation,Error,Escalation,Message,Multiple,Terminate,Signal\r\nDefault: None\r\n", "eventDefinitionRefs": "", "implementation": "##unspecified#NOTES#Values: ##webService,##unspecified\r\nDefault: ##unspecified\r\n", "inputSet": "", "messageRef": "", "monitoring": "", "operationRef": "", "signalRef": "", "waitForCompletion": "true#NOTES#Values: true,false\r\nDefault: true\r\n"}, "DataObject": {"auditing": "", "categoryValue": "", "dataInOut": "None#NOTES#Values: Input,Output,None\r\nDefault: None\r\n", "dataObjectRef": "", "dataState": "", "documentation": "", "isCollection": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "itemSubjectRef": "", "monitoring": "", "structure": "", "structureRef": ""}, "IntermediateEvent": {"activityRef": "", "assignments": "", "auditing": "", "cancelActivity": "true#NOTES#Values: true,false\r\nDefault: true\r\n", "catchOrThrow": "Catch#NOTES#Values: Catch,Throw\r\nDefault: Catch\r\n", "categoryValue": "", "condition": "", "documentation": "", "errorRef": "", "escalationRef": "", "eventDefinition": "Message#NOTES#Values: None,Cancel,Compensation,Conditional,Escalation,Error,Link,Message,Multiple,Timer,Signal,ParallelMultiple\r\nDefault: Message\r\n", "eventDefinitionRefs": "", "implementation": "##unspecified#NOTES#Values: ##webService,##unspecified\r\nDefault: ##unspecified\r\n", "inputSet": "", "linkEventSources": "", "linkEventTarget": "", "messageRef": "", "monitoring": "", "operationRef": "", "outputSet": "", "parallelMultiple": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "signalRef": "", "timeCycle": "", "timeDate": "", "timeDuration": "", "waitForCompletion": "true#NOTES#Values: true,false\r\nDefault: true\r\n"}, "Gateway": {"activationCondition": "", "assignments": "", "auditing": "", "categoryValue": "", "documentation": "", "eventGatewayType": "Exclusive#NOTES#Values: Exclusive,Parallel\r\nDefault: Exclusive\r\n", "gatewayDirection": "Unspecified#NOTES#Values: Unspecified,Converging,Diverging,Mixed\r\nDefault: Unspecified\r\n", "gatewayType": "Exclusive#NOTES#Values: Exclusive,Complex,Inclusive,Parallel,Event\r\nDefault: Exclusive\r\n", "instantiate": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "markerVisible": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "monitoring": "", "waitingForStart": "true#NOTES#Values: true,false\r\nDefault: true\r\n"}, "Activity": {"activityType": "Task#NOTES#Values: Task,Sub-Process\r\nDefault: Task\r\n", "actualOwner": "", "adHoc": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "adHocOrdering": "Parallel#NOTES#Values: Parallel,Sequential\r\nDefault: Parallel\r\n", "assignments": "", "auditing": "", "behavior": "All#NOTES#Values: None,One,All,Complex\r\nDefault: All\r\n", "calledActivityRef": "", "cancelRemainingInstances": "true#NOTES#Values: true,false\r\nDefault: true\r\n", "categoryValue": "", "completionCondition": "", "completionQuantity": "1#NOTES#Default: 1\r\n", "complexBehaviorDefinition": "", "definitionalCollaborationRef": "", "documentation": "", "implementation": "##unspecified#NOTES#Values: ##webService,##unspecified\r\nDefault: ##unspecified\r\n", "instantiate": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "ioBinding": "", "ioSpecification": "", "isACalledActivity": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "isATransaction": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "isForCompensation": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "isSequential": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "loopCardinality": "", "loopCharacteristics": "None#NOTES#Values: None,Standard,MultiInstance\r\nDefault: None\r\n", "loopCondition": "", "loopCounter": "", "loopDataInputRef": "", "loopDataOutputRef": "", "loopMaximum": "", "messageRef": "", "monitoring": "", "noneBehaviorEventRef": "", "numberOfActiveInstances": "", "numberOfCompletedInstances": "", "numberOfInstances": "", "numberOfTerminatedInstances": "", "oneBehaviorEventRef": "", "operationRef": "", "rendering": "", "resources": "", "script": "", "scriptFormat": "", "startQuantity": "1#NOTES#Default: 1\r\n", "state": "None#NOTES#Values: None,Ready,Active,Cancelled,Aborting,Aborted,Completing,Completed\r\nDefault: None\r\n", "sub-ProcessRef": "", "supportedInterfaceRefs": "", "taskPriority": "", "taskType": "Abstract#NOTES#Values: BusinessRule,Manual,Receive,Service,Send,Script,User,Abstract\r\nDefault: Abstract\r\n", "testBefore": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "transactionMethod": "", "transactionProtocol": "", "triggeredByEvent": "false#NOTES#Values: true,false\r\nDefault: false\r\n"}, "StartEvent": {"activityRef": "", "assignments": "", "auditing": "", "categoryValue": "", "condition": "", "documentation": "", "errorRef": "", "escalationRef": "", "eventDefinition": "None#NOTES#Values: None,Compensation,Conditional,Error,Escalation,Message,Multiple,Timer,Signal,ParallelMultiple\r\nDefault: None\r\n", "eventDefinitionRefs": "", "implementation": "##unspecified#NOTES#Values: ##webService,##unspecified\r\nDefault: ##unspecified\r\n", "isInterrupting": "true#NOTES#Values: true,false\r\nDefault: true\r\n", "messageRef": "", "monitoring": "", "operationRef": "", "outputSet": "", "parallelMultiple": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "signalRef": "", "timeCycle": "", "timeDate": "", "timeDuration": ""}, "Pool": {"blackBoxPool": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "documentation": "", "endPoint": "", "innerParticipantRef": "", "interfaceRefs": "", "participantMaximum": "1#NOTES#Default: 1\r\n", "participantMinimum": "0#NOTES#Default: 0\r\n", "participantMultiplicity": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "participantRef": "", "partnerEntity": "", "partnerRole": "", "poolPackageRef": "", "processRef": ""}, "Group": {"categoryValueRef": "", "documentation": ""}, "Lane": {"documentation": "", "partitionElementRef": ""}};
-var BPMN_FQ = { Activity: 1, StartEvent: 1, EndEvent: 1, IntermediateEvent: 1, Gateway: 1, Pool: 1, Lane: 1, DataObject: 1, DataStore: 1, Group: 1, TextAnnotation: 1, SequenceFlow: 1, MessageFlow: 1, Association: 1, DataInputAssociation: 1, DataOutputAssociation: 1 };
+var BPMN_TV = {"DataStore": {"auditing": "", "capacity": "", "categoryValue": "", "dataState": "", "dataStoreRef": "", "documentation": "", "isUnlimited": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "itemKind": "Information#NOTES#Values: Physical,Information\r\nDefault: Information\r\n", "itemSubjectRef": "", "monitoring": ""}, "EndEvent": {"activityRef": "", "assignments": "", "auditing": "", "categoryValue": "", "documentation": "", "errorRef": "", "escalationRef": "", "eventDefinition": "None#NOTES#Values: None,Cancel,Compensation,Error,Escalation,Message,Multiple,Terminate,Signal\r\nDefault: None\r\n", "eventDefinitionRefs": "", "implementation": "##unspecified#NOTES#Values: ##webService,##unspecified\r\nDefault: ##unspecified\r\n", "inputSet": "", "messageRef": "", "monitoring": "", "operationRef": "", "signalRef": "", "waitForCompletion": "true#NOTES#Values: true,false\r\nDefault: true\r\n"}, "DataObject": {"auditing": "", "categoryValue": "", "dataInOut": "None#NOTES#Values: Input,Output,None\r\nDefault: None\r\n", "dataObjectRef": "", "dataState": "", "documentation": "", "isCollection": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "itemSubjectRef": "", "monitoring": "", "structure": "", "structureRef": ""}, "IntermediateEvent": {"activityRef": "", "assignments": "", "auditing": "", "cancelActivity": "true#NOTES#Values: true,false\r\nDefault: true\r\n", "catchOrThrow": "Catch#NOTES#Values: Catch,Throw\r\nDefault: Catch\r\n", "categoryValue": "", "condition": "", "documentation": "", "errorRef": "", "escalationRef": "", "eventDefinition": "Message#NOTES#Values: None,Cancel,Compensation,Conditional,Escalation,Error,Link,Message,Multiple,Timer,Signal,ParallelMultiple\r\nDefault: Message\r\n", "eventDefinitionRefs": "", "implementation": "##unspecified#NOTES#Values: ##webService,##unspecified\r\nDefault: ##unspecified\r\n", "inputSet": "", "linkEventSources": "", "linkEventTarget": "", "messageRef": "", "monitoring": "", "operationRef": "", "outputSet": "", "parallelMultiple": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "signalRef": "", "timeCycle": "", "timeDate": "", "timeDuration": "", "waitForCompletion": "true#NOTES#Values: true,false\r\nDefault: true\r\n"}, "Gateway": {"activationCondition": "", "assignments": "", "auditing": "", "categoryValue": "", "documentation": "", "eventGatewayType": "Exclusive#NOTES#Values: Exclusive,Parallel\r\nDefault: Exclusive\r\n", "gatewayDirection": "Unspecified#NOTES#Values: Unspecified,Converging,Diverging,Mixed\r\nDefault: Unspecified\r\n", "gatewayType": "Exclusive#NOTES#Values: Exclusive,Complex,Inclusive,Parallel,Event\r\nDefault: Exclusive\r\n", "instantiate": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "markerVisible": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "monitoring": "", "waitingForStart": "true#NOTES#Values: true,false\r\nDefault: true\r\n"}, "Activity": {"activityType": "Task#NOTES#Values: Task,Sub-Process\r\nDefault: Task\r\n", "actualOwner": "", "adHoc": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "adHocOrdering": "Parallel#NOTES#Values: Parallel,Sequential\r\nDefault: Parallel\r\n", "assignments": "", "auditing": "", "behavior": "All#NOTES#Values: None,One,All,Complex\r\nDefault: All\r\n", "calledActivityRef": "", "cancelRemainingInstances": "true#NOTES#Values: true,false\r\nDefault: true\r\n", "categoryValue": "", "completionCondition": "", "completionQuantity": "1#NOTES#Default: 1\r\n", "complexBehaviorDefinition": "", "definitionalCollaborationRef": "", "documentation": "", "implementation": "##unspecified#NOTES#Values: ##webService,##unspecified\r\nDefault: ##unspecified\r\n", "instantiate": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "ioBinding": "", "ioSpecification": "", "isACalledActivity": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "isATransaction": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "isForCompensation": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "isSequential": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "loopCardinality": "", "loopCharacteristics": "None#NOTES#Values: None,Standard,MultiInstance\r\nDefault: None\r\n", "loopCondition": "", "loopCounter": "", "loopDataInputRef": "", "loopDataOutputRef": "", "loopMaximum": "", "messageRef": "", "monitoring": "", "noneBehaviorEventRef": "", "numberOfActiveInstances": "", "numberOfCompletedInstances": "", "numberOfInstances": "", "numberOfTerminatedInstances": "", "oneBehaviorEventRef": "", "operationRef": "", "rendering": "", "resources": "", "script": "", "scriptFormat": "", "startQuantity": "1#NOTES#Default: 1\r\n", "state": "None#NOTES#Values: None,Ready,Active,Cancelled,Aborting,Aborted,Completing,Completed\r\nDefault: None\r\n", "sub-ProcessRef": "", "supportedInterfaceRefs": "", "taskPriority": "", "taskType": "Abstract#NOTES#Values: BusinessRule,Manual,Receive,Service,Send,Script,User,Abstract\r\nDefault: Abstract\r\n", "testBefore": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "transactionMethod": "", "transactionProtocol": "", "triggeredByEvent": "false#NOTES#Values: true,false\r\nDefault: false\r\n"}, "StartEvent": {"activityRef": "", "assignments": "", "auditing": "", "categoryValue": "", "condition": "", "documentation": "", "errorRef": "", "escalationRef": "", "eventDefinition": "None#NOTES#Values: None,Compensation,Conditional,Error,Escalation,Message,Multiple,Timer,Signal,ParallelMultiple\r\nDefault: None\r\n", "eventDefinitionRefs": "", "implementation": "##unspecified#NOTES#Values: ##webService,##unspecified\r\nDefault: ##unspecified\r\n", "isInterrupting": "true#NOTES#Values: true,false\r\nDefault: true\r\n", "messageRef": "", "monitoring": "", "operationRef": "", "outputSet": "", "parallelMultiple": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "signalRef": "", "timeCycle": "", "timeDate": "", "timeDuration": ""}, "Pool": {"blackBoxPool": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "documentation": "", "endPoint": "", "innerParticipantRef": "", "interfaceRefs": "", "participantMaximum": "1#NOTES#Default: 1\r\n", "participantMinimum": "0#NOTES#Default: 0\r\n", "participantMultiplicity": "false#NOTES#Values: true,false\r\nDefault: false\r\n", "participantRef": "", "partnerEntity": "", "partnerRole": "", "poolPackageRef": "", "processRef": ""}, "Group": {"categoryValueRef": "", "documentation": ""}, "Message": {"documentation": "", "isInitiating": "true#NOTES#Values: true,false\r\nDefault: true\r\n", "itemRef": ""}, "Lane": {"documentation": "", "partitionElementRef": ""}};
+var BPMN_FQ = { Message: 1, Activity: 1, StartEvent: 1, EndEvent: 1, IntermediateEvent: 1, Gateway: 1, Pool: 1, Lane: 1, DataObject: 1, DataStore: 1, Group: 1, TextAnnotation: 1, SequenceFlow: 1, MessageFlow: 1, Association: 1, DataInputAssociation: 1, DataOutputAssociation: 1 };
 function ensureGuids(d) {
   /* GUID rusak/berlapis diperbaiki, GUID kembar diganti baru (EA menolak kunci ganda) */
   var seen = {};
@@ -2919,13 +2960,13 @@ function eaXmi(d, only) {
   function lid(o) { if (!localIds[o.id]) localIds[o.id] = ++local; return localIds[o.id]; }
   function elemXml(e, D, pk, ind) {
     var t = TT[e.type], st = t.stereo || (e.type === 'datastore' ? 'datastore' : e.stereo) || '', g = e.guid, id = xid(g), s = es(e);
-    var tv = { isAbstract: 'false', isSpecification: 'false', ea_stype: t.ea, ea_ntype: String(t.nType || 0), version: '1.0', isActive: 'false', package: xid(pk.guid, 'EAPK_'), date_created: now, date_modified: now, gentype: '<none>', tagged: '0', package_name: pk.name, phase: '1.0', author: author, complexity: '1', status: 'Proposed', stereotype: st || null, tpos: '0', ea_localid: String(lid(e)), ea_eleType: 'element',
+    var tv = { isAbstract: 'false', isSpecification: 'false', ea_stype: e.eaAct && e.type === 'action' ? 'Action' : t.ea, ea_ntype: String(t.nType || 0), version: '1.0', isActive: 'false', package: xid(pk.guid, 'EAPK_'), date_created: now, date_modified: now, gentype: '<none>', tagged: '0', package_name: pk.name, phase: '1.0', author: author, complexity: '1', status: 'Proposed', stereotype: st || null, tpos: '0', ea_localid: String(lid(e)), ea_eleType: 'element',
       style: 'BackColor=' + (e.style.fill && e.style.fill !== 'none' ? colorToRef(e.style.fill) : -1) + ';BorderColor=' + (e.style.stroke ? colorToRef(e.style.stroke) : -1) + ';BorderWidth=-1;FontColor=' + (e.style.text ? colorToRef(e.style.text) : -1) + ';VSwimLanes=1;HSwimLanes=1;BorderStyle=' + (t.container && t.ea === 'ActivityPartition' ? 3 : 0) + ';' };
     var own = e.type === 'lane' ? containerOf(D, e, ['pool']) : isContainer(e) ? null : containerOf(D, e, ['partition', 'pool', 'lane']); if (own) tv.owner = xid(own.guid);
     if (e.note || (e.type === 'note' || e.type === 'annotation')) tv.documentation = e.type === 'note' || e.type === 'annotation' ? e.name : e.note;
     if (st) tv.$ea_xref_property = xref(g, st);
     var nm = e.type === 'note' || e.type === 'annotation' ? '' : e.name, head;
-    var tag = { action: 'ActionState', task: 'ActionState', partition: 'ActionState', pool: 'ActionState', lane: 'ActionState', initial: 'PseudoState', final: 'PseudoState', flowfinal: 'PseudoState', decision: 'PseudoState', merge: 'PseudoState', fork: 'PseudoState', forkv: 'PseudoState', gateway: 'PseudoState', object: 'ClassifierRole', datastore: 'ClassifierRole', boundary: 'ClassifierRole', group: 'ClassifierRole', note: 'Comment', annotation: 'Comment', actor: 'Actor', usecase: 'UseCase', start: 'Event', intermediate: 'Event', end: 'Event', dataobject: 'Class', bstore: 'Class' }[e.type];
+    var tag = { action: 'ActionState', task: 'ActionState', partition: 'ActionState', pool: 'ActionState', lane: 'ActionState', initial: 'PseudoState', final: 'PseudoState', flowfinal: 'PseudoState', decision: 'PseudoState', merge: 'PseudoState', fork: 'PseudoState', forkv: 'PseudoState', gateway: 'PseudoState', object: 'ClassifierRole', datastore: 'ClassifierRole', boundary: 'ClassifierRole', group: 'ClassifierRole', note: 'Comment', annotation: 'Comment', actor: 'Actor', usecase: 'UseCase', start: 'Event', intermediate: 'Event', end: 'Event', dataobject: 'Class', bstore: 'Class', message: 'Class' }[e.type];
     var kindA = { final: 'final', flowfinal: 'final', decision: 'branch', gateway: 'branch', merge: 'join', fork: 'join', forkv: 'join' }[e.type];
     head = ind + '<UML:' + tag + ' name="' + xa(nm) + '" xmi.id="' + id + '" visibility="public"' + (tag === 'ClassifierRole' ? ' base="EAID_11111111_5487_4080_A7F4_41526CB0AA00"' : '') + ' namespace="' + xid(pk.guid, 'EAPK_') + '"' + (kindA ? ' kind="' + kindA + '"' : '') + ' isRoot="false" isLeaf="false" isAbstract="false"' + (tag === 'ActionState' || tag === 'PseudoState' ? '' : ' isActive="false"') + '>\n';
     var body = stereoXml(st, ind + '\t') + TVs(tv, ind + '\t');
@@ -4194,7 +4235,7 @@ function scMakeUseCase(list) {
     if (!am[u.actor]) { var a = { id: uid('e'), type: 'actor', name: u.actor, x: 80, y: 80, w: 34, h: 66, style: {} }; am[u.actor] = a; els.push(a); }
     /* use case bernama sama (mis. dipakai dua aktor) cukup satu elips */
     var k = String(u.name).toLowerCase().trim(), e = um[k];
-    if (!e) { e = um[k] = { id: uid('e'), type: 'usecase', name: u.name, x: 260, y: 80, w: 150, h: 60, style: {} }; els.push(e); }
+    if (!e) { e = um[k] = { id: uid('e'), type: 'usecase', name: u.name, x: 260, y: 80, w: 90, h: 60, style: {} }; els.push(e); }
     if (!flows.some(function (f) { return f.from === am[u.actor].id && f.to === e.id; })) flows.push({ id: uid('f'), kind: 'assoc', from: am[u.actor].id, to: e.id, name: '', bends: [], style: { route: 0 } });
   });
   D.elements = els; D.flows = flows;
@@ -5670,10 +5711,11 @@ function ucLayout(D, opt) {
   /* use case yang hanya dicapai lewat include/extend: kolom tambahan di kanan, sejajar induknya */
   var aux = ucs.filter(function (u) { return !actorsOf[u.id].length && parentOf[u.id]; }), main = ucs.filter(function (u) { return aux.indexOf(u) < 0; });
   /* ukuran seragam */
-  var f0 = propFont(ucs[0]), lh = f0.size * 4 / 3 * 1.2, UW = 130;
-  ucs.forEach(function (u) { UW = Math.max(UW, Math.min(180, textW(u.name || '', fontCss(propFont(u))) + 50)); });
-  var UH = 0; ucs.forEach(function (u) { var L = wrap(u.name || '', UW - 44, propFont(u)); u.w = UW; u.h = Math.max(50, Math.round(L.length * lh + 30)); UH = Math.max(UH, u.h); });
-  ucs.forEach(function (u) { u.h = UH; });
+  /* EA 12: elips use case selalu 1,5 × tinggi (bawaan 90 × 60); tinggi dinaikkan hanya bila teks tidak muat */
+  var f0 = propFont(ucs[0]), lh = f0.size * 4 / 3 * 1.2, UH = 60;
+  ucs.forEach(function (u) { var H = 60; while (H < 140 && wrap(u.name || '', H * 1.5 - 8, propFont(u)).length * lh + 16 > H) H += 4; UH = Math.max(UH, H); });
+  var UW = Math.round(UH * 1.5);
+  ucs.forEach(function (u) { u.w = UW; u.h = UH; });
   var deg = function (a) { return link[a.id].length; };
   var sortedA = acts.slice().sort(function (a, b) { return deg(b) - deg(a); });
   var best = null;
@@ -9671,7 +9713,7 @@ function slowCheck(ms) {
 }
 function draw0() {
   var D = cur(), v = view(), routes = routeAll(D), sc = sceneMarkup(D, routes, sel);
-  cv.innerHTML = sc.defs + '<g transform="translate(' + v.x + ' ' + v.y + ') scale(' + v.k + ')">' + sc.body + overlay(D, routes, v) + '</g>';
+  cv.innerHTML = sc.defs + '<g transform="' + viewTf(v) + '">' + sc.body + overlay(D, routes, v) + '</g>';
   var g = 10 * v.k, G = 50 * v.k, mg = g < 7 ? G : g, pos = v.x + 'px ' + v.y + 'px';
   stage.classList.toggle('grid', showGrid);
   stage.style.backgroundSize = mg + 'px ' + mg + 'px,' + mg + 'px ' + mg + 'px,' + G + 'px ' + G + 'px,' + G + 'px ' + G + 'px';
@@ -9680,10 +9722,12 @@ function draw0() {
   cv.style.cursor = (drag && drag.t === 'pan') ? 'grabbing' : (tool === 'hand' || spaceDown) ? 'grab' : tool === 'select' ? 'default' : 'crosshair';
   crumbs();
 }
+/* pada zoom 100% garis 1px digeser setengah piksel supaya tajam & hitam pekat seperti EA (tidak abu-abu kabur) */
+function viewTf(v) { var one = Math.abs(v.k - 1) < 1e-3; return 'translate(' + (one ? Math.round(v.x) + .5 : v.x) + ' ' + (one ? Math.round(v.y) + .5 : v.y) + ') scale(' + v.k + ')'; }
 function drawView() {
   var v = view(), g0 = cv.firstElementChild; while (g0 && g0.tagName !== 'g') g0 = g0.nextElementSibling;
   if (!g0) { draw(); return; }
-  g0.setAttribute('transform', 'translate(' + v.x + ' ' + v.y + ') scale(' + v.k + ')');
+  g0.setAttribute('transform', viewTf(v));
   var g = 10 * v.k, G = 50 * v.k, mg = g < 7 ? G : g, pos = v.x + 'px ' + v.y + 'px';
   stage.style.backgroundSize = mg + 'px ' + mg + 'px,' + mg + 'px ' + mg + 'px,' + G + 'px ' + G + 'px,' + G + 'px ' + G + 'px';
   stage.style.backgroundPosition = [pos, pos, pos, pos].join(',');
@@ -11140,6 +11184,8 @@ cv.addEventListener('pointermove', function (e) {
     drag.guides = null;
     if (!isDfd() && DOCK_T[el.type] && !e.altKey) { var rs = dockResize(D, el, { l: l, t: t, r: r, b: b }, hv, 10 / v.k); l = rs.l; t = rs.t; r = rs.r; b = rs.b; drag.guides = rs.g; }
     el.x = l; el.y = t; el.w = r - l; el.h = b - t;
+    /* EA 12 selalu menggambar use case selebar 1,5 × tingginya (diukur di EA) */
+    if (el.type === 'usecase') { if (hv === 'e' || hv === 'w') el.h = Math.max(mh, Math.round(el.w / 1.5)); else el.w = Math.round(el.h * 1.5); if (hv.indexOf('w') >= 0) el.x = r - el.w; }
     if (drag.grp) {
       /* beberapa objek dipilih: tepi yang sama digeser sejauh yang sama di semua objek */
       var dl = l - o.x, dt = t - o.y, dr = r - (o.x + o.w), db = b - (o.y + o.h);
@@ -11468,7 +11514,7 @@ function exportSVG0(D, ids) {
   var fsT = { family: 'Tahoma', size: 8, b: true }, tw = fr ? textW(ft, fontCss(fsT)) : 0;
   if (fr) W = Math.max(W, Math.ceil(tw + 60));
   var body = sc.body.replace(/ data-(id|dec)="[^"]*"/g, '').replace(/ class="(el|fl|dec)"/g, '').replace(/<path class="hit"[^>]*\/>/g, '').replace(/<rect x="[^"]*" y="[^"]*" width="[^"]*" height="[^"]*" fill="transparent"\/>/g, '');
-  var frame = fr ? '<rect x=".5" y=".5" width="' + (W - 1) + '" height="' + (H - 1) + '" fill="none" stroke="#000" stroke-width="1"/><path d="M.5 18.5H' + (tw + 9).toFixed(1) + 'L' + (tw + 22).toFixed(1) + ' 5.5V.5" fill="none" stroke="#000" stroke-width="1"/>' +
+  var frame = fr ? '<rect x="0" y="0" width="' + (W - 1) + '" height="' + (H - 1) + '" fill="none" stroke="#000" stroke-width="1"/><path d="M0 18H' + Math.round(tw + 9) + 'L' + Math.round(tw + 22) + ' 5V0" fill="none" stroke="#000" stroke-width="1"/>' +
     '<text x="5" y="9.5" dominant-baseline="central" ' + fontAttr(fsT, '#000000') + '>' + esc(ft) + '</text>' : '';
   return { w: W, h: H, svg: '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">' + sc.defs + '<rect width="100%" height="100%" fill="#ffffff"/><g transform="translate(' + (m - b.x) + ' ' + (mt - b.y) + ')">' + body + '</g>' + frame + '</svg>' };
 }
@@ -11479,9 +11525,13 @@ function diagTitle(D) {
   var P = diag(D.parent.d), e = P && elOf(P, D.parent.e); return 'Level ' + depth(D) + (e ? ' - ' + e.num + ' ' + e.name : '');
 }
 function diagSuffix(D) { return ' - ' + safeName(diagTitle(D || cur())); }
+function svgHalf(svg, h) { return String(svg).replace(/(<svg[^>]*>)([\s\S]*)(<\/svg>\s*)$/, function (m, a, b, c) { return a + '<g transform="translate(' + h + ' ' + h + ')">' + b + '</g>' + c; }); }
 function svgCanvas(x, sc) {
   return new Promise(function (ok, bad) {
-    var k = Math.max(1, Math.min(sc, 9000 / Math.max(x.w, x.h))), url = URL.createObjectURL(new Blob([x.svg], { type: 'image/svg+xml' })), img = new Image();
+    var k = Math.max(1, Math.min(sc, 9000 / Math.max(x.w, x.h))), h = (0.5 / k).toFixed(4);
+    /* geser setengah piksel hasil: garis 1 satuan jatuh tepat di piksel → tajam seperti gambar EA */
+    var svg = svgHalf(x.svg, h);
+    var url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' })), img = new Image();
     img.onload = function () {
       var c = document.createElement('canvas'); c.width = Math.round(x.w * k); c.height = Math.round(x.h * k);
       var g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); ok(c);
@@ -11493,7 +11543,7 @@ function svgCanvas(x, sc) {
 function canvasBlob(c, type, q) { return new Promise(function (ok, bad) { c.toBlob(function (b) { if (b) ok(b); else bad(new Error('Gagal membuat gambar')); }, type, q); }); }
 async function blobBytes(b) { return new Uint8Array(await b.arrayBuffer()); }
 function saveJ() { var t = JSON.stringify({ format: isDfd() ? 'alir-dfd' : 'alir-uml', v: 2, doc: doc }, null, 1), n = fname('.json'); saveFile(n, t).then(function (r) { if (r === 'fail') textFallback(n, t); }); }
-function doSVG() { var x = exportSVG(); if (!x) { toast('Diagram masih kosong.'); return; } var n = fname(diagSuffix() + '.svg'); saveFile(n, x.svg).then(function (r) { if (r === 'fail') textFallback(n, x.svg); }); }
+function doSVG() { var x = exportSVG(); if (!x) { toast('Diagram masih kosong.'); return; } var n = fname(diagSuffix() + '.svg'); x.svg = svgHalf(x.svg, .5); saveFile(n, x.svg).then(function (r) { if (r === 'fail') textFallback(n, x.svg); }); }
 async function doImg(jpg) {
   var x = exportSVG(); if (!x) { toast('Diagram masih kosong.'); return; }
   try {
