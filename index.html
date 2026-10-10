@@ -4894,26 +4894,27 @@ async function fhWritePerm(h) {
 }
 async function fhSave(as) {
   if (!FSA) { run(isDfd() ? 'savepam' : 'saveproj'); return; }
-  var multi = isDfd() && rootsOf().length > 1;
-  var kind = !as && FH.h ? FH.kind : (isDfd() && !multi ? 'pam' : 'alir');
-  if (kind === 'pam' && multi) kind = 'alir';
+  /* v43: DFD SELALU disimpan sebagai .pam (dulu: lebih dari satu diagram utama / berkas .json → tersimpan .alir, dan kalau namanya diganti .pam isinya tetap JSON → tidak bisa dibuka di PowerDesigner) */
+  var multi = isDfd() && rootsOf().length > 1, R = null;
+  if (multi) { R = cur(); while (R && R.parent) R = diag(R.parent.d) || null; R = R || rootsOf()[0]; }
+  var kind = isDfd() ? 'pam' : (!as && FH.h ? FH.kind : 'alir');
   var data, warn = [];
   try {
-    if (kind === 'pam') { var res = Pam.docToPam(doc, geo); data = latin1(res.text); warn = res.warn || []; }
+    if (kind === 'pam') { var res = multi ? Pam.docToPam(doc, geo, { root: R, name: R === rootsOf()[0] ? doc.name : R.name }) : Pam.docToPam(doc, geo); data = latin1(res.text); warn = res.warn || []; }
     else data = JSON.stringify({ format: isDfd() ? 'alir-dfd' : 'alir-uml', v: 2, doc: doc }, null, 1);
   } catch (err) { toast('Gagal menyiapkan berkas: ' + (err && err.message)); return; }
-  var h = !as && FH.h && FH.kind === kind ? FH.h : null;
+  var h = !as && FH.h && FH.kind === kind && (!multi || !FH.root || FH.root === R.id) ? FH.h : null;
   if (!h) {
     try {
-      h = await window.showSaveFilePicker({ suggestedName: (FH.name ? FH.name.replace(/\.[^.]+$/, '') : fname('')) + (kind === 'pam' ? '.pam' : '.alir'),
+      h = await window.showSaveFilePicker({ suggestedName: (FH.name && (!multi || FH.root === R.id) ? FH.name.replace(/\.[^.]+$/, '') : safeName(fname('')) + (multi && R !== rootsOf()[0] ? ' - ' + safeName(R.name) : '')) + (kind === 'pam' ? '.pam' : '.alir'),
         types: [kind === 'pam' ? { description: 'DFD PowerDesigner (.pam)', accept: { 'application/octet-stream': ['.pam'] } } : { description: 'Proyek Alir (.alir)', accept: { 'application/json': ['.alir'] } }] });
     } catch (x) { return; }
   }
   if (!(await fhWritePerm(h))) { toast('Izin menyimpan ke berkas ditolak. Coba lagi dan pilih Izinkan / Simpan perubahan.'); return; }
   try { var w = await h.createWritable(); await w.write(data); await w.close(); }
   catch (err) { toast('Gagal menyimpan ke ' + (h.name || 'berkas') + ': ' + (err && err.message)); return; }
-  FH = { h: h, name: h.name, kind: kind, dirty: false }; fhTitle(); persist();
-  toast('Tersimpan ke ' + h.name + (warn.length ? '. ' + warn.join(' ') : '') + (kind === 'alir' && !isDfd() ? '. Untuk dibuka di EA tetap pakai Ekspor ke EA.' : ''));
+  FH = { h: h, name: h.name, kind: kind, dirty: false, root: R ? R.id : null }; fhTitle(); persist();
+  toast('Tersimpan ke ' + h.name + (multi ? ' (diagram utama "' + R.name + '" beserta turunannya; PowerDesigner hanya punya satu diagram utama per berkas — diagram utama lain: buka lalu Ctrl+S untuk berkas .pam-nya sendiri)' : '') + (warn.length ? '. ' + warn.join(' ') : '') + (kind === 'alir' && !isDfd() ? '. Untuk dibuka di EA tetap pakai Ekspor ke EA.' : ''));
 }
 if ('launchQueue' in window && window.launchQueue && window.launchQueue.setConsumer) {
   window.launchQueue.setConsumer(async function (p) {
@@ -10400,26 +10401,54 @@ function decompose(pid) {
   if (P.lowest) { toast('Proses ini ditandai level terendah. Hilangkan tanda itu dulu di panel kanan.'); return; }
   push();
   C = { id: uid('d'), name: 'Level ' + (depth(D) + 1) + ': ' + P.name, parent: { d: D.id, e: pid }, elements: [], flows: [] };
-  var seen = new Map();
-  D.flows.forEach(function (f) { if (f.from !== pid && f.to !== pid) return; var oid = f.from === pid ? f.to : f.from, o = elOf(D, oid); if (o && !seen.has(oid)) seen.set(oid, o); });
-  var list = Array.from(seen.values()), pc = P.x + P.w / 2;
-  var left = list.filter(function (o) { return o.x + o.w / 2 <= pc; }).sort(function (a, b) { return a.y - b.y; }), right = list.filter(function (o) { return o.x + o.w / 2 > pc; }).sort(function (a, b) { return a.y - b.y; });
-  function place(arr, x) {
-    arr.forEach(function (o, i) {
-      var n;
-      // proses lain di level induk tidak disalin sebagai proses: diwakili konektor off-page (seperti PowerDesigner)
-      if (o.type === 'process') n = { id: uid('e'), type: 'offpage', name: o.name, ref: { d: D.id, e: o.id }, x: x + 40, y: 60 + i * 120 + 20, w: 16, h: 16, style: {} };
-      else { n = clone(o); n.id = uid('e'); delete n.ssym; n.x = x; n.y = 60 + i * 120; }
-      C.elements.push(n);
+  /* v43: seperti PowerDesigner, alur induk ikut turun ke level bawah — tapi tiap entitas / data store cukup SATU simbol (PD menggandakannya per alur),
+     dan alur langsung tersambung ke sub-proses (dikelompokkan per nama data) sehingga level bawah langsung seimbang (balanced) dengan induknya */
+  var ext = new Map(), groups = [], gmap = {};
+  function extOf(o) {
+    if (ext.has(o.id)) return ext.get(o.id);
+    var n;
+    // proses lain di level induk tidak disalin sebagai proses: diwakili konektor off-page (seperti PowerDesigner)
+    if (o.type === 'process') n = { id: uid('e'), type: 'offpage', name: o.name, ref: { d: D.id, e: o.id }, x: 0, y: 0, w: 16, h: 16, style: {} };
+    else { n = clone(o); n.id = uid('e'); delete n.ssym; }
+    ext.set(o.id, n); C.elements.push(n); return n;
+  }
+  D.flows.forEach(function (f) {
+    if ((f.from !== pid && f.to !== pid) || f.from === f.to) return;
+    var o = elOf(D, f.from === pid ? f.to : f.from); if (!o) return;
+    var key = norm(f.name) || ('#' + f.id);
+    if (!gmap[key]) { gmap[key] = { name: String(f.name || '').trim(), list: [] }; groups.push(gmap[key]); }
+    gmap[key].list.push({ f: f, o: o, out: f.from === pid });
+  });
+  /* sub-proses yang hanya punya input atau hanya output tidak sah di DFD: pasangkan grup "hanya masuk" dengan grup "hanya keluar", sisanya digabung ke grup dua arah */
+  (function () {
+    function dir(g) { var i = g.list.some(function (q) { return !q.out; }), o2 = g.list.some(function (q) { return q.out; }); return i && o2 ? 'io' : i ? 'i' : 'o'; }
+    var ins = groups.filter(function (g) { return dir(g) === 'i'; }), outs = groups.filter(function (g) { return dir(g) === 'o'; }), drop = [];
+    while (ins.length && outs.length) { var a = ins.shift(), b = outs.shift(); a.list = a.list.concat(b.list); drop.push(b); }
+    var rest = ins.concat(outs), host = groups.find(function (g) { return drop.indexOf(g) < 0 && rest.indexOf(g) < 0; });
+    if (!host && rest.length) host = rest.shift();
+    rest.forEach(function (g) { host.list = host.list.concat(g.list); drop.push(g); });
+    groups = groups.filter(function (g) { return drop.indexOf(g) < 0; });
+  })();
+  var s = SIZE.process;
+  if (!groups.length) {
+    C.elements.push({ id: uid('e'), type: 'process', name: 'Sub-proses 1', num: P.num + '.1', x: 300, y: 60, w: s[0], h: s[1], style: {} });
+    C.elements.push({ id: uid('e'), type: 'process', name: 'Sub-proses 2', num: P.num + '.2', x: 300, y: 230, w: s[0], h: s[1], style: {} });
+  } else {
+    groups.forEach(function (g, gi) {
+      var sp = { id: uid('e'), type: 'process', name: g.name ? 'Proses ' + g.name : 'Sub-proses ' + (gi + 1), num: P.num + '.' + (gi + 1), x: 300, y: 60 + gi * 170, w: s[0], h: s[1], style: {} };
+      C.elements.push(sp);
+      g.list.forEach(function (it) {
+        var x = extOf(it.o), nf = { id: uid('f'), from: it.out ? sp.id : x.id, to: it.out ? x.id : sp.id, name: it.f.name || '', bends: [], style: clone(it.f.style || {}) };
+        if (it.f.oid) nf.parentOid = it.f.oid;
+        C.flows.push(nf);
+      });
     });
   }
-  place(left, 40); place(right, 560);
-  var s = SIZE.process;
-  C.elements.push({ id: uid('e'), type: 'process', name: 'Sub-proses 1', num: P.num + '.1', x: 300, y: 60, w: s[0], h: s[1], style: {} });
-  C.elements.push({ id: uid('e'), type: 'process', name: 'Sub-proses 2', num: P.num + '.2', x: 300, y: 230, w: s[0], h: s[1], style: {} });
   doc.diagrams.push(C); active = C.id; sel.clear(); views[C.id] = { x: 0, y: 0, k: 1, fresh: true };
+  try { propLayout(C); if (adRouted !== C.id) autoRoute(C, { ortho: true, gap: 24 }); adRouted = null; } catch (x) { /* tata letak gagal: posisi sederhana tetap dipakai */ }
   afterChange();
-  toast('Diagram level ' + depth(C) + ' dibuat. Ganti nama sub-proses, lalu hubungkan alurnya. Saran nama alur dari induk muncul saat mengetik.');
+  if (groups.length) toast('Level ' + depth(C) + ' dibuat: ' + C.flows.length + ' alur dari induk ikut turun, ' + ext.size + ' entitas/data store (masing-masing satu), ' + groups.length + ' sub-proses (satu per nama data). Ganti nama, gabungkan, atau pindahkan ujung garis sesuai kebutuhan. Ctrl+Z untuk membatalkan.');
+  else toast('Diagram level ' + depth(C) + ' dibuat. Proses induk belum punya alur, jadi baru ada 2 sub-proses kosong.');
 }
 function undecompose(pid) {
   var D = cur(), P = elOf(D, pid), C = P && childOf(D, P); if (!C) return;
@@ -10645,7 +10674,7 @@ function menuItems(name) {
   var D = cur(), one = selEls().length === 1 ? selEls()[0] : null, proc = one && one.type === 'process' ? one : null, has = sel.size > 0, nE = selEls().length, f = selFlows()[0], st = curStyleOf();
   if (name === 'file' && !isDfd()) return [item('Halaman mulai…', 'start'), item('Proyek UML baru (kosong)…', 'newuml'), item('DFD baru (kosong)…', 'new'), item('Buka .eap / .xml / .alir / .json…', 'open', 'Ctrl+O')].concat(FSA ? [item('Simpan' + (FH.h ? ' ke ' + FH.name : ' proyek (.alir)'), 'save', 'Ctrl+S'), item('Simpan sebagai…', 'saveas', 'Ctrl+Shift+S')] : []).concat([ item('Buat diagram dari skenario (.docx / tabel)…', 'scen'), HR, item('Jelaskan diagram ini (tanya jawab)…', 'explain', 'F3'), item('Teks untuk laporan (narasi & tabel)…', 'report'), item('Bagikan lewat link…', 'share'), item('Riwayat versi…', 'hist'), HR, item('Ekspor ke Enterprise Architect…', 'exportea', FSA ? 'Ctrl+E' : 'Ctrl+S'), item('Simpan proyek Alir (.json)', 'saveproj'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Gambar untuk laporan (pas lebar A4 / tabel)…', 'repimg'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar JPG', 'jpg'), item('Ekspor gambar SVG', 'svg'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Preferensi tampilan…', 'dispref')]);
   if (name === 'dict' && !isDfd()) return [{ hd: 'Diagram baru' }, item('Activity Diagram', 'newdiag:activity'), item('Use Case Diagram', 'newdiag:usecase'), item('BPMN (Business Process)', 'newdiag:bpmn'), item('Dari skenario use case (tabel / .docx)…', 'scen'), HR, item('Jalankan alur ▶', 'sim', '', { dis: !(D.kind === 'activity' || D.kind === 'bpmn') }), item('Jelaskan diagram ini…', 'explain', 'F3'), item('Teks untuk laporan…', 'report'), HR, item('Ganti nama diagram…', 'renamediag'), item('Hapus diagram ini', 'deldiag', '', { dis: doc.diagrams.length < 2 }), item('Paket (folder) baru', 'newpkg'), HR, item('Periksa diagram', 'check', 'F4')];
-  if (name === 'file') return [item('Halaman mulai…', 'start'), item('DFD baru (kosong)…', 'new'), item('Proyek UML baru (kosong)…', 'newuml'), item('Buka .pam / .alir / .json / .zip…', 'open', 'Ctrl+O'), item('Buat DFD dari skenario (.docx / tabel)…', 'dfdscen')].concat(FSA ? [item('Simpan' + (FH.h ? ' ke ' + FH.name : ''), 'save', 'Ctrl+S'), item('Simpan sebagai…', 'saveas', 'Ctrl+Shift+S')] : []).concat([HR, item('Jelaskan diagram ini (tanya jawab)…', 'explain', 'F3'), item('Teks untuk laporan (tabel alur data)…', 'report'), item('Bagikan lewat link…', 'share'), item('Riwayat versi…', 'hist'), HR, item('Simpan sebagai .pam', 'savepam', 'Ctrl+S'), item('Simpan proyek (.json)', 'savejson'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Gambar untuk laporan (pas lebar A4 / tabel)…', 'repimg'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar JPG', 'jpg'), item('Ekspor gambar SVG', 'svg'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Opsi model…', 'modelopt'), item('Preferensi tampilan…', 'dispref')]);
+  if (name === 'file') return [item('Halaman mulai…', 'start'), item('DFD baru (kosong)…', 'new'), item('Proyek UML baru (kosong)…', 'newuml'), item('Buka .pam / .alir / .json / .zip…', 'open', 'Ctrl+O'), item('Buat DFD dari skenario (.docx / tabel)…', 'dfdscen')].concat(FSA ? [item('Simpan' + (FH.h ? ' ke ' + FH.name : ''), 'save', 'Ctrl+S'), item('Simpan sebagai…', 'saveas', 'Ctrl+Shift+S')] : []).concat([HR, item('Jelaskan diagram ini (tanya jawab)…', 'explain', 'F3'), item('Teks untuk laporan (tabel alur data)…', 'report'), item('Bagikan lewat link…', 'share'), item('Riwayat versi…', 'hist'), HR, item('Simpan sebagai .pam', 'savepam', FSA ? '' : 'Ctrl+S'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Gambar untuk laporan (pas lebar A4 / tabel)…', 'repimg'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar JPG', 'jpg'), item('Ekspor gambar SVG', 'svg'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Opsi model…', 'modelopt'), item('Preferensi tampilan…', 'dispref')]);
   if (name === 'edit') return [item('Urungkan', 'undo', 'Ctrl+Z', { dis: !undoS.length }), item('Ulangi', 'redo', 'Ctrl+Y', { dis: !redoS.length }), HR, item('Potong', 'cut', 'Ctrl+X', { dis: !has }), item('Salin', 'copy', 'Ctrl+C', { dis: !has }), item('Tempel', 'paste', 'Ctrl+V', { dis: !canPaste() }), item('Hapus', 'del', 'Del', { dis: !has }), HR, item('Pilih simbol terhubung', 'selconn', '', { dis: !has }), item('Pilih semua', 'selall', 'Ctrl+A'), item('Pilih beberapa (klik satu per satu)', 'multipick', '', { ck: multiPick }), item('Pilih semua yang sejenis', 'selsame', '', { dis: !has }), item('Cari elemen…', 'find', 'Ctrl+F'), HR, item('Kunci / buka kunci posisi', 'lock', '', { dis: !nE }), item('Kelompokkan', 'group', 'Ctrl+G', { dis: nE < 2 }), item('Pisahkan kelompok', 'ungroup', 'Ctrl+Shift+G', { dis: !nE }), HR, item('Duplikat', 'dup', 'Ctrl+D', { dis: !has }), item('Ubah nama', 'rename', 'F2', { dis: sel.size !== 1 })];
   if (name === 'dict') return [item('Properti model…', 'modelopt'), { hd: 'Sub-proses' }, item(proc && childOf(D, proc) ? 'Buka diagram turunan' : 'Dekomposisi proses terpilih', 'decomp', 'Alt+↓', { dis: !proc }), item('Naik satu level', 'up', 'Alt+↑', { dis: !D.parent }), item('Hapus dekomposisi', 'undecomp', '', { dis: !(proc && childOf(D, proc)) }), item('Pohon proses…', 'tree'), HR, item('Daftar objek…', 'objlist'), item('Urutkan ulang nomor objek', 'renum'), item('Auto-balance alur', 'autobal', '', { dis: !D.parent }), item('Tambah konektor off-page', 'offadd'), item('Buat DFD dari skenario use case…', 'dfdscen'), item('Migrasikan alur terpilih ke induk', 'migrate', '', { dis: !D.parent || !f }), HR, item('Periksa model…', 'check', 'F4')];
   if (name === 'arrange') return [item('Sesuaikan dengan teks', 'adjust', 'Ctrl+J', { dis: !nE }), item('Ukuran normal', 'normsize', '', { dis: !nE }), HR, { hd: 'Ratakan' }, item('Kiri', 'alL', '', { dis: nE < 2 }), item('Tengah (sumbu vertikal)', 'alC', '', { dis: nE < 2 }), item('Kanan', 'alR', '', { dis: nE < 2 }), item('Atas', 'alT', '', { dis: nE < 2 }), item('Tengah (sumbu horizontal)', 'alM', '', { dis: nE < 2 }), item('Bawah', 'alB', '', { dis: nE < 2 }), item('Samakan lebar', 'sameW', '', { dis: nE < 2 }), item('Samakan tinggi', 'sameH', '', { dis: nE < 2 }), item('Samakan lebar & tinggi', 'sameS', '', { dis: nE < 2 }), HR, item('Sebar horizontal', 'distH', '', { dis: nE < 3 }), item('Sebar vertikal', 'distV', '', { dis: nE < 3 }), HR, { hd: 'Alur' }, item('Rapikan alur terpilih', 'tidy', 'Ctrl+L', { dis: !selFlows().length }), item('Rapikan semua alur… (pilih tampilan)', 'tidyall', 'Ctrl+Shift+L'), item('Rapikan tata letak (pindahkan objek, proporsional)', 'relayout', 'Ctrl+Shift+K', { dis: !(isDfd() || D.kind === 'activity' || D.kind === 'usecase' || D.kind === 'bpmn') }), item('Pengaturan & pilihan perapian…', 'tidyset', '', { dis: !(isDfd() || D.kind === 'activity' || D.kind === 'usecase') }), item('Rapikan yang terpilih saja (objek lain tetap)', 'tidysel', '', { dis: nE < 2 }), item('Pilih alur objek terpilih', 'selflows', '', { dis: !nE }), item('Rapikan otomatis setiap ada perubahan', 'autotidy', '', { ck: autoTidyOn() }), HR, { hd: 'Urutan' }, item('Bawa ke depan', 'front', 'Ctrl+]', { dis: !has }), item('Kirim ke belakang', 'back', 'Ctrl+[', { dis: !has }), item('Maju satu', 'fwd', '', { dis: !has }), item('Mundur satu', 'bwd', '', { dis: !has })];
@@ -11470,7 +11499,9 @@ function parseAny(text) {
   return d;
 }
 function openText(text, name) {
-  try { loadDoc(parseAny(text), name); } catch (err) { toast('Gagal membuka: ' + (err && err.message ? err.message : 'berkas rusak')); }
+  try { loadDoc(parseAny(text), name); } catch (err) { toast('Gagal membuka: ' + (err && err.message ? err.message : 'berkas rusak')); return; }
+  /* berkas bernama .pam tapi isinya data Alir (JSON) — tidak bisa dibuka PowerDesigner */
+  if (/\.pam$/i.test(String(name || '')) && !/^\s*\/BEGIN_TABLE/.test(text)) setTimeout(function () { toast('Catatan: "' + name + '" sebenarnya berisi data Alir, bukan .pam asli, jadi tidak bisa dibuka di PowerDesigner. Tekan Simpan .pam (Ctrl+S) untuk membuat .pam yang benar.'); }, 1200);
 }
 async function openZip(file) {
   try {
@@ -11650,7 +11681,7 @@ var HELP = {
     '<li><b>Belah ketupat kecil</b> di diagram turunan = konektor off-page, yaitu proses lain di luar subprocess itu (sama seperti PowerDesigner). Tambahkan lewat Kamus → <b>Tambah konektor off-page</b>, lalu pilih prosesnya di panel kanan.</li></ul>' +
     '<h4>Panel kanan</h4><ul><li><b>Tidak memilih apa pun:</b> ringkasan diagram, Pemeriksaan, dan Pohon proses.</li><li><b>Satu objek:</b> nama, kode, nomor, dekomposisi, dan daftar alur yang terhubung.</li><li><b>Satu alur:</b> nama, arah, bentuk garis, Balik arah, Rapikan garis.</li><li><b>Banyak objek:</b> ratakan dan sebar.</li></ul>' +
     '<h4>Menyimpan</h4><ul><li>Pekerjaan tersimpan otomatis di browser ini, tapi tetap simpan berkas sebagai cadangan.</li>' +
-    '<li><b>Simpan .pam</b> untuk dibuka di PowerDesigner. <b>Simpan proyek (.json)</b> untuk dibuka lagi di Alir atau dikirim ke teman.</li>' +
+    '<li><b>Simpan .pam</b>: berkas yang dibuka di PowerDesigner dan bisa dibuka lagi di Alir (DFD selalu disimpan sebagai .pam). Untuk dikirim ke teman tanpa berkas: Berkas → Bagikan lewat link.</li>' +
     '<li><b>Ke Google Docs / Word</b>: klik <b>Salin gambar</b> di bilah atas (atau Ctrl+Alt+C), lalu Ctrl+V di dokumen. Gambarnya HD (4x), tetap tajam saat diperbesar, lengkap dengan bingkai dan nama diagram seperti hasil ekspor. Ctrl+C pada objek terpilih juga langsung bisa ditempel sebagai gambar.</li><li><b>Pindah ke tab / browser lain</b> (mis. Chrome → Firefox): pilih objek, Ctrl+C, lalu Ctrl+V di Alir yang lain. Klik kanan diagram → Salin diagram juga bisa. Yang masuk clipboard tetap gambar (di Docs/Word tertempel gambar, bukan teks); data objeknya tersimpan tak terlihat di dalam gambar itu.</li><li><b>DFD | UML</b> di kiri atas: pindah ke proyek DFD atau UML terakhirmu (keduanya tersimpan terpisah). Proyek kosong: Berkas → DFD baru / Proyek UML baru.</li><li>Untuk laporan: Berkas → <b>Ekspor semua ke PDF</b> (satu diagram per halaman) atau <b>Ekspor semua ke PNG (ZIP)</b>.</li></ul>',
   cek: '<p>Pemeriksaan berjalan otomatis setiap ada perubahan. Ringkasannya selalu tampil di kanan atas, dan detailnya di panel kanan (klik area kosong) atau lewat <kbd>F4</kbd>. Klik satu baris untuk langsung menuju objeknya.</p>' +
     '<table><tr><td><span class="sw3" style="background:var(--bad)"></span><b>Merah: salah</b></td><td>Melanggar aturan DFD dan sebaiknya diperbaiki. Contoh: alur dari entitas langsung ke data store tanpa lewat proses, proses tanpa input atau output, level turunan tidak seimbang dengan induknya.</td></tr>' +
