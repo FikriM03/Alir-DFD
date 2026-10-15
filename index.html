@@ -444,6 +444,15 @@ ol.steps code, ol.steps kbd { font: 600 12px var(--f-mono); padding: 1px 5px; bo
 .tree.pb .op { flex: none; width: 6px; height: 6px; margin: 0 2px 0 6px; border-radius: 50%; background: var(--acc); opacity: .75; }
 .tree.pb button.cur .op { background: currentColor; }
 .tree.pb .pbrow i { margin-left: 6px; font: 500 10.5px var(--f-mono); color: var(--mut); font-style: normal; }
+.pbsel { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+.pbsel.on { padding: 4px 6px; border-radius: 6px; background: color-mix(in srgb, var(--acc) 14%, transparent); }
+.pbsel b { font-weight: 600; font-size: 12px; margin-right: auto; }
+.pbsel .btn.on { background: var(--on); color: var(--on-fg); }
+.tree.pb button.msel { background: color-mix(in srgb, var(--acc) 22%, transparent); }
+.tree.pb button.msel.cur { background: var(--on); color: var(--on-fg); outline: 2px solid var(--acc); outline-offset: -2px; }
+.tree.pb .pbck { flex: none; width: 12px; height: 12px; margin-right: 6px; border: 1.5px solid currentColor; border-radius: 3px; opacity: .6; }
+.tree.pb .pbck.on { background: var(--acc); border-color: var(--acc); opacity: 1; box-shadow: inset 0 0 0 2px var(--panel); }
+.dellist { margin: 6px 0 10px 18px; padding: 0; max-height: 180px; overflow: auto; }
 .tree.pb mark { background: color-mix(in srgb, var(--acc) 22%, transparent); color: inherit; border-radius: 2px; padding: 0 1px; }
 .pbnone { padding: 8px 6px; }
 @media (prefers-reduced-motion: reduce) { .tree.pb .tw svg { transition: none; } }
@@ -1214,7 +1223,7 @@ function fixActive() {
 function undo() { if (!undoS.length) return; redoS.push(snapshot()); doc = JSON.parse(undoS.pop()); fixActive(); afterChange(); }
 function redo() { if (!redoS.length) return; undoS.push(snapshot()); doc = JSON.parse(redoS.pop()); fixActive(); afterChange(); }
 function syncOffpage() { if (!isDfd()) return; doc.diagrams.forEach(function (D) { D.elements.forEach(function (e) { if (e.type === 'offpage' && !e.loose) { var p = offRef(e); if (p) e.name = p.name; } }); }); }
-function afterChange() { if (doc && !isDfd()) { ucAspectAll(cur()); sqNormalize(cur()); } tbAfterChange(); syncOffpage(); if (view().fresh) fit(); scheduleAutoTidy(); persist(); draw(); panel(); tabs(); status(); syncBar(); }
+function afterChange() { if (doc && !isDfd()) { ucAspectAll(cur()); sqNormalize(cur()); if (typeof railKind !== 'undefined' && railKind !== cur().kind) { if (tool !== 'select' && tool !== 'hand') tool = 'select'; flowFrom = null; umlToolbox(); } } tbAfterChange(); syncOffpage(); if (view().fresh) fit(); scheduleAutoTidy(); persist(); draw(); panel(); tabs(); status(); syncBar(); }
 var atT = 0, atSig = {};
 function geoSig(D) { return D.elements.map(function (e) { return e.id + ':' + Math.round(e.x) + ',' + Math.round(e.y) + ',' + Math.round(e.w) + ',' + Math.round(e.h); }).join('|') + '#' + D.flows.map(function (f) { return f.id + f.from + f.to + (f.manual ? 'm' : '') + (f.kind || ''); }).join('|'); }
 function autoTidyOn() { return doc.prefs.autoTidy != null ? doc.prefs.autoTidy : !isDfd(); }
@@ -2538,7 +2547,7 @@ function pbTree() {
     ds.forEach(function (d) {
       any = true;
       var open = !!pbOpen[d.id] && d.elements.length > 0, tab = tbIsOpen(d.id);
-      s += '<li><div class="pbd">' + (d.elements.length ? pbTw('pbtw', d.id, open, d.name) : '<span class="tw0"></span>') + '<button data-pbd="' + d.id + '" draggable="true" title="' + esc(d.name) + '\nKlik: buka · klik kanan: ganti nama, duplikat, salin, pindah paket, hapus"' + (d.id === active ? ' class="cur" aria-current="true"' : '') + '>' + kindBadge(d.kind) + '<span class="nm">' + pbMark(d.name) + '</span>' + (tab ? '<span class="op" title="' + (TB.preview === d.id ? 'Terbuka sebagai pratinjau' : 'Terbuka di tab') + '"></span>' : '') + '<i>' + d.elements.length + '</i></button></div>';
+      s += '<li><div class="pbd">' + (d.elements.length ? pbTw('pbtw', d.id, open, d.name) : '<span class="tw0"></span>') + '<button data-pbd="' + d.id + '" draggable="true" title="' + esc(d.name) + '\nKlik: buka · klik kanan: ganti nama, duplikat, salin, pindah paket, hapus"' + (d.id === active || PB_SEL.has(d.id) ? ' class="' + (d.id === active ? 'cur' : '') + (PB_SEL.has(d.id) ? ' msel' : '') + '"' : '') + (d.id === active ? ' aria-current="true"' : '') + (PB_SEL.size || PB_MODE ? ' aria-selected="' + PB_SEL.has(d.id) + '"' : '') + '>' + (PB_SEL.size || PB_MODE ? '<span class="pbck' + (PB_SEL.has(d.id) ? ' on' : '') + '" aria-hidden="true"></span>' : '') + kindBadge(d.kind) + '<span class="nm">' + pbMark(d.name) + '</span>' + (tab ? '<span class="op" title="' + (TB.preview === d.id ? 'Terbuka sebagai pratinjau' : 'Terbuka di tab') + '"></span>' : '') + '<i>' + d.elements.length + '</i></button></div>';
       if (open) {
         var tops = d.elements.filter(function (e) { return !containerOf(d, e) || isContainer(e) && !containerOf(d, e); });
         var seenE = {};
@@ -2562,7 +2571,28 @@ function pbTree() {
   return h;
 }
 /* gambar ulang pohon saja (dipakai kotak cari & tombol lipat) supaya fokus ketik dan posisi gulir tidak hilang */
-function pbRefresh() { var b = panelEl.querySelector('.pbbox'); if (!b) { panel(); return; } var st = b.scrollTop; b.innerHTML = pbTree(); b.scrollTop = st; var c = panelEl.querySelector('.pbcount'); if (c) c.textContent = pbCountTxt(); var fb = panelEl.querySelector('.pbfold'); if (fb) fb.outerHTML = pbFoldBtn(); }
+function pbRefresh() { var b = panelEl.querySelector('.pbbox'); if (!b) { panel(); return; } var st = b.scrollTop; b.innerHTML = pbTree(); b.scrollTop = st; var c = panelEl.querySelector('.pbcount'); if (c) c.textContent = pbCountTxt(); var fb = panelEl.querySelector('.pbfold'); if (fb) fb.outerHTML = pbFoldBtn(); var sb = panelEl.querySelector('.pbsel'), nb = pbSelBar(); if (sb) { if (nb) sb.outerHTML = nb; else sb.remove(); } else if (nb) { var bx = panelEl.querySelector('.pbbox'); if (bx) bx.insertAdjacentHTML('beforebegin', nb); } }
+/* pilih banyak diagram di Project Browser: Ctrl/Cmd+klik, Shift+klik (rentang), atau tombol "Pilih" (klik = centang) */
+var PB_SEL = new Set(), PB_ANCHOR = null, PB_MODE = false;
+function pbVisibleIds() { return Array.prototype.map.call(panelEl.querySelectorAll('.pbbox [data-pbd]'), function (b) { return b.dataset.pbd; }); }
+function pbSelPrune() { PB_SEL.forEach(function (id) { if (!diag(id)) PB_SEL.delete(id); }); if (!PB_SEL.size && !PB_MODE) PB_ANCHOR = null; }
+function pbSelBar() {
+  pbSelPrune();
+  if (doc.diagrams.length < 2 && !PB_SEL.size) return '';
+  var n = PB_SEL.size;
+  return '<div class="pbsel' + (n ? ' on' : '') + '">' + (n
+    ? '<b>' + n + ' dipilih</b><button class="btn sm danger" data-act="pbs:del" title="Hapus diagram yang dipilih (Delete)">Hapus</button><button class="btn sm" data-act="pbs:all" title="Pilih semua diagram yang tampil">Semua</button><button class="btn sm" data-act="pbs:clr" title="Batalkan pilihan (Esc)">Batal</button>'
+    : '<button class="btn sm' + (PB_MODE ? ' on' : '') + '" data-act="pbs:mode" aria-pressed="' + PB_MODE + '" title="Pilih beberapa diagram sekaligus (atau tahan Ctrl / Cmd / Shift lalu klik)">' + (PB_MODE ? 'Selesai memilih' : 'Pilih beberapa') + '</button>') + '</div>';
+}
+function pbSelClick(e, id) {
+  var multi = e.ctrlKey || e.metaKey || e.shiftKey || PB_MODE;
+  if (!multi) { if (PB_SEL.size) { PB_SEL.clear(); PB_ANCHOR = null; pbRefresh(); } return false; }
+  if (e.shiftKey && PB_ANCHOR && diag(PB_ANCHOR)) {
+    var v = pbVisibleIds(), a = v.indexOf(PB_ANCHOR), b = v.indexOf(id);
+    if (a >= 0 && b >= 0) { if (!(e.ctrlKey || e.metaKey)) PB_SEL.clear(); for (var i = Math.min(a, b); i <= Math.max(a, b); i++) PB_SEL.add(v[i]); }
+  } else { if (PB_SEL.has(id)) PB_SEL.delete(id); else { if (!PB_SEL.size && id !== active && !PB_MODE) { /* ikut sertakan diagram yang sedang dibuka sebagai titik awal */ } PB_SEL.add(id); PB_ANCHOR = id; } }
+  pbRefresh(); return true;
+}
 function pbOpenN() { return doc.diagrams.filter(function (d) { return pbOpen[d.id] && d.elements.length; }).length; }
 function pbFoldBtn() { var n = pbOpenN(); return '<button class="btn sm pbfold" data-act="pbfoldall"' + (n ? '' : ' disabled') + ' title="' + (n ? 'Sembunyikan daftar elemen di ' + n + ' diagram yang sedang dibuka (tanda ›)' : 'Daftar elemen semua diagram sudah terlipat. Klik tanda › di kiri nama diagram untuk melihat isinya.') + '"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4-3 4 3M4 13l4-3 4 3"/></svg>Lipat' + (n ? ' <i>' + n + '</i>' : '') + '</button>'; }
 function pbCountTxt() { var n = doc.diagrams.length, m = PB_Q ? doc.diagrams.filter(pbHit).length : n; return PB_Q ? m + ' dari ' + n : ''; }
@@ -2583,6 +2613,12 @@ function pbRestore(k) {
     if (c) { var br = b.getBoundingClientRect(), cr = c.getBoundingClientRect(); if (cr.top < br.top + 4 || cr.bottom > br.bottom - 4) b.scrollTop += (cr.top - br.top) - b.clientHeight / 2 + cr.height / 2; }
   }
 }
+document.addEventListener('keydown', function (e) {
+  if (!PB_SEL.size || !panelEl || !e.target.closest || !e.target.closest('.pbbox, .pbsel')) return;
+  if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); PB_SEL.clear(); PB_ANCHOR = null; PB_MODE = false; pbRefresh(); }
+  else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); e.stopPropagation(); removeDiagrams(Array.from(PB_SEL)); }
+  else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') { e.preventDefault(); e.stopPropagation(); pbVisibleIds().forEach(function (i) { PB_SEL.add(i); }); pbRefresh(); }
+}, true);
 /* kotak cari Project Browser: menyaring sambil mengetik; Enter membuka hasil pertama; Esc mengosongkan */
 document.addEventListener('input', function (e) { if (!e.target.classList || !e.target.classList.contains('pbq')) return; PB_Q = e.target.value; pbRefresh(); });
 document.addEventListener('keydown', function (e) {
@@ -2601,6 +2637,7 @@ function umlPanel() {
   if (pbLastActive !== active && D.pkg) { var pp = D.pkg, g0 = 0; while (pp && g0++ < 20) { if (pbFold[pp]) { delete pbFold[pp]; pbSaveState(); } var P0 = doc.packages.find(function (x) { return x.id === pp; }); pp = P0 && P0.parent; } }
   h += '<div class="sec pbsec"><div class="pbhead"><h2>Project Browser</h2><div class="row tight"><button class="btn sm" data-act="newdiag" title="Diagram baru">+ Diagram</button><button class="btn sm" data-act="newpkg" title="Paket (folder) baru">+ Paket</button></div></div>' +
     (doc.diagrams.length > 3 ? '<div class="pbtools"><div class="pbsearch"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg><input class="pbq" type="search" placeholder="Cari diagram…" aria-label="Cari diagram di Project Browser" value="' + esc(PB_Q) + '"></div><span class="pbcount">' + pbCountTxt() + '</span>' + pbFoldBtn() + '</div>' : '') +
+    pbSelBar() +
     '<div class="pbbox"' + (pbh ? ' style="height:' + pbh + 'px;max-height:none"' : '') + '>' + pbTree() + '</div></div>';
   if (ids.length === 1) {
     var e = elOf(D, ids[0]), f = e ? null : flOf(D, ids[0]);
@@ -2680,7 +2717,7 @@ function umlPanelClick(e) {
   if (tp) { var pid = tp.dataset.pbtp; if (pbFold[pid]) delete pbFold[pid]; else pbFold[pid] = 1; pbSaveState(); pbRefresh(); return true; }
   if (e.target.closest('[data-act="pbfoldall"]')) { pbOpen = {}; pbSaveState(); pbRefresh(); return true; }
   var b = e.target.closest('[data-pbd]');
-  if (b) { tbPreviewOpen(b.dataset.pbd); return true; }
+  if (b) { if (pbSelClick(e, b.dataset.pbd)) return true; tbPreviewOpen(b.dataset.pbd); return true; }
   var be = e.target.closest('[data-pbe]');
   if (be) { if (be.dataset.pbd2 !== active) tbPreviewOpen(be.dataset.pbd2); if (multiPick && be.dataset.pbd2 === active) { if (sel.has(be.dataset.pbe)) sel.delete(be.dataset.pbe); else sel.add(be.dataset.pbe); draw(); panel(); syncBar(); return true; } sel = new Set([be.dataset.pbe]); draw(); panel(); syncBar(); viewSel(); return true; }
   return false;
@@ -2688,8 +2725,10 @@ function umlPanelClick(e) {
 
 /* ---------- toolbox kiri ---------- */
 var tbClosed = {};
+var railKind = null;
 function umlToolbox() {
-  var D = cur(), groups = TOOLBOX[D.kind] || [], h = '<div class="tbx-top"><button class="tool w" data-tool="select" aria-pressed="' + (tool === 'select') + '">' + ico('select') + '<span>Pilih</span><kbd>V</kbd></button><button class="tool w" data-tool="hand" aria-pressed="' + (tool === 'hand') + '">' + ico('hand') + '<span>Geser</span><kbd>H</kbd></button></div>';
+  var D = cur(); railKind = D.kind;
+  var groups = TOOLBOX[D.kind] || [], h = '<div class="tbx-top"><button class="tool w" data-tool="select" aria-pressed="' + (tool === 'select') + '">' + ico('select') + '<span>Pilih</span><kbd>V</kbd></button><button class="tool w" data-tool="hand" aria-pressed="' + (tool === 'hand') + '">' + ico('hand') + '<span>Geser</span><kbd>H</kbd></button></div>';
   groups.forEach(function (g, gi) {
     var key = D.kind + gi, closed = tbClosed[key];
     h += '<div class="tbx-g"><button class="tbx-h" data-tbg="' + key + '" aria-expanded="' + !closed + '">' + esc(g[0]) + '</button>' + (closed ? '' : '<div class="tbx-items">' + g[1].map(function (k) {
@@ -3584,21 +3623,48 @@ function lnDown(e, D, p, gid, hd) {
   /* garis ini bagian dari beberapa objek/garis terpilih: seluruh pilihan digeser bersama, bukan hanya garis ini */
   if (sel.has(gid) && sel.size > 1 && !e.shiftKey) {
     if (D.elements.some(function (x) { return sel.has(x.id) && !x.locked; })) { beginMoveDrag(D, p, e, null, null); return true; }
-    var multi = [];
-    if (lnOrtho(f) && (lnHz(P[best.i], P[best.i + 1]) || lnVt(P[best.i], P[best.i + 1]))) {
-      var hz0 = lnHz(P[best.i], P[best.i + 1]), c0 = hz0 ? P[best.i].y : P[best.i].x;
-      D.flows.forEach(function (g) {
-        if (g === f || !sel.has(g.id) || !lnOrtho(g)) return;
-        var Pg = lnRaw(D, g); if (!Pg) return;
-        for (var j = 0; j + 1 < Pg.length; j++) if ((hz0 ? lnHz(Pg[j], Pg[j + 1]) && Math.abs(Pg[j].y - c0) < 1.5 : lnVt(Pg[j], Pg[j + 1]) && Math.abs(Pg[j].x - c0) < 1.5)) { multi.push({ fid: g.id, i: j, P0: Pg }); break; }
-      });
-    }
+    var multi = lnMultiBuild(D, f, P, best.i);
     drag = { t: 'lnSeg', fid: gid, i: best.i, P0: P, p0: p, sx: e.clientX, sy: e.clientY, moved: false, ortho: lnOrtho(f), multi: multi };
     return true;
   }
   sel = new Set([gid]); panel(); syncBar(); draw();
   drag = { t: 'lnSeg', fid: gid, i: best.i, P0: P, p0: p, sx: e.clientX, sy: e.clientY, moved: false, ortho: lnOrtho(f) };
   return true;
+}
+/* beberapa garis terpilih (tanpa objek): semuanya ikut bergeser sejajar dengan garis yang diseret.
+   Garis siku: ruas yang searah dengan ruas yang diseret (yang paling dekat); garis lurus: bergeser sejajar; garis bertitik belok: titik belokya ikut bergeser */
+function lnMultiBuild(D, f, P, bi) {
+  var multi = [], ortho = lnOrtho(f), hz0 = ortho ? (lnHz(P[bi], P[bi + 1]) ? true : lnVt(P[bi], P[bi + 1]) ? false : null) : null, c0 = hz0 === null ? null : (hz0 ? P[bi].y : P[bi].x);
+  D.flows.forEach(function (g) {
+    if (g === f || !sel.has(g.id) || g.kind === 'smsg') return;
+    var Pg = lnRaw(D, g); if (!Pg || Pg.length < 2) return;
+    if (!lnOrtho(g)) { multi.push({ fid: g.id, k: Pg.length === 2 ? 'd' : 'c', P0: Pg }); return; }
+    var bj = -1, bs = 1e9;
+    for (var j = 0; j + 1 < Pg.length; j++) {
+      var sh = lnHz(Pg[j], Pg[j + 1]), sv = lnVt(Pg[j], Pg[j + 1]); if (!sh && !sv) continue;
+      var len = Math.hypot(Pg[j + 1].x - Pg[j].x, Pg[j + 1].y - Pg[j].y), score;
+      if (hz0 !== null) { if (hz0 ? !sh : !sv) continue; score = Math.abs((hz0 ? Pg[j].y : Pg[j].x) - c0) - len * 1e-4; } else score = -len;
+      if (score < bs) { bs = score; bj = j; }
+    }
+    if (bj >= 0) multi.push({ fid: g.id, k: 'o', i: bj, P0: Pg });
+  });
+  return multi;
+}
+function lnMultiApply(D, d, mx, my, e) {
+  (d.multi || []).forEach(function (m) {
+    var g = flOf(D, m.fid), A2 = g && elOf(D, g.from), B2 = g && elOf(D, g.to); if (!A2 || !B2) return;
+    var R1 = rect(A2), R2 = rect(B2), P;
+    if (m.k === 'o') { var hz = lnHz(m.P0[m.i], m.P0[m.i + 1]), c0 = hz ? m.P0[m.i].y : m.P0[m.i].x; lnStore(g, lnDragSeg(m.P0, m.i, snap(c0 + (hz ? my : mx), e), R1, R2), R1, R2); }
+    else if (m.k === 'd') {
+      var a0 = m.P0[0], b0 = m.P0[1], vx = b0.x - a0.x, vy = b0.y - a0.y, L = Math.hypot(vx, vy) || 1, nx = -vy / L, ny = vx / L, dd = mx * nx + my * ny, sA = lnSideAt(R1, a0), sB = lnSideAt(R2, b0);
+      var mv = function (R, s, q) { var c = horizS(s) ? q.y + ny * dd : q.x + nx * dd; return lnPort(R, s, lnClamp(R, s, snap(c, e))); };
+      P = [mv(R1, sA, a0), mv(R2, sB, b0)];
+      g.bends = []; g.sa = { s: sA, p: lnP(R1, sA, P[0]) }; g.ta = { s: sB, p: lnP(R2, sB, P[1]) }; g.manual = true; delete g.eaSE;
+    } else {
+      P = m.P0.map(function (q, ix) { return ix === 0 || ix === m.P0.length - 1 ? { x: q.x, y: q.y, pin: q.pin } : { x: Math.round(q.x + mx), y: Math.round(q.y + my), pin: q.pin }; });
+      lnStore(g, P, R1, R2);
+    }
+  });
 }
 function lnRemovePoint(D, f, P, j) {
   var RA = rect(elOf(D, f.from)), RB = rect(elOf(D, f.to));
@@ -3629,11 +3695,7 @@ function lnMove(e, D, p) {
       }
       var c = Math.abs(perp) < .5 ? (hz ? P1[ii].y : P1[ii].x) : snap((hz ? a.y : a.x) + perp, e);
       P = lnDragSeg(P1, ii, c, RA, RB);
-      /* segmen garis terpilih lain yang segaris ikut bergeser sejajar */
-      (d.multi || []).forEach(function (m) {
-        var g = flOf(D, m.fid), A2 = g && elOf(D, g.from), B2 = g && elOf(D, g.to); if (!A2 || !B2) return;
-        var R1 = rect(A2), R2 = rect(B2); lnStore(g, lnDragSeg(m.P0, m.i, c, R1, R2), R1, R2);
-      });
+      lnMultiApply(D, d, mx, my, e); /* garis terpilih lain ikut bergeser sejajar */
     } else if (d.P0.length === 2 && !e.altKey) {
       /* garis Direct (lurus tanpa tikungan): seperti EA, garis digeser sejajar (naik-turun / kiri-kanan),
          kedua ujungnya ikut menyusuri tepi objek. Alt+seret = buat tikungan (Custom Line). */
@@ -3642,11 +3704,13 @@ function lnMove(e, D, p) {
       var mv = function (R, s, q) { var c = horizS(s) ? q.y + ny * dd : q.x + nx * dd; return lnPort(R, s, lnClamp(R, s, snap(c, e))); };
       P = [mv(RA, sA, a0), mv(RB, sB, b0)];
       f.bends = []; f.sa = { s: sA, p: lnP(RA, sA, P[0]) }; f.ta = { s: sB, p: lnP(RB, sB, P[1]) }; f.manual = true; delete f.eaSE;
+      lnMultiApply(D, d, p.x - d.p0.x, p.y - d.p0.y, e);
       draw(); return;
     } else {
       /* garis custom: menyeret garis membuat titik belok baru di tempat yang diseret */
       P = d.P0.map(function (q) { return { x: q.x, y: q.y, pin: q.pin }; });
       P.splice(d.i + 1, 0, { x: snap(p.x, e), y: snap(p.y, e), pin: 1 });
+      lnMultiApply(D, d, p.x - d.p0.x, p.y - d.p0.y, e);
     }
     lnStore(f, P, RA, RB);
   } else if (d.t === 'lnCorner') {
@@ -3989,7 +4053,7 @@ function scNum(t) {
   return { num: +m[1], rest: m[2], sub: sb ? (sb[1] ? sb[1].toLowerCase().charCodeAt(0) - 96 : +sb[2]) : 0 };
 }
 function scParse(rows) {
-  var ucs = [], u = null, sec = null, colA = 0, colS = 1, colN = -1, title = '', state = '', hkeys = null, subAct = '', subBase = '', curRi = 0;
+  var ucs = [], u = null, sec = null, colA = 0, colS = 1, colN = -1, rowNum = null, title = '', state = '', hkeys = null, subAct = '', subBase = '', curRi = 0;
   function isKey(x) { var k = scClean(x).replace(/\s*:\s*$/, ''); return SC_KEY_NO.test(k) || SC_KEY_NAME.test(k) || SC_KEY_ACTOR.test(k) || SC_KEY_SKIP.test(k); }
   function start(keepTitle) { u = { name: '', actor: '', no: '', normal: [], alts: [], tbl: false }; ucs.push(u); sec = null; colA = 0; colS = 1; colN = -1; if (keepTitle && !title && subAct && subBase) title = subBase; if (keepTitle && title) u.name = title; title = ''; state = ''; if (subAct) { u.actor = subAct; u.sub = 1; } }
   function busy() { return u && (u.normal.length || u.alts.length); }
@@ -4118,7 +4182,7 @@ function scParse(rows) {
     if (is >= 0 && ia < 0 && ft.length === 2) ia = tx.findIndex(function (x, i) { return i !== is && x && x.split(' ').length <= 4 && !/^\d/.test(x) && !SC_KEY_SKIP.test(x); });
     if (is >= 0 && ia >= 0 && ft.length <= 3 && ft.every(function (x) { return x.split(' ').length <= 4; })) {
       if (!u || (busy() && state !== 'flow' && u.normal.length) || (r.first && u.normal.length && !(sec && sec !== u.normal && !sec.length))) start(true);
-      colA = ia; colS = is; colN = tx.findIndex(function (x) { return /^(no\.?|nomor|#|langkah|step)$/i.test(x); });
+      colA = ia; colS = is; colN = tx.findIndex(function (x) { return /^(no\.?|nomor|#|langkah|step)$/i.test(x); }); rowNum = null;
       if (!/^(aktor|actor|aksi\s*aktor|actor\s*action|kegiatan\s*aktor|tindakan\s*aktor|aksi\s*pengguna|user\s*action)(\s*\(.*\))?$/i.test(tx[ia]) && !u.actor) u.actor = tx[ia].replace(/\s*\(.*\)$/, '');
       /* kepala kolom tabel dipakai apa adanya sebagai nama lajur: "Aktor" tetap "Aktor", "Admin" jadi lajur "Admin" */
       u.colHead = scClean(tx[ia].replace(/\s*\(.*\)$/, '')) || '';
@@ -4157,7 +4221,13 @@ function scParse(rows) {
     /* baris satu sel "Kunci : nilai" di tengah alur (Include : Login, Catatan : ...) bukan langkah */
     if (filled.length === 1 && !scNum(ft[0]) && /^[A-Za-z][\w \-\/]{1,30}\s*:\s*\S/.test(ft[0]) && !/^(sistem|system|aktor|actor|user|pengguna)\b/i.test(ft[0]) && !scVerb(ft[0])) return;
     var gA = steps(r[colA] || [], 'a'), gS = steps(r[colS] || [], 's');
-    if (colN >= 0 && r[colN] && r[colN].length) { var n0 = parseInt(txt(r[colN]), 10); if (n0) { if (gA.length === 1 && gA[0].num == null) gA[0].num = n0; else if (gS.length === 1 && gS[0].num == null) gS[0].num = n0; } }
+    /* kolom "No." terpisah: nomor baris berlaku untuk semua langkah di baris itu (aktor dulu, lalu sistem); baris dengan nomor kosong
+       melanjutkan nomor baris sebelumnya, jadi nomor tidak digeser dan tidak tertukar urutannya */
+    if (colN >= 0) {
+      var n0 = r[colN] && r[colN].length ? parseInt(txt(r[colN]), 10) : NaN, both = gA.concat(gS);
+      if (n0) { rowNum = n0; both.forEach(function (s) { if (s.num == null) s.num = n0; }); }
+      else if (rowNum != null && both.length) both.forEach(function (s) { if (s.num == null) s.num = rowNum; });
+    }
     /* urutkan langkah sebaris (atau semua langkah dalam satu sel per kolom) menurut nomor + sub-nomor (7.1, 7a);
        langkah tanpa nomor ikut langkah bernomor di atasnya; "Kembali ke langkah N"/"Selesai" selalu paling akhir */
     function keys(g) { var last = -1, j = 0; g.forEach(function (s) { j++; if (s.num != null) last = s.num + (s.sub || 0) / 100; s._k = s.num != null ? last : (SC_BACK.test(scClean(s.t)) || SC_END.test(scClean(s.t))) ? 1e6 + j : last + j / 1e4; }); }
@@ -4255,12 +4325,31 @@ function scSimLoose(a, b) {
   function ws(t) { return String(t).toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').split(' ').filter(function (w) { return w && !{ yang: 1, di: 1, ke: 1, pada: 1, dan: 1, the: 1, a: 1 }[w]; }); }
   var A = new Set(ws(a)), B = new Set(ws(b)), n = 0; A.forEach(function (w) { if (B.has(w)) n++; }); return n ? n / Math.max(A.size, B.size) + (SC_ACTBTN.test(a) && SC_ACTBTN.test(b) ? .2 : 0) : 0;
 }
+/* rujukan langkah dari judul alternatif: "(pada langkah 8)", "di langkah 8", "mulai langkah 8", "step 8", "setelah langkah 7" → indeks langkah utama (-1 bila tidak ada) */
+function scAltRef(title, N) {
+  var m = /(?:pada|di|dari|mulai|sejak|at|from|in)?\s*(?:langkah|step|nomor|no\.?)\s*(\d{1,3})\s*[a-z]?\b/i.exec(String(title || ''));
+  if (!m) return -1;
+  var n = +m[1], k = N.findIndex(function (s) { return s.num === n; });
+  if (k >= 0 && /(setelah|sesudah|after)\s*(langkah|step|nomor|no\.?)\s*\d/i.test(title)) k = Math.min(N.length - 1, k + 1);
+  return k;
+}
+/* nomor alternatif yang dimulai lagi dari 1 dan berurutan (1,2,3 …) = nomor lokal tabel alternatif */
+function scLocalNum(a) {
+  var st = a.steps || []; if (!st.length || st[0].auto) return false;
+  if (st[0].num !== 1) return false;
+  var last = 0; for (var i = 0; i < st.length; i++) { if (st[i].auto) continue; if (st[i].num < last) return false; last = st[i].num; }
+  return true;
+}
 /* rencana diagram: urutan utama + cabang alternatif lengkap dengan titik percabangan dan tujuan akhirnya */
 function scPlan(u) {
   var N = u.normal, groups = {};
   u.alts.forEach(function (a) {
-    var f = a.steps[0], k = -1;
-    if (f && !f.auto) {
+    var f = a.steps[0], k = -1, ref = scAltRef(a.title, N), loc = scLocalNum(a);
+    /* nomor di kolom "No." alternatif flow yang dimulai lagi dari 1 hanyalah nomor lokal, bukan rujukan ke langkah utama;
+       rujukan yang sebenarnya diambil dari judul ("pada langkah 8", "di langkah 8", "setelah langkah 7"), kalau tidak ada ditebak dari makna */
+    if (ref >= 0) {
+      k = ref; if (f && N[k].lane !== f.lane) { var jr = k; if (f.lane === 's') { while (jr < N.length && N[jr].lane !== 's') jr++; } else { while (jr >= 0 && N[jr].lane !== 'a') jr--; } k = jr >= 0 && jr < N.length ? jr : k; }
+    } else if (f && !f.auto && !loc) {
       k = N.findIndex(function (s) { return s.num === f.num; });
       if (k >= 0 && N[k].lane !== f.lane) {
         /* nomor ada tapi lajurnya beda: sistem → respon sistem berikutnya; aktor → aksi aktor sebelumnya */
@@ -4287,7 +4376,7 @@ function scPlan(u) {
       if (loop >= 0) body.pop();
     }
     /* pertanyaan decision = judul ALTERNATIVE FLOW dijadikan pertanyaan; "Ya" selalu menuju alur alternatif, "Tidak" melanjutkan alur normal */
-    var tt = scClean(a.title), q = scCap(tt.replace(/[?.!\s]+$/, '')) + '?';
+    var tt = scClean(a.title).replace(/\s*\(?\s*(pada|di|dari|mulai|setelah|sesudah|at|from)?\s*(langkah|step|nomor|no\.?)\s*\d{1,3}[a-z]?\s*\)?\s*$/i, '') || scClean(a.title), q = scCap(tt.replace(/[?.!\s]+$/, '')) + '?';
     (groups[k] = groups[k] || []).push({ title: tt, q: q, yes: 'Ya', no: 'Tidak', body: body, loop: loop, lane: dl });
   });
   return { N: N, groups: groups };
@@ -8917,8 +9006,31 @@ function pkgMenu(pid, x, y) {
   its.push(HR, item('Hapus paket…', 'pk:del'));
   renderMenu(its, x, y);
 }
+/* hapus banyak diagram sekaligus (diagram yang dipilih di Project Browser) */
+function removeDiagrams(ids) {
+  ids = ids.filter(function (i) { return diag(i); });
+  if (!ids.length) return;
+  if (ids.length >= doc.diagrams.length) { toast('Tidak semua diagram bisa dihapus. Sisakan minimal satu diagram.'); return; }
+  var names = ids.slice(0, 8).map(function (i) { return '<li>' + esc(diag(i).name) + '</li>'; }).join('') + (ids.length > 8 ? '<li>…dan ' + (ids.length - 8) + ' lainnya</li>' : '');
+  modal('Hapus ' + ids.length + ' diagram?', '<p>Diagram berikut akan dihapus beserta isinya:</p><ul class="dellist">' + names + '</ul><p class="hint">Bisa dibatalkan dengan Ctrl+Z.</p>', '<button class="btn" data-close>Batal</button><button class="btn danger" data-ok>Hapus ' + ids.length + ' diagram</button>', function (s, close) {
+    $('[data-ok]', s).addEventListener('click', function () {
+      close(); mutate(function () { ids.forEach(function (i) { dropDiagram(i); }); if (!diag(active)) active = doc.diagrams[0].id; fixActive(); });
+      PB_SEL.clear(); PB_ANCHOR = null; PB_MODE = false; pbRefresh(); toast(ids.length + ' diagram dihapus. Ctrl+Z untuk membatalkan.');
+    });
+    var ok = $('[data-ok]', s); if (ok) ok.focus();
+  });
+}
 /* dipanggil dari run(): true kalau perintah ini milik menu diagram/paket */
 function runBrowse(a) {
+  if (a.indexOf('pbs:') === 0) {
+    var o = a.slice(4);
+    if (o === 'mode') { PB_MODE = !PB_MODE; if (!PB_MODE) { PB_SEL.clear(); PB_ANCHOR = null; } pbRefresh(); }
+    else if (o === 'clr') { PB_SEL.clear(); PB_ANCHOR = null; PB_MODE = false; pbRefresh(); }
+    else if (o === 'all') { pbVisibleIds().forEach(function (i) { PB_SEL.add(i); }); pbRefresh(); }
+    else if (o === 'del') removeDiagrams(Array.from(PB_SEL));
+    else if (o === 'close') { Array.from(PB_SEL).forEach(function (i) { if (tbIsOpen(i) && tbVisible().length > 1) tbClose(i); }); pbRefresh(); }
+    return true;
+  }
   if (a.indexOf('dg:') === 0) {
     var id = dgMenuId, op = a.slice(3); if (!diag(id)) return true;
     if (op === 'open') tbOpen(id);
@@ -8966,7 +9078,7 @@ panelEl.addEventListener('contextmenu', function (e) {
   if (!b) return;
   e.preventDefault();
   if (b.dataset.pbp) { pkgMenu(b.dataset.pbp, e.clientX, e.clientY); return; }
-  if (b.dataset.pbd) { diagramMenu(b.dataset.pbd, e.clientX, e.clientY); return; }
+  if (b.dataset.pbd) { if (PB_SEL.size > 1 && PB_SEL.has(b.dataset.pbd)) { renderMenu([{ hd: PB_SEL.size + ' diagram dipilih' }, item('Tutup tab yang dipilih', 'pbs:close'), HR, item('Hapus ' + PB_SEL.size + ' diagram…', 'pbs:del'), HR, item('Batalkan pilihan', 'pbs:clr')], e.clientX, e.clientY); return; } diagramMenu(b.dataset.pbd, e.clientX, e.clientY); return; }
   if (b.dataset.tree) {
     var D = diag(b.dataset.tree); if (!D) return;
     if (b.dataset.e) { var pe = elOf(D, b.dataset.e), c = pe && childOf(D, pe); if (c) diagramMenu(c.id, e.clientX, e.clientY); else { switchTo(D.id); sel = new Set([b.dataset.e]); draw(); panel(); syncBar(); contextMenu(e, b.dataset.e); } }
