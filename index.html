@@ -2876,7 +2876,7 @@ function buildEaDoc(M, name) {
       if (o.note && type !== 'note') e.note = o.note;
       if (o.stereo && !TT[type].stereo && type !== 'datastore' && !/::/.test(o.stereo)) e.stereo = o.stereo;
       var ds = styleKV(go.style), fill = colorFromRef(ds.BCol != null ? ds.BCol : o.back), line = colorFromRef(ds.LCol != null ? ds.LCol : o.border), fc = colorFromRef(ds.BFol != null ? ds.BFol : o.font);
-      if (fill) e.style.fill = fill; if (line) e.style.stroke = line; if (fc) e.style.text = fc;
+      if (fill && !(type === 'sboundary' || type === 'scontrol' || type === 'sentity' || type === 'lifeline') || (fill && String(fill).toLowerCase() !== '#00ffff')) e.style.fill = fill; if (line) e.style.stroke = line; if (fc) e.style.text = fc;
       if (type === 'gateway') { var gt = String(o.props.gatewayType || '').split('#')[0]; e.gw = gt === 'Parallel' ? 'and' : gt === 'Inclusive' ? 'or' : gt === 'Event' ? 'ev' : /true/.test(o.props.markerVisible || '') ? 'xorx' : 'xor'; }
       if (type === 'actor' && (String(ds.ActRect) === '1' || String(ds.UCRect) === '1' || String(o.props.alir_rect || '') === '1')) e.rect = true;
       if (type === 'start' || type === 'intermediate' || type === 'end') { var ed = String(o.props.eventDefinition || '').split('#')[0]; e.ev = ed === 'Message' ? 'message' : ed === 'Timer' ? 'timer' : 'none'; }
@@ -3115,6 +3115,7 @@ function eaXmi(d, only) {
     order.forEach(function (e) {
       var st = 'DUID=' + duid[e.id] + ';';
       if (e.style.fill && e.style.fill !== 'none') st += 'BCol=' + colorToRef(e.style.fill) + ';';
+      else if (typeof isLL === 'function' && isLL(e) && e.type !== 'sactor') st += 'BCol=16776960;'; /* EA menyimpan warna bawaan lifeline (cyan) secara eksplisit di tiap objek */
       if (e.style.stroke) st += 'LCol=' + colorToRef(e.style.stroke) + ';'; else if (e.type === 'initial' && e.style.fill) st += 'LCol=' + colorToRef(e.style.fill) + ';';
       if (e.style.text) st += 'BFol=' + colorToRef(e.style.text) + ';';
       if (isContainer(e)) st = 'Dockable=on;' + st;
@@ -9796,9 +9797,9 @@ function sqCircleHead(kind) {
     return s + sqName(e, st, cx, e.y + 53) + sqStemPath(e) + sqBars(e, st) + sqHit(e);
   };
 }
-TT.sboundary = T({ k: 'sequence', label: 'Boundary (View, V_)', name: 'V_Halaman', ea: 'Sequence', stereo: 'boundary', size: [50, SQ_LEN0], grow: true, font: ufont(false), icon: '<circle cx="14" cy="10" r="6"/><path d="M4 4v12M4 10h4M14 16v6" />', draw: sqCircleHead('b') });
-TT.scontrol = T({ k: 'sequence', label: 'Control (Controller, C_)', name: 'C_Kontrol', ea: 'Sequence', stereo: 'control', size: [50, SQ_LEN0], grow: true, font: ufont(false), icon: '<circle cx="12" cy="11" r="6"/><path d="M14 3l-3 2 3 2M12 17v5" />', draw: sqCircleHead('c') });
-TT.sentity = T({ k: 'sequence', label: 'Entity (Model, M_)', name: 'M_Data', ea: 'Sequence', stereo: 'entity', size: [50, SQ_LEN0], grow: true, font: ufont(false), icon: '<circle cx="12" cy="9" r="6"/><path d="M5 16h14M12 16v6" />', draw: sqCircleHead('e') });
+TT.sboundary = T({ k: 'sequence', label: 'Boundary (View, V_)', name: 'V_', ea: 'Sequence', stereo: 'boundary', size: [50, SQ_LEN0], grow: true, font: ufont(false), icon: '<circle cx="14" cy="10" r="6"/><path d="M4 4v12M4 10h4M14 16v6" />', draw: sqCircleHead('b') });
+TT.scontrol = T({ k: 'sequence', label: 'Control (Controller, C_)', name: 'C_', ea: 'Sequence', stereo: 'control', size: [50, SQ_LEN0], grow: true, font: ufont(false), icon: '<circle cx="12" cy="11" r="6"/><path d="M14 3l-3 2 3 2M12 17v5" />', draw: sqCircleHead('c') });
+TT.sentity = T({ k: 'sequence', label: 'Entity (Model, M_)', name: 'M_', ea: 'Sequence', stereo: 'entity', size: [50, SQ_LEN0], grow: true, font: ufont(false), icon: '<circle cx="12" cy="9" r="6"/><path d="M5 16h14M12 16v6" />', draw: sqCircleHead('e') });
 TT.fragment = T({ k: 'sequence', label: 'Fragment (alt/opt/loop…)', name: '', ea: 'InteractionFragment', size: [300, 150], grow: true, fill: 'none', font: ufont(false), container: true, icon: '<rect x="3.5" y="5.5" width="17" height="13"/><path d="M3.5 9.5h6l2-2v-2" />',
   hit: function (e) { return { x: e.x, y: e.y, w: Math.min(e.w, sqTabW(e) + 4), h: 16 }; },
   draw: function (e, st) {
@@ -9998,13 +9999,20 @@ function sqNormalize(D) {
 }
 
 /* ---------- membuat elemen & pesan ---------- */
+/* nama lifeline yang belum dipakai: V_ → V_2 → V_3 …, V_Login → V_Login2 */
+function sqUniqueName(D, name) {
+  var used = {}; D.elements.forEach(function (x) { if (isLL(x)) used[String(x.name || '').trim().toLowerCase()] = 1; });
+  if (!used[String(name || '').trim().toLowerCase()]) return name;
+  var base = String(name || '').replace(/\d+$/, ''), i = 2; while (used[(base + i).toLowerCase()]) i++;
+  return base + i;
+}
 function sqAddEl(type, p, ev) {
   var D = cur(), t = TT[type], s = t.size, o = { id: uid('e'), type: type, name: t.name, x: snap(p.x - s[0] / 2, ev), y: snap(p.y - s[1] / 2, ev), w: s[0], h: s[1], style: {} };
   if (isLL(o)) {
     o.y = SQ_TOP;
     var L = D.elements.filter(isLL), n = L.filter(function (x) { return x.type === type; }).length + 1;
     o.h = Math.max(SQ_LEN0, sqBottom(D) - SQ_TOP);
-    o.name = type === 'sactor' ? 'Aktor' + (n > 1 ? ' ' + n : '') : type === 'lifeline' ? 'Objek' + n : t.name + (n > 1 ? n : '');
+    o.name = type === 'sactor' ? 'Aktor' + (n > 1 ? ' ' + n : '') : type === 'lifeline' ? 'Objek' + n : sqUniqueName(D, t.name);
   }
   if (type === 'fragment') { o.op = 0; o.ops = []; o.name = ''; }
   return o;
@@ -10307,6 +10315,7 @@ function seqCheck(D, items) {
   L.forEach(function (e) {
     var n = String(e.name || '').trim(), pre = (/^(V|C|M)_/i.exec(n) || [])[1];
     if (!n) { items.push({ s: 'warn', t: TT[e.type].label.split(' (')[0] + ' belum diberi nama.', ids: [e.id] }); return; }
+    if (SQ_PREFIX[e.type] && /^[VCM]_\d*$/i.test(n)) { items.push({ s: 'warn', t: SQ_ROLE[e.type] + ' "' + n + '" baru berisi awalan. Lengkapi namanya setelah ' + SQ_PREFIX[e.type] + ', mis. ' + SQ_PREFIX[e.type] + 'Login.', ids: [e.id] }); return; }
     if (SQ_PREFIX[e.type]) {
       if (n.indexOf(SQ_PREFIX[e.type]) !== 0) items.push({ s: 'bad', t: SQ_ROLE[e.type] + ' "' + n + '" wajib diawali ' + SQ_PREFIX[e.type] + ' (aturan V_ = View/boundary, C_ = Controller/control, M_ = Model/entity).', ids: [e.id] });
       if (pre && role[e.type] !== pre.toUpperCase()) items.push({ s: 'bad', t: '"' + n + '" berawalan ' + pre.toUpperCase() + '_ tapi jenisnya ' + SQ_ROLE[e.type] + '. Ganti jenisnya atau awalannya.', ids: [e.id] });
@@ -11248,6 +11257,7 @@ function pasteClip() {
       var n = clone(e); map[e.id] = n.id = uid('e'); delete n.oid; delete n.ssym; delete n.guid; delete n.locked; n.x += off; n.y += off;
       if (n.grp) { gmap[n.grp] = gmap[n.grp] || uid('g'); n.grp = gmap[n.grp]; }
       if (n.type !== 'entity') n.num = nextNum(D, n.type);
+      if (isSeq(D) && isLL(n) && n.type !== 'sactor' && n.type !== 'lifeline') n.name = sqUniqueName(D, n.name);
       D.elements.push(n); ns.add(n.id);
     });
     clipb.flows.forEach(function (f) {
@@ -11669,7 +11679,7 @@ function startRename(id, suggestions) {
   $('#dl').innerHTML = (suggestions || (isF ? flowSuggest(D, o) : [])).map(function (n) { return '<option value="' + esc(n) + '">'; }).join('');
   inl.style.left = (cx * v.k + v.x) + 'px'; inl.style.top = (cy * v.k + v.y) + 'px'; inl.style.width = w + 'px';
   inl.value = o.name || ''; inl.dataset.id = id; inl.hidden = false; editing = true;
-  setTimeout(function () { inl.focus(); inl.select(); }, 0);
+  setTimeout(function () { inl.focus(); if (!isF && isSeq(D) && isLL(o) && /^[VCM]_\d*$/.test(o.name || '')) inl.setSelectionRange(2, inl.value.length); else inl.select(); }, 0);
 }
 function endRename(commit) {
   if (inl.hidden) return;
