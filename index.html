@@ -10085,7 +10085,7 @@ function seqMove(e, D, p) {
   }
   if (d.t === 'sqend') {
     if (!d.moved && Math.abs(e.clientX - d.sx) < 4) return;
-    d.moved = true; var ov = sqLLAt(D, { x: p.x, y: (flOf(D, d.id) || {}).y || p.y }); d.over = ov ? ov.id : null; d.p = p; draw(); return;
+    d.moved = true; var ov = sqLLNear(D, { x: p.x, y: (flOf(D, d.id) || {}).y || p.y }); d.over = ov ? ov.id : null; d.p = p; draw(); return;
   }
   if (d.t === 'sqql') {
     if (!d.moved && Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 5) return;
@@ -10104,7 +10104,8 @@ function seqUp(d) {
   var D = cur();
   if (d.t === 'sqmv' || d.t === 'sqop') { if (d.moved) afterChange(); else draw(); return; }
   if (d.t === 'sqend') {
-    var f = flOf(D, d.id); if (!d.moved || !f || !d.over) { draw(); return; }
+    var f = flOf(D, d.id); if (!d.moved || !f) { draw(); return; }
+    if (!d.over) { draw(); toast('Lepas ujung pesan di garis lifeline. Ujung lain yang di lifeline yang sama menjadikannya pesan ke diri sendiri.'); return; }
     mutate(function () { if (d.which === 's') f.from = d.over; else f.to = d.over; }); return;
   }
   if (d.t === 'sqql') {
@@ -10185,11 +10186,23 @@ function seqOverlay(D, k) {
       if (drag.over) { var O = elOf(D, drag.over); s += '<rect class="target" style="stroke-width:' + 2 / k + 'px" x="' + (llCX(O) - 8) + '" y="' + O.y + '" width="16" height="' + O.h + '" rx="' + 4 / k + '"/>'; }
     }
   }
+  if (drag && drag.t === 'sqend' && drag.moved) {
+    var EF = flOf(D, drag.id), EA = EF && elOf(D, drag.which === 's' ? EF.to : EF.from), ER = EF && SQ_ROUTES && SQ_ROUTES.get(EF.id);
+    if (EF && EA && ER) {
+      var P0 = ER.pts, hp = drag.which === 's' ? P0[0] : P0[P0.length - 1], fy = EF.y || hp.y, x0 = llCX(EA);
+      s += '<path class="pv" style="stroke-width:' + 1.4 / k + 'px;stroke-dasharray:' + 5 / k + ' ' + 4 / k + '" d="M' + hp.x + ' ' + hp.y + 'L' + drag.p.x + ' ' + drag.p.y + '"/>';
+      if (drag.over) {
+        var EO = elOf(D, drag.over), x1 = llCX(EO);
+        if (drag.over === EA.id) s += '<path class="pv" style="stroke-width:' + 1.4 / k + 'px" d="M' + x0 + ' ' + fy + 'H' + (x0 + 45) + 'V' + (fy + 15) + 'H' + x0 + '"/>';
+        else s += '<path class="pv" style="stroke-width:' + 1.4 / k + 'px" d="M' + x0 + ' ' + fy + 'H' + x1 + '"/>';
+      }
+    }
+  }
   if (drag && drag.t === 'sqend' && drag.moved && drag.over) { var OV = elOf(D, drag.over); if (OV) s += '<rect class="target" style="stroke-width:' + 2 / k + 'px" x="' + (llCX(OV) - 8) + '" y="' + OV.y + '" width="16" height="' + OV.h + '" rx="' + 4 / k + '"/>'; }
   /* pegangan ujung pesan terpilih: seret ke lifeline lain untuk memindah asal/tujuan */
   if (sel.size === 1) {
     var mf = flOf(D, Array.from(sel)[0]), mr = mf && mf.kind === 'smsg' && SQ_ROUTES && SQ_ROUTES.get(mf.id);
-    if (mr) { var P = mr.pts, hs = 4 / k; [['s', P[0]], ['t', P[P.length - 1]]].forEach(function (q) { s += '<rect class="handle endh" data-h="sqend:' + q[0] + '" x="' + (q[1].x - hs) + '" y="' + (q[1].y - hs) + '" width="' + 2 * hs + '" height="' + 2 * hs + '" style="stroke-width:' + 1.3 / k + 'px;cursor:ew-resize"><title>Seret ke lifeline lain untuk memindah ' + (q[0] === 's' ? 'asal' : 'tujuan') + ' pesan</title></rect>'; }); }
+    if (mr) { var P = mr.pts, hs = 5.5 / k; [['s', P[0]], ['t', P[P.length - 1]]].forEach(function (q) { s += '<rect class="handle endh" data-h="sqend:' + q[0] + '" x="' + (q[1].x - hs) + '" y="' + (q[1].y - hs) + '" width="' + 2 * hs + '" height="' + 2 * hs + '" style="stroke-width:' + 1.3 / k + 'px;cursor:crosshair"><title>Seret ujung ini ke lifeline lain (atau ke lifeline ujung satunya untuk pesan ke diri sendiri)</title></rect>'; }); }
   }
   /* pegangan pemisah operand fragment */
   if (sel.size === 1) {
