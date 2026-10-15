@@ -254,7 +254,7 @@ circle.mid { fill: #e03e2d; opacity: .35; } circle.mid:hover { opacity: .9; }
 .tbx-h::before { content: "▾"; font-size: 10px; } .tbx-h[aria-expanded="false"]::before { content: "▸"; }
 .tbx-items { display: flex; flex-direction: column; gap: 1px; padding-top: 3px; }
 .kb { display: inline-grid; place-items: center; min-width: 22px; height: 16px; padding: 0 3px; margin-right: 6px; border-radius: 3px; font: 700 9.5px var(--f-mono); color: #fff; background: #5a6875; flex: none; }
-.kb-activity { background: #b45309; } .kb-usecase { background: #2563eb; } .kb-bpmn { background: #0f766e; }
+.kb-activity { background: #b45309; } .kb-usecase { background: #2563eb; } .kb-bpmn { background: #0f766e; } .kb-sequence { background: #7c3aed; }
 .tab .kb { margin-right: 0; }
 .pbsec { gap: 5px; }
 .pbhead { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
@@ -1214,12 +1214,12 @@ function fixActive() {
 function undo() { if (!undoS.length) return; redoS.push(snapshot()); doc = JSON.parse(undoS.pop()); fixActive(); afterChange(); }
 function redo() { if (!redoS.length) return; undoS.push(snapshot()); doc = JSON.parse(redoS.pop()); fixActive(); afterChange(); }
 function syncOffpage() { if (!isDfd()) return; doc.diagrams.forEach(function (D) { D.elements.forEach(function (e) { if (e.type === 'offpage' && !e.loose) { var p = offRef(e); if (p) e.name = p.name; } }); }); }
-function afterChange() { if (doc && !isDfd()) ucAspectAll(cur()); tbAfterChange(); syncOffpage(); if (view().fresh) fit(); scheduleAutoTidy(); persist(); draw(); panel(); tabs(); status(); syncBar(); }
+function afterChange() { if (doc && !isDfd()) { ucAspectAll(cur()); sqNormalize(cur()); } tbAfterChange(); syncOffpage(); if (view().fresh) fit(); scheduleAutoTidy(); persist(); draw(); panel(); tabs(); status(); syncBar(); }
 var atT = 0, atSig = {};
 function geoSig(D) { return D.elements.map(function (e) { return e.id + ':' + Math.round(e.x) + ',' + Math.round(e.y) + ',' + Math.round(e.w) + ',' + Math.round(e.h); }).join('|') + '#' + D.flows.map(function (f) { return f.id + f.from + f.to + (f.manual ? 'm' : '') + (f.kind || ''); }).join('|'); }
 function autoTidyOn() { return doc.prefs.autoTidy != null ? doc.prefs.autoTidy : !isDfd(); }
 function scheduleAutoTidy() {
-  if (!autoTidyOn()) return;
+  if (!autoTidyOn() || (!isDfd() && isSeq(cur()))) return;
   clearTimeout(atT);
   atT = setTimeout(function () {
     if (drag) return;
@@ -1445,6 +1445,7 @@ function routeOne(f, RA, RB, off, c1, c2) {
   return pts;
 }
 function routeAll(D) {
+  if (!isDfd() && D.kind === 'sequence') return seqRouteAll(D);
   var els = new Map(D.elements.map(function (e) { return [e.id, e]; })), groups = new Map(), out = new Map();
   function key(f) { return [f.from, f.to].sort().join('|'); }
   function auto(f) { return !(f.bends && f.bends.length) && !f.sa && !f.ta; }
@@ -2173,15 +2174,17 @@ TT.partition = T({ k: 'activity', label: 'Partition (swimlane)', name: 'Partisi'
   hit: function (e) { return e.horiz ? { x: e.x, y: e.y, w: 24, h: e.h } : { x: e.x, y: e.y, w: e.w, h: 24 }; },
   draw: function (e, st) { return laneHead(e, st, !e.horiz, 20, true); } });
 TT.note = T({ k: 'any', label: 'Note', name: 'Catatan', ea: 'Note', size: [130, 60], font: ufont(false), icon: '<path d="M5 3.5h10l4 4v13H5z"/><path d="M15 3.5v4h4"/>',
-  draw: function (e, st) { var c = 10; return '<path d="M' + e.x + ' ' + e.y + 'H' + (e.x + e.w - c) + 'L' + (e.x + e.w) + ' ' + (e.y + c) + 'V' + (e.y + e.h) + 'H' + e.x + 'z" fill="' + st.fill + '" stroke="' + st.stroke + '"/><path d="M' + (e.x + e.w - c) + ' ' + e.y + 'V' + (e.y + c) + 'H' + (e.x + e.w) + '" fill="none" stroke="' + st.stroke + '"/>' + leftText(wrap(e.name, e.w - 22, st.font), e.x + 6, e.y + 6, st.font, st.text); } });
+  /* EA 12 (diukur): lipatan 12px berisi warna catatan digelapkan, bayangan abu datar 2px, teks 7px dari kiri & baris pertama ±19px dari atas */
+  draw: function (e, st) { var c = 12, fl = st.fill && st.fill !== 'none' ? st.fill : '#e3fbeb', rgb = hexRgb(fl), dk = rgb ? '#' + rgb.map(function (v) { return ('0' + Math.round(v * .85).toString(16)).slice(-2); }).join('') : fl, sh = doc.prefs.shadow !== false && !lightOn() ? '<path d="M' + (e.x + 2) + ' ' + (e.y + e.h + 1.5) + 'H' + (e.x + e.w + 1.5) + 'V' + (e.y + c + 2) + '" fill="none" stroke="#dfdfdf" stroke-width="2"/>' : '';
+    return sh + '<path d="M' + e.x + ' ' + e.y + 'H' + (e.x + e.w - c) + 'L' + (e.x + e.w) + ' ' + (e.y + c) + 'V' + (e.y + e.h) + 'H' + e.x + 'z" fill="' + fl + '" stroke="' + st.stroke + '"/><path d="M' + (e.x + e.w - c) + ' ' + e.y + 'V' + (e.y + c) + 'H' + (e.x + e.w) + 'z" fill="' + dk + '" stroke="' + st.stroke + '"/>' + leftText(wrap(e.name, e.w - 22, st.font), e.x + 7, e.y + 12.6, st.font, st.text); } });
 /* use case */
 TT.actor = T({ k: 'usecase', label: 'Actor', name: 'Aktor', ea: 'Actor', size: [30, 60], grow: false, font: ufont(false), icon: '<circle cx="12" cy="5.5" r="2.6"/><path d="M12 8v7M7 11h10M12 15l-4 6M12 15l4 6"/>',
   draw: function (e, st) {
     /* ukuran diukur dari EA 12 (kotak 30×60): kepala Ø15 mulai 4px dari atas, lengan di 22 selebar 17, pinggul 32, kaki sampai 43 selebar 15, nama tepat di bawahnya */
     if (e.rect) {
       /* aktor bukan manusia (sistem, perangkat, layanan luar): kotak persegi panjang bertanda «actor», seperti "Use Rectangle Notation" di EA */
-      var rl = e.name ? wrap(e.name, Math.max(70, e.w - 12), st.font) : [], rlh = st.font.size * 4 / 3 * 1.2, ry = e.y + e.h / 2 - (rl.length ? (rl.length * rlh) / 2 : 0) + 8;
-      return '<rect x="' + e.x + '" y="' + e.y + '" width="' + e.w + '" height="' + e.h + '" fill="' + fillOf(st) + '" stroke="' + st.stroke + '"' + shadowAttr() + '/>' + tblock(['«actor»'], e.x + e.w / 2, e.y + 12, st.font, st.text) + (rl.length ? tblock(rl, e.x + e.w / 2, ry + 4, st.font, st.text) : '');
+      var rl = e.name ? wrap(e.name, Math.max(40, e.w - 10), st.font) : [], rlh = st.font.size * 4 / 3 * 1.2, ry = e.y + 12 + rlh + (rl.length - 1) * rlh / 2;
+      return '<rect x="' + e.x + '" y="' + e.y + '" width="' + e.w + '" height="' + e.h + '" fill="' + fillOf(st) + '" stroke="' + st.stroke + '"' + shadowAttr() + '/>' + tblock(['«actor»'], e.x + e.w / 2, e.y + 12, st.font, st.text) + (rl.length ? tblock(rl, e.x + e.w / 2, ry, st.font, st.text) : '');
     }
     var kx = e.w / 30, ky = e.h / 60, cx = e.x + e.w / 2, hr = 7.5 * Math.min(kx, ky), hy = e.y + 4 * ky + hr, arm = e.y + 22 * ky, hip = e.y + 31 * ky, y1 = e.y + 42 * ky, hw = 8.5 * kx, lw = 7.5 * kx, sw = 1;
     var lines = e.name ? wrap(e.name, Math.max(90, e.w * 2.4), st.font) : [], lh = st.font.size * 4 / 3 * 1.2;
@@ -2273,6 +2276,7 @@ function linkKinds(a, b, dk) {
   if (!a || !b) return [];
   if (isNoteish(a) || isNoteish(b)) return a.type === 'annotation' || b.type === 'annotation' ? ['bassoc'] : ['notelink'];
   if (isContainer(a) || isContainer(b)) return [];
+  if (dk === 'sequence') return isLL(a) && isLL(b) ? ['smsg'] : [];
   if (dk === 'usecase') {
     if (a.type === 'actor' && b.type === 'actor') return ['general', 'assoc'];
     if (a.type === 'actor' || b.type === 'actor') return ['assoc', 'depend'];
@@ -2314,7 +2318,7 @@ function eaDefaults() {
   return d;
 }
 function blankEa(name, kind) {
-  var D = { id: 'd1', kind: kind || 'activity', name: kind === 'usecase' ? 'Use Case Diagram' : kind === 'bpmn' ? 'Business Process' : 'Activity Diagram', pkg: 'p1', parent: null, elements: [], flows: [] };
+  var D = { id: 'd1', kind: kind || 'activity', name: kind === 'usecase' ? 'Use Case Diagram' : kind === 'bpmn' ? 'Business Process' : kind === 'sequence' ? 'Sequence Diagram' : 'Activity Diagram', pkg: 'p1', parent: null, elements: [], flows: [] };
   return { kind: 'ea', name: name || 'Proyek EA', prefs: { shadow: true, gradient: true, showFlowName: true }, defaults: eaDefaults(), packages: [{ id: 'p1', name: name || 'Proyek EA', parent: null }], diagrams: [D] };
 }
 /* EA 12 menggambar elips use case selebar 1,5 × tinggi, rata kiri pada kotaknya — Alir menyamakan ukurannya */
@@ -2337,7 +2341,8 @@ function normEa(d) {
   d.diagrams.forEach(function (x) {
     x.kind = x.kind || 'activity'; x.pkg = x.pkg || d.packages[0].id; x.parent = null; x.elements = x.elements || []; x.flows = x.flows || [];
     x.elements.forEach(function (e) { e.style = e.style || {}; if (!TT[e.type]) e.type = 'note'; ucAspect(e); });
-    x.flows.forEach(function (f) { f.style = f.style || {}; f.bends = f.bends || []; if (!CT[f.kind]) f.kind = x.kind === 'usecase' ? 'assoc' : x.kind === 'bpmn' ? 'seq' : 'control'; });
+    x.flows.forEach(function (f) { f.style = f.style || {}; f.bends = f.bends || []; if (!CT[f.kind]) f.kind = x.kind === 'usecase' ? 'assoc' : x.kind === 'bpmn' ? 'seq' : x.kind === 'sequence' ? 'smsg' : 'control'; });
+    if (x.kind === 'sequence') sqNormalize(x);
   });
   return d;
 }
@@ -2414,7 +2419,7 @@ function umlPlaceLabels(D, out) {
   });
 }
 function umlFlowMarkup(f, r, on, markers) {
-  var st = fs(f), c = CT[f.kind], col = st.stroke, d = pathD(r.pts.map(function (p) { return { x: Math.round(p.x), y: Math.round(p.y) }; }), st.route === 2) /* titik bulat: garis 1px tajam seperti EA */, dash = DASHARR[st.dash] || '', dv = r.jumps && st.route !== 2 ? lnJumpPath(r.pts, r.jumps) : d;
+  var st = fs(f), c = CT[f.kind], col = st.stroke, d = pathD(r.pts.map(function (p) { return { x: Math.round(p.x), y: Math.round(p.y) }; }), st.route === 2) /* titik bulat: garis 1px tajam seperti EA */, dash = f.kind === 'notelink' && st.dash === 'dash' ? '4 3' /* EA 12: garis catatan 4/3 (diukur) */ : DASHARR[st.dash] || '', dv = r.jumps && st.route !== 2 ? lnJumpPath(r.pts, r.jumps) : d;
   var attrs = ' stroke="' + col + '" stroke-width="' + (on ? 1.6 : 1) + '"' + (dash ? ' stroke-dasharray="' + dash + '"' : '');
   var head = f.rev ? c.tail : c.head, tail = f.rev ? c.head : c.tail;
   if (f.kind === 'assoc' && f.nav) head = 'open';
@@ -2460,7 +2465,7 @@ function umlCheck(D) {
       }
       if (e.type === 'decision' || (e.type === 'gateway')) {
         var o = outs(e, flowK), i = ins(e, flowK);
-        if (o.length < 2 && i.length < 2) items.push({ s: 'bad', t: (e.type === 'gateway' ? 'Gateway ' : 'Decision ') + nm(e) + ' harus bercabang (minimal 2 alur keluar) atau menggabungkan (minimal 2 alur masuk).', ids: [e.id] });
+        if (o.length < 2 && i.length < 2 && !(D.kind === 'bpmn' && i.length === 1 && o.length === 1)) items.push({ s: 'bad', t: (e.type === 'gateway' ? 'Gateway ' : 'Decision ') + nm(e) + ' harus bercabang (minimal 2 alur keluar) atau menggabungkan (minimal 2 alur masuk).', ids: [e.id] });
         if (o.length >= 2 && e.type === 'decision') o.forEach(function (f) { if (!f.name && !f.guard) items.push({ s: 'warn', t: 'Cabang dari decision ' + nm(e) + ' belum diberi kondisi (misalnya Ya / Tidak).', ids: [f.id] }); });
         if (!i.length) items.push({ s: 'bad', t: nm(e) + ' tidak punya alur masuk.', ids: [e.id] });
       }
@@ -2477,9 +2482,13 @@ function umlCheck(D) {
     }
     flowReach(D, items);
     if (D.kind === 'activity') adRules(D, items);
+    if (D.kind === 'bpmn') bpmnRules(D, items);
     if (D.kind === 'bpmn') D.flows.forEach(function (f) { var a = els.get(f.from), b = els.get(f.to); if (f.kind === 'seq' && a && b && poolOf(a) && poolOf(b) && poolOf(a) !== poolOf(b)) items.push({ s: 'bad', t: 'Sequence flow tidak boleh melintasi pool. Pakai Message Flow.', ids: [f.id] }); });
+  } else if (D.kind === 'sequence') {
+    seqCheck(D, items);
   } else if (D.kind === 'usecase') {
     ucCheck(D, items);
+    ucRules(D, items);
     D.elements.forEach(function (e) {
       var any = D.flows.filter(function (f) { return f.from === e.id || f.to === e.id; });
       if (e.type === 'actor' && !any.length) items.push({ s: 'warn', t: 'Aktor ' + nm(e) + ' belum terhubung ke use case.', ids: [e.id] });
@@ -2598,10 +2607,11 @@ function umlPanel() {
     if (e) {
       var t = TT[e.type];
       h += '<div class="sec"><h2>' + esc(t.label) + '</h2><div class="field"><label for="p-name">Nama</label>' + (e.type === 'note' || e.type === 'annotation' ? '<textarea class="in ta" id="p-name" data-f="name" rows="3">' + esc(e.name) + '</textarea>' : '<input class="in" id="p-name" data-f="name" value="' + esc(e.name) + '">') + '</div>';
-      if (!t.stereo && !isNoteish(e)) h += '<div class="field"><label for="p-st">Stereotype</label><input class="in" id="p-st" data-f="stereo" value="' + esc(e.stereo || '') + '" placeholder="opsional"></div>';
+      if (!t.stereo && !isNoteish(e) && t.k !== 'sequence') h += '<div class="field"><label for="p-st">Stereotype</label><input class="in" id="p-st" data-f="stereo" value="' + esc(e.stereo || '') + '" placeholder="opsional"></div>';
       if (e.type === 'action') h += '<div class="field"><label for="p-ea">Jenis (EA)</label><select class="in" id="p-ea" data-f="eaAct"><option value=""' + (e.eaAct ? '' : ' selected') + '>Activity (kuning)</option><option value="1"' + (e.eaAct ? ' selected' : '') + '>Action (oranye)</option></select></div>';
       if (e.type === 'gateway') h += '<div class="field"><label for="p-gw">Jenis gateway</label><select class="in" id="p-gw" data-f="gw">' + Object.keys(GW_TYPES).map(function (k) { return '<option value="' + k + '"' + ((e.gw || 'xor') === k ? ' selected' : '') + '>' + GW_TYPES[k] + '</option>'; }).join('') + '</select></div>';
       if (e.type === 'start' || e.type === 'intermediate' || e.type === 'end') h += '<div class="field"><label for="p-ev">Penanda event</label><select class="in" id="p-ev" data-f="ev">' + Object.keys(EV_DEFS).map(function (k) { return '<option value="' + k + '"' + ((e.ev || 'none') === k ? ' selected' : '') + '>' + EV_DEFS[k] + '</option>'; }).join('') + '</select></div>';
+      if (D.kind === 'sequence') h += sqPanelEl(D, e);
       if (e.type === 'actor') h += '<label class="cbx"><input type="checkbox" data-f="rect"' + (e.rect ? ' checked' : '') + '> Aktor bukan manusia (tampil sebagai kotak)</label>';
       if (e.type === 'task') h += '<label class="cbx"><input type="checkbox" data-f="sub"' + (e.sub ? ' checked' : '') + '> Sub-proses (tanda +)</label>';
       if (e.type === 'partition') h += '<label class="cbx"><input type="checkbox" data-f="horiz"' + (e.horiz ? ' checked' : '') + '> Partition mendatar (judul di kiri)</label>';
@@ -2617,6 +2627,7 @@ function umlPanel() {
         }).join('') : '<p class="hint">Belum ada. Seret salah satu panah biru di sisi elemen ke elemen lain.</p>') + '</div></div>';
       } else h += '<p class="hint">Isi ' + esc(t.label.toLowerCase()) + ' ikut berpindah saat bingkainya digeser. Klik bagian judul atau tepinya untuk memilih.</p>';
       h += '<div class="row"><button class="btn" data-act="dup">Duplikat</button><button class="btn danger" data-act="del">Hapus</button></div>';
+    } else if (f && f.kind === 'smsg') { h += sqPanelFlow(D, f);
     } else if (f) {
       var a = elOf(D, f.from) || {}, b = elOf(D, f.to) || {}, ks = linkKinds(a, b, D.kind), st = fs(f);
       if (ks.indexOf(f.kind) < 0) ks = [f.kind].concat(ks);
@@ -2636,7 +2647,7 @@ function umlPanel() {
   } else {
     h += '<div class="sec"><h2>Diagram</h2><div class="field"><label for="p-dn">Nama diagram</label><input class="in" id="p-dn" data-f="dname" value="' + esc(D.name) + '"></div>';
     h += '<div class="kv"><span>Jenis</span><b>' + KINDS[D.kind].name + '</b></div><div class="kv"><span>Elemen</span><b>' + D.elements.length + '</b></div><div class="kv"><span>Garis</span><b>' + D.flows.length + '</b></div>';
-    h += '<button class="btn block" data-act="tidyall">Rapikan semua garis…</button></div>';
+    h += (D.kind === 'sequence' ? '<button class="btn block" data-act="sqrespace">Rapikan jarak pesan (35 px seperti EA)</button><p class="hint">Tarik dari garis putus-putus lifeline ke lifeline lain untuk membuat pesan. Lepas di lifeline yang sama untuk pesan ke diri sendiri.</p>' : '<button class="btn block" data-act="tidyall">Rapikan semua garis…</button>') + '</div>';
     var items = umlCheck(D); if (!items.length) items.push({ s: 'ok', t: D.elements.length ? 'Tidak ada masalah di diagram ini.' : 'Diagram masih kosong. Pilih elemen di Toolbox lalu klik di kanvas.' });
     h += '<div class="sec"><h2>Pemeriksaan</h2><ul class="chk">' + items.map(function (c) { return '<li class="' + c.s + '"' + (c.ids ? ' data-go="' + active + '" data-ids="' + c.ids.join(',') + '"' : '') + '><span>' + esc(c.t) + '</span></li>'; }).join('') + '</ul></div>';
   }
@@ -2647,6 +2658,7 @@ function umlPanelChange(t) {
   var v = t.type === 'checkbox' ? t.checked : t.value;
   if (f === 'dname') { var nv = String(v).trim(); if (nv) mutate(function () { D.name = nv; }); return true; }
   if (!o) return false;
+  if (D.kind === 'sequence' && sqPanelChange(t, D, o)) return true;
   mutate(function () {
     if (f === 'name') o.name = t.tagName === 'TEXTAREA' && isNoteish(o) ? v : String(v).trim();
     else if (f === 'stereo') { v = String(v).replace(/[«»]/g, '').trim(); if (v) o.stereo = v; else delete o.stereo; }
@@ -2743,6 +2755,7 @@ function dockAll(ids) {
 }
 /* ---------- membuat elemen ---------- */
 function umlAddEl(type, p, ev) {
+  if (TT[type] && TT[type].k === 'sequence') return sqAddEl(type, p, ev);
   var D = cur(), t = TT[type], s = t.size, o = { id: uid('e'), type: type, name: t.name, x: snap(p.x - s[0] / 2, ev), y: snap(p.y - s[1] / 2, ev), w: s[0], h: s[1], style: {} };
   if (t.name && ['action', 'usecase', 'task', 'object'].indexOf(type) >= 0) o.name = t.name + ' ' + (D.elements.filter(function (x) { return x.type === type; }).length + 1);
   /* Partition di EA adalah elemen sendiri-sendiri (tidak tergabung). Yang baru ditaruh di tempat klik;
@@ -2799,6 +2812,9 @@ function labKV(s) { if (!s) return null; var o = {}; String(s).split(':').forEac
 function styleKV(s) { var o = {}; String(s || '').split(';').forEach(function (p) { var i = p.indexOf('='); if (i > 0) o[p.slice(0, i)] = p.slice(i + 1); }); return o; }
 function eaTypeOf(o, kind, w, h) {
   var t = o.type, st = String(o.stereo || '').replace(/^BPMN2\.0::/, ''), n = Number(o.ntype || 0);
+  if (t === 'Sequence') return st === 'boundary' ? 'sboundary' : st === 'control' ? 'scontrol' : st === 'entity' ? 'sentity' : 'lifeline';
+  if (t === 'InteractionFragment') return 'fragment';
+  if (t === 'Actor' && kind === 'sequence') return 'sactor';
   if (t === 'StateNode') return n === 100 || n === 3 ? 'initial' : n === 102 ? 'flowfinal' : 'final';
   if (t === 'Decision') return st === 'Gateway' ? 'gateway' : 'decision';
   if (t === 'MergeNode') return st === 'Gateway' ? 'gateway' : 'merge';
@@ -2814,7 +2830,7 @@ function eaTypeOf(o, kind, w, h) {
   if (t === 'Event') return st === 'StartEvent' ? 'start' : st === 'EndEvent' ? 'end' : 'intermediate';
   if (t === 'Class' && st === 'Message') return 'message';
   if (t === 'Artifact') return st === 'DataStore' ? 'bstore' : st === 'DataObject' ? 'dataobject' : 'dataobject';
-  if (t === 'Package' || t === 'Text' || t === 'Sequence' || t === 'Interaction') return null;
+  if (t === 'Package' || t === 'Text' || t === 'Interaction') return null;
   return 'note';
 }
 function eaKindOf(c, kind) {
@@ -2826,6 +2842,7 @@ function eaKindOf(c, kind) {
   if (t === 'Generalization') return 'general';
   if (t === 'Dependency') return /Data(Input|Output)?Association/.test(st) ? 'dassoc' : st === 'MessageFlow' ? 'msg' : st === 'Association' ? 'bassoc' : st === 'include' ? 'include' : st === 'extend' ? 'extend' : 'depend';
   if (t === 'NoteLink') return 'notelink';
+  if (t === 'Sequence') return 'smsg';
   if (t === 'Realisation' || t === 'Realization' || t === 'Usage') return 'depend';
   return null;
 }
@@ -2833,6 +2850,7 @@ function diagKindOf(type, styleex) {
   if (/BPMN/i.test(styleex || '')) return 'bpmn';
   if (type === 'Activity') return 'activity';
   if (type === 'Use Case') return 'usecase';
+  if (type === 'Sequence') return 'sequence';
   return null;
 }
 function parsePath(p) { var out = []; String(p || '').split('$').forEach(function (q) { var m = /^(-?\d+(?:\.\d+)?):(-?\d+(?:\.\d+)?)$/.exec(q.trim()); if (m) out.push({ x: Number(m[1]), y: -Number(m[2]) }); }); return out; }
@@ -2860,9 +2878,11 @@ function buildEaDoc(M, name) {
       var ds = styleKV(go.style), fill = colorFromRef(ds.BCol != null ? ds.BCol : o.back), line = colorFromRef(ds.LCol != null ? ds.LCol : o.border), fc = colorFromRef(ds.BFol != null ? ds.BFol : o.font);
       if (fill) e.style.fill = fill; if (line) e.style.stroke = line; if (fc) e.style.text = fc;
       if (type === 'gateway') { var gt = String(o.props.gatewayType || '').split('#')[0]; e.gw = gt === 'Parallel' ? 'and' : gt === 'Inclusive' ? 'or' : gt === 'Event' ? 'ev' : /true/.test(o.props.markerVisible || '') ? 'xorx' : 'xor'; }
-      if (type === 'actor' && String(o.props.alir_rect || '') === '1') { e.rect = true; if (e.w < 90) { e.x -= Math.round((100 - e.w) / 2); e.w = 100; } }
+      if (type === 'actor' && (String(ds.ActRect) === '1' || String(ds.UCRect) === '1' || String(o.props.alir_rect || '') === '1')) e.rect = true;
       if (type === 'start' || type === 'intermediate' || type === 'end') { var ed = String(o.props.eventDefinition || '').split('#')[0]; e.ev = ed === 'Message' ? 'message' : ed === 'Timer' ? 'timer' : 'none'; }
       if (type === 'partition' && ds.VPartition !== '1') e.horiz = true;
+      if (type === 'fragment') { e.op = n0(o.ntype); e.ops = sqParseParts(o.parts); }
+      if (kind === 'sequence' && isLL(e)) { e.y = go.t; }
       var lbo = labKV(ds.LBL); if (lbo && LBL_OUT[type] && (+lbo.OX || +lbo.OY)) e.lo = { x: +lbo.OX || 0, y: +lbo.OY || 0 }; /* di EA partition tanpa VPartition=1 = mendatar */
       idm[go.oid] = e.id; D.elements.push(e);
     });
@@ -2871,6 +2891,7 @@ function buildEaDoc(M, name) {
       var kd = eaKindOf(c, kind), a = idm[c.src], b = idm[c.dst];
       if (!kd || !a || !b) { skipped.links++; return; }
       var f = { id: 'f' + (++n), kind: kd, from: a, to: b, name: c.name || '', bends: [], style: {}, guid: c.guid };
+      if (kd === 'smsg') { sqFromEa(f, c); var colS = colorFromRef(c.color); if (colS) f.style.stroke = colS; D.flows.push(f); return; }
       if (c.guard) f.guard = c.guard;
       var gk0 = styleKV(gl.geometry), lmap = { LMT: 'mt', LMB: 'mb', LRT: 'rt' }; Object.keys(lmap).forEach(function (sk) { var q = labKV(gk0[sk]); if (q && (+q.OX || +q.OY)) { f.lo = f.lo || {}; f.lo[lmap[sk]] = { x: +q.OX || 0, y: +q.OY || 0 }; } });
       var gs = styleKV(gl.style), pts = parsePath(styleKV(gl.geometry).Path);
@@ -2893,6 +2914,7 @@ function buildEaDoc(M, name) {
       if (kd === 'assoc' && c.nav) f.nav = true;
       D.flows.push(f);
     });
+    if (kind === 'sequence') { sqChainY(D); D.flows.sort(function (p1, p2) { return (p1.y - p2.y) || ((p1.seqno || 0) - (p2.seqno || 0)); }); D.flows.forEach(function (fq) { delete fq.seqno; }); sqNormalize(D); }
     d.diagrams.push(D);
   });
   if (!d.diagrams.length) d.diagrams.push({ id: 'd' + (++n), kind: 'activity', name: 'Activity Diagram', pkg: d.packages[0].id, parent: null, elements: [], flows: [] });
@@ -2907,8 +2929,10 @@ function eapToModel(u8) {
   tab('t_package').forEach(function (p) { if (!p.Parent_ID) { root = p.Package_ID; return; } M.packages.push({ id: p.Package_ID, name: p.Name, parent: p.Parent_ID === root ? null : p.Parent_ID, guid: p.ea_guid }); });
   var props = {};
   tab('t_objectproperties').forEach(function (p) { (props[p.Object_ID] = props[p.Object_ID] || {})[p.Property] = p.Value; });
-  tab('t_object').forEach(function (o) { M.objects[o.Object_ID] = { type: o.Object_Type, stereo: o.Stereotype, ntype: o.NType, name: o.Name, note: o.Note, guid: o.ea_guid, back: o.Backcolor, border: o.Bordercolor, font: o.Fontcolor, props: props[o.Object_ID] || {} }; });
-  tab('t_connector').forEach(function (c) { M.conns[c.Connector_ID] = { type: c.Connector_Type, stereo: c.Stereotype, sub: c.SubType, name: c.Name, src: c.Start_Object_ID, dst: c.End_Object_ID, guid: c.ea_guid, color: c.LineColor, nav: c.DestIsNavigable && c.Connector_Type === 'Association' && c.Direction === 'Source -> Destination', guard: (c.Connector_Type === 'ControlFlow' || c.Connector_Type === 'ObjectFlow') && c.PDATA2 ? String(c.PDATA2) : '' }; });
+  var parts = {}; tab('t_xref').forEach(function (x) { if (x.Name === 'Partitions') parts[x.Client] = x.Description; });
+  tab('t_object').forEach(function (o) { M.objects[o.Object_ID] = { type: o.Object_Type, stereo: o.Stereotype, ntype: o.NType, name: o.Name, note: o.Note, guid: o.ea_guid, back: o.Backcolor, border: o.Bordercolor, font: o.Fontcolor, props: props[o.Object_ID] || {}, parts: parts[o.ea_guid] || '' }; });
+  tab('t_connector').forEach(function (c) { M.conns[c.Connector_ID] = { type: c.Connector_Type, stereo: c.Stereotype, sub: c.SubType, name: c.Name, src: c.Start_Object_ID, dst: c.End_Object_ID, guid: c.ea_guid, color: c.LineColor, nav: c.DestIsNavigable && c.Connector_Type === 'Association' && c.Direction === 'Source -> Destination', guard: (c.Connector_Type === 'ControlFlow' || c.Connector_Type === 'ObjectFlow') && c.PDATA2 ? String(c.PDATA2) : '' };
+    if (c.Connector_Type === 'Sequence') Object.assign(M.conns[c.Connector_ID], { seq: true, sub: c.SubType, sx: c.StyleEx, cond: c.Btm_Mid_Label, cons: c.SourceConstraint, card: c.SourceCard, diagram: c.DiagramID, y1: -Number(c.PtStartY || 0), y2: -Number(c.PtEndY || 0), seqno: Number(c.SeqNo || 0), pd1: c.PDATA1, pd2: c.PDATA2, pd3: c.PDATA3, pd4: c.PDATA4, pd5: c.PDATA5 }); });
   var dobj = tab('t_diagramobjects'), dl = tab('t_diagramlinks');
   tab('t_diagram').forEach(function (g) {
     M.diagrams.push({ id: g.Diagram_ID, name: g.Name, type: g.Diagram_Type, styleex: g.StyleEx, pkg: g.Package_ID === root ? null : g.Package_ID, guid: g.ea_guid,
@@ -2919,7 +2943,7 @@ function eapToModel(u8) {
   /* garis tanpa baris t_diagramlinks tetap tampil di EA selama kedua ujungnya ada di diagram */
   M.diagrams.forEach(function (g) {
     var on = new Set(g.objects.map(function (o) { return o.oid; })), have = new Set(g.links.map(function (l) { return l.cid; })), hid = new Set(g.hidden);
-    Object.keys(M.conns).forEach(function (k) { var c = M.conns[k], id = Number(k); if (!have.has(id) && !hid.has(id) && on.has(c.src) && on.has(c.dst)) g.links.push({ cid: id, geometry: '', style: '' }); });
+    Object.keys(M.conns).forEach(function (k) { var c = M.conns[k], id = Number(k); if (c.seq && c.diagram && c.diagram !== g.id) return; if (!have.has(id) && !hid.has(id) && on.has(c.src) && on.has(c.dst)) g.links.push({ cid: id, geometry: '', style: '' }); });
   });
   M.diagrams.forEach(function (g) { g.links.forEach(function (l) { var p = /Path=([^;]*)/.exec(l.style); if (p) l.geometry = (l.geometry || '') + ';Path=' + p[1]; }); });
   return M;
@@ -2937,12 +2961,17 @@ function xmiToModel(text) {
     var ln = e.localName, id = e.getAttribute('xmi.id'); if (!id) return;
     var tv = tvs(e);
     if (ln === 'Package') { M.packages.push({ id: id, name: e.getAttribute('name'), parent: tv.parent || null, guid: normGuid(id) }); return; }
-    if (tv.ea_stype && tv.ea_eleType === 'element') { M.objects[id] = { type: tv.ea_stype, stereo: tv.stereotype, ntype: tv.ea_ntype, name: e.getAttribute('name') || '', note: tv.documentation || '', guid: normGuid(id), back: -1, props: loose[id] || {} }; var ss = styleKV(tv.style); M.objects[id].back = ss.BackColor; M.objects[id].border = ss.BorderColor; M.objects[id].font = ss.FontColor; return; }
+    if (tv.ea_stype && tv.ea_eleType === 'element') { M.objects[id] = { type: tv.ea_stype, stereo: tv.stereotype, ntype: tv.ea_ntype, name: e.getAttribute('name') || '', note: tv.documentation || '', guid: normGuid(id), back: -1, props: loose[id] || {}, parts: sqXrefParts(tv.$ea_xref_property) }; var ss = styleKV(tv.style); M.objects[id].back = ss.BackColor; M.objects[id].border = ss.BorderColor; M.objects[id].font = ss.FontColor; return; }
     if (tv.ea_type && (ln === 'Transition' || ln === 'Association' || ln === 'Dependency' || ln === 'Generalization')) {
       var src = e.getAttribute('source') || e.getAttribute('client') || e.getAttribute('subtype'), dst = e.getAttribute('target') || e.getAttribute('supplier') || e.getAttribute('supertype');
       if (ln === 'Association') { var ends = e.getElementsByTagName('*'), tp = []; Array.prototype.forEach.call(ends, function (x) { if (x.localName === 'AssociationEnd') tp.push(x.getAttribute('type')); }); src = tp[0]; dst = tp[1]; }
       M.conns[id] = { type: tv.ea_type, stereo: tv.stereotype, sub: tv.subtype, name: e.getAttribute('name') || '', src: src, dst: dst, guid: normGuid(id), color: tv.linecolor, nav: tv.dst_isNavigable === 'true' && tv.ea_type === 'Association' && /Source -> Dest/.test(tv.direction || '') };
       if (ln === 'Transition') { var gx = Array.prototype.find.call(e.getElementsByTagName('*'), function (x) { return x.localName === 'BooleanExpression'; }); var gv = tv.privatedata2 || tv.guard || (gx && gx.getAttribute('body')) || ''; if (gv) M.conns[id].guard = gv; }
+      return;
+    }
+    if (ln === 'Message' && tv.ea_type === 'Sequence') {
+      var sp = styleKV(tv.sequence_points);
+      M.conns[id] = { type: 'Sequence', name: e.getAttribute('name') || '', src: e.getAttribute('sender'), dst: e.getAttribute('receiver'), guid: normGuid(id), color: tv.linecolor, seq: true, sub: tv.subtype, sx: tv.styleex, cond: tv.conditional, cons: tv.constraint, card: tv.src_multiplicity, diagram: tv.diagram || null, y1: -Number(sp.PtStartY || 0), y2: -Number(sp.PtEndY || 0), seqno: Number(tv.seqno || 0), pd1: tv.privatedata1, pd2: tv.privatedata2, pd3: tv.privatedata3, pd4: tv.privatedata4, pd5: tv.privatedata5 };
       return;
     }
     if (ln === 'EANoteLink') { M.conns[id] = { type: 'NoteLink', src: e.getAttribute('source'), dst: e.getAttribute('target'), guid: normGuid(id) }; return; }
@@ -3006,17 +3035,17 @@ function eaXmi(d, only) {
   function lid(o) { if (!localIds[o.id]) localIds[o.id] = ++local; return localIds[o.id]; }
   function elemXml(e, D, pk, ind) {
     var t = TT[e.type], st = t.stereo || (e.type === 'datastore' ? 'datastore' : e.stereo) || '', g = e.guid, id = xid(g), s = es(e);
-    var tv = { isAbstract: 'false', isSpecification: 'false', ea_stype: e.eaAct && e.type === 'action' ? 'Action' : t.ea, ea_ntype: String(t.nType || 0), version: '1.0', isActive: 'false', package: xid(pk.guid, 'EAPK_'), date_created: now, date_modified: now, gentype: '<none>', tagged: '0', package_name: pk.name, phase: '1.0', author: author, complexity: '1', status: 'Proposed', stereotype: st || null, tpos: '0', ea_localid: String(lid(e)), ea_eleType: 'element',
+    var tv = { isAbstract: 'false', isSpecification: 'false', ea_stype: e.eaAct && e.type === 'action' ? 'Action' : t.ea, ea_ntype: String(e.type === 'fragment' ? (e.op | 0) : (t.nType || 0)), version: '1.0', isActive: 'false', package: xid(pk.guid, 'EAPK_'), date_created: now, date_modified: now, gentype: '<none>', tagged: '0', package_name: pk.name, phase: '1.0', author: author, complexity: '1', status: 'Proposed', stereotype: st || null, tpos: '0', ea_localid: String(lid(e)), ea_eleType: 'element',
       style: 'BackColor=' + (e.style.fill && e.style.fill !== 'none' ? colorToRef(e.style.fill) : -1) + ';BorderColor=' + (e.style.stroke ? colorToRef(e.style.stroke) : -1) + ';BorderWidth=-1;FontColor=' + (e.style.text ? colorToRef(e.style.text) : -1) + ';VSwimLanes=1;HSwimLanes=1;BorderStyle=' + (t.container && t.ea === 'ActivityPartition' ? 3 : 0) + ';' };
     var own = e.type === 'lane' ? containerOf(D, e, ['pool']) : isContainer(e) ? null : containerOf(D, e, ['partition', 'pool', 'lane']); if (own) tv.owner = xid(own.guid);
     if (e.note || (e.type === 'note' || e.type === 'annotation')) tv.documentation = e.type === 'note' || e.type === 'annotation' ? e.name : e.note;
     if (st) tv.$ea_xref_property = xref(g, st);
+    if (e.type === 'fragment' && e.ops && e.ops.length) tv.$ea_xref_property = sqPartsXref(e, g);
     var nm = e.type === 'note' || e.type === 'annotation' ? '' : e.name, head;
-    var tag = { action: 'ActionState', task: 'ActionState', partition: 'ActionState', pool: 'ActionState', lane: 'ActionState', initial: 'PseudoState', final: 'PseudoState', flowfinal: 'PseudoState', decision: 'PseudoState', merge: 'PseudoState', fork: 'PseudoState', forkv: 'PseudoState', gateway: 'PseudoState', object: 'ClassifierRole', datastore: 'ClassifierRole', boundary: 'ClassifierRole', group: 'ClassifierRole', note: 'Comment', annotation: 'Comment', actor: 'Actor', usecase: 'UseCase', start: 'Event', intermediate: 'Event', end: 'Event', dataobject: 'Class', bstore: 'Class', message: 'Class' }[e.type];
+    var tag = { action: 'ActionState', task: 'ActionState', partition: 'ActionState', pool: 'ActionState', lane: 'ActionState', initial: 'PseudoState', final: 'PseudoState', flowfinal: 'PseudoState', decision: 'PseudoState', merge: 'PseudoState', fork: 'PseudoState', forkv: 'PseudoState', gateway: 'PseudoState', object: 'ClassifierRole', datastore: 'ClassifierRole', boundary: 'ClassifierRole', group: 'ClassifierRole', note: 'Comment', annotation: 'Comment', actor: 'Actor', usecase: 'UseCase', start: 'Event', intermediate: 'Event', end: 'Event', dataobject: 'Class', bstore: 'Class', message: 'Class', sactor: 'Actor', lifeline: 'ClassifierRole', sboundary: 'ClassifierRole', scontrol: 'ClassifierRole', sentity: 'ClassifierRole', fragment: 'Class' }[e.type];
     var kindA = { final: 'final', flowfinal: 'final', decision: 'branch', gateway: 'branch', merge: 'join', fork: 'join', forkv: 'join' }[e.type];
     head = ind + '<UML:' + tag + ' name="' + xa(nm) + '" xmi.id="' + id + '" visibility="public"' + (tag === 'ClassifierRole' ? ' base="EAID_11111111_5487_4080_A7F4_41526CB0AA00"' : '') + ' namespace="' + xid(pk.guid, 'EAPK_') + '"' + (kindA ? ' kind="' + kindA + '"' : '') + ' isRoot="false" isLeaf="false" isAbstract="false"' + (tag === 'ActionState' || tag === 'PseudoState' ? '' : ' isActive="false"') + '>\n';
     var body = stereoXml(st, ind + '\t') + TVs(tv, ind + '\t');
-    if (e.type === 'actor' && e.rect) loose.push([g, 'alir_rect', '1']);
     /* tagged value BPMN (dibutuhkan shape script EA untuk menggambar pool, lane, event, gateway) */
     if (BPMN_TV[st]) {
       var ov = {};
@@ -3034,6 +3063,7 @@ function eaXmi(d, only) {
     return '$LLB=;LLT=;LMT=' + sl('mt') + ';LMB=' + sl('mb') + ';LRT=' + sl('rt') + ';LRB=;';
   }
   function connXml(f, D, ind) {
+    if (f.kind === 'smsg') return { seqm: true, xml: sqMsgXml(f, D, ind, { lid: lid, TVs: TVs, now: now, xa: xa }) };
     var c = CT[f.kind], A = elOf(D, f.from), B = elOf(D, f.to), g = f.guid, id = xid(g), st = c.stereo || '';
     if (f.kind === 'dassoc') st = A && (A.type === 'dataobject' || A.type === 'bstore') ? 'DataInputAssociation' : 'DataOutputAssociation';
     var tv = { style: '3', ea_type: c.ea, direction: f.kind === 'assoc' && !f.nav ? 'Unspecified' : 'Source -> Destination', linemode: '3', linecolor: String(f.style.stroke ? colorToRef(f.style.stroke) : -1), linewidth: '0', seqno: '0', stereotype: st || null, headStyle: '0', lineStyle: '0', ea_localid: String(lid(f)),
@@ -3056,10 +3086,10 @@ function eaXmi(d, only) {
     var par = p.parent ? d.packages.find(function (q) { return q.id === p.parent; }) : null;
     s += TVs({ parent: par ? xid(par.guid, 'EAPK_') : null, created: now, modified: now, iscontrolled: 'FALSE', version: '1.0', isprotected: 'FALSE', usedtd: 'FALSE', logxml: 'FALSE', packageFlags: par ? null : 'isModel=1;VICON=3;CRC=0;', phase: '1.0', status: 'Proposed', author: author, complexity: '1', ea_stype: 'Public', tpos: '0', gentype: '<none>' }, ind + '\t');
     s += ind + '\t<UML:Namespace.ownedElement>\n';
-    var I = ind + '\t\t', states = [], trans = [], plain = [], roles = [];
+    var I = ind + '\t\t', states = [], trans = [], plain = [], roles = [], smsgs = [];
     d.diagrams.filter(function (D) { return D.pkg === p.id; }).forEach(function (D) {
-      zOrder(D).forEach(function (e) { var x = elemXml(e, D, p, ['ActionState', 'PseudoState'].indexOf(({ action: 'ActionState', task: 'ActionState', partition: 'ActionState', pool: 'ActionState', lane: 'ActionState' })[e.type] || (TT[e.type].ea === 'StateNode' || ['Decision', 'MergeNode', 'Synchronization'].indexOf(TT[e.type].ea) >= 0 ? 'PseudoState' : '')) >= 0 ? I + '\t\t\t\t' : (['object', 'datastore', 'boundary', 'group'].indexOf(e.type) >= 0 ? I + '\t\t' : I)); if (x.tag === 'ActionState' || x.tag === 'PseudoState') states.push(x.xml); else if (x.tag === 'ClassifierRole') roles.push(x.xml); else plain.push(x.xml); });
-      D.flows.forEach(function (f) { if (!elOf(D, f.from) || !elOf(D, f.to)) return; var x = connXml(f, D, I + '\t\t'); if (x.trans) trans.push(x.xml); else if (x.note) noteLinks.push(x.xml); else plain.push(x.xml.replace(new RegExp('^' + I + '\t\t', 'gm'), I)); });
+      zOrder(D).forEach(function (e) { var x = elemXml(e, D, p, ['ActionState', 'PseudoState'].indexOf(({ action: 'ActionState', task: 'ActionState', partition: 'ActionState', pool: 'ActionState', lane: 'ActionState' })[e.type] || (TT[e.type].ea === 'StateNode' || ['Decision', 'MergeNode', 'Synchronization'].indexOf(TT[e.type].ea) >= 0 ? 'PseudoState' : '')) >= 0 ? I + '\t\t\t\t' : (['object', 'datastore', 'boundary', 'group', 'lifeline', 'sboundary', 'scontrol', 'sentity'].indexOf(e.type) >= 0 ? I + '\t\t' : I)); if (x.tag === 'ActionState' || x.tag === 'PseudoState') states.push(x.xml); else if (x.tag === 'ClassifierRole') roles.push(x.xml); else plain.push(x.xml); });
+      D.flows.forEach(function (f) { if (!elOf(D, f.from) || !elOf(D, f.to)) return; var x = connXml(f, D, I + '\t\t'); if (x.seqm) smsgs.push(x.xml); else if (x.trans) trans.push(x.xml); else if (x.note) noteLinks.push(x.xml); else plain.push(x.xml.replace(new RegExp('^' + I + '\t\t', 'gm'), I)); });
       diagXml.push(diagramXml(D, p));
     });
     s += plain.join('');
@@ -3069,19 +3099,19 @@ function eaXmi(d, only) {
       s += I + '\t<UML:StateMachine.top>\n' + I + '\t\t<UML:CompositeState name="{top}" xmi.id="' + xid(p.guid) + '_top" visibility="public" isConcurrent="false">\n' + I + '\t\t\t<UML:CompositeState.substate>\n' + states.join('') + I + '\t\t\t</UML:CompositeState.substate>\n' + I + '\t\t</UML:CompositeState>\n' + I + '\t</UML:StateMachine.top>\n';
       s += I + '</UML:ActivityModel>\n';
     }
-    if (roles.length) s += I + '<UML:Collaboration xmi.id="' + xid(p.guid) + '_Collaboration" name="Collaborations" visibility="public">\n' + I + '\t<UML:Namespace.ownedElement>\n' + roles.join('') + I + '\t</UML:Namespace.ownedElement>\n' + I + '\t<UML:Collaboration.interaction/>\n' + I + '</UML:Collaboration>\n';
+    if (roles.length || smsgs.length) s += I + '<UML:Collaboration xmi.id="' + xid(p.guid) + '_Collaboration" name="Collaborations" visibility="public">\n' + (roles.length ? I + '\t<UML:Namespace.ownedElement>\n' + roles.join('') + I + '\t</UML:Namespace.ownedElement>\n' : '') + (smsgs.length ? I + '\t<UML:Collaboration.interaction>\n' + I + '\t\t<UML:Interaction xmi.id="' + xid(p.guid) + '_INT" name="' + xid(p.guid) + '_INT">\n' + I + '\t\t\t<UML:Interaction.message>\n' + smsgs.join('') + I + '\t\t\t</UML:Interaction.message>\n' + I + '\t\t</UML:Interaction>\n' + I + '\t</UML:Collaboration.interaction>\n' : I + '\t<UML:Collaboration.interaction/>\n') + I + '</UML:Collaboration>\n';
     d.packages.filter(function (q) { return q.parent === p.id; }).forEach(function (q) { s += pkgXml(q, I); });
     return s + ind + '\t</UML:Namespace.ownedElement>\n' + ind + '</UML:Package>\n';
   }
   function diagramXml(D, p) {
     var b = bbox(D) || { x: 0, y: 0, w: 800, h: 1000 }, kind = KINDS[D.kind], duid = {}, s = '';
     D.elements.forEach(function (e) { duid[e.id] = e.guid.replace(/[{}-]/g, '').slice(0, 8); });
-    s += '\t\t<UML:Diagram name="' + xa(D.name) + '" xmi.id="' + xid(D.guid) + '" diagramType="' + (D.kind === 'usecase' ? 'UseCaseDiagram' : D.kind === 'bpmn' ? 'CollaborationDiagram' : 'ActivityDiagram') + '" owner="' + xid(p.guid, 'EAPK_') + '" toolName="Enterprise Architect 2.5">\n';
+    s += '\t\t<UML:Diagram name="' + xa(D.name) + '" xmi.id="' + xid(D.guid) + '" diagramType="' + (D.kind === 'usecase' ? 'UseCaseDiagram' : D.kind === 'bpmn' ? 'CollaborationDiagram' : D.kind === 'sequence' ? 'SequenceDiagram' : 'ActivityDiagram') + '" owner="' + xid(p.guid, 'EAPK_') + '" toolName="Enterprise Architect 2.5">\n';
     s += TVs({ version: '1.0', author: author, created_date: now, modified_date: now, package: xid(p.guid, 'EAPK_'), type: kind.ea, swimlanes: 'locked=false;orientation=0;width=0;inbar=false;names=false;color=-1;bold=false;fcol=0;tcol=-1;ofCol=-1;hl=1;cls=0;', matrixitems: 'locked=false;matrixactive=false;swimlanesactive=true;kanbanactive=false;width=1;', ea_localid: String(++local),
       EAStyle: 'ShowPrivate=1;ShowProtected=1;ShowPublic=1;HideRelationships=0;Locked=0;Border=1;HighlightForeign=1;PackageContents=1;SequenceNotes=0;ScalePrintImage=0;PPgs.cx=1;PPgs.cy=1;DocSize.cx=' + Math.max(800, Math.ceil(b.w + 120)) + ';DocSize.cy=' + Math.max(1100, Math.ceil(b.h + 120)) + ';ShowDetails=0;Orientation=P;Zoom=100;ShowTags=0;OpParams=1;VisibleAttributeDetail=0;ShowOpRetType=1;ShowIcons=1;CollabNums=0;HideProps=0;ShowReqs=0;ShowCons=0;PaperSize=9;HideParents=0;UseAlias=0;HideAtts=0;HideOps=0;HideStereo=0;HideElemStereo=0;ShowTests=0;ShowMaint=0;ConnectorNotation=UML 2.1;ExplicitNavigability=0;AdvancedElementProps=1;AdvancedFeatureProps=1;AdvancedConnectorProps=1;ShowNotes=0;SuppressBrackets=0;SuppConnectorLabels=0;PrintPageHeadFoot=0;ShowAsList=0;',
-      styleex: 'ExcludeRTF=0;DocAll=0;HideQuals=0;AttPkg=1;ShowTests=0;ShowMaint=0;SuppressFOC=1;MatrixActive=0;SwimlanesActive=1;KanbanActive=0;MatrixLineWidth=1;MatrixLocked=0;TConnectorNotation=UML 2.1;TExplicitNavigability=0;AdvancedElementProps=1;AdvancedFeatureProps=1;AdvancedConnectorProps=1;ProfileData=;MDGDgm=' + (D.kind === 'bpmn' ? 'BPMN2.0::Business Process' : '') + ';STBLDgm=;ShowNotes=0;VisibleAttributeDetail=0;ShowOpRetType=1;SuppressBrackets=0;SuppConnectorLabels=0;PrintPageHeadFoot=0;ShowAsList=0;SuppressedCompartments=;' }, '\t\t\t');
+      styleex: 'ExcludeRTF=0;DocAll=0;HideQuals=0;AttPkg=1;ShowTests=0;ShowMaint=0;' + (D.kind === 'sequence' ? 'SuppressFOC=0;INT_ARGS=;INT_RET=;INT_ATT=;SeqTopMargin=' + SQ_TOP + ';' : 'SuppressFOC=1;') + 'MatrixActive=0;SwimlanesActive=1;KanbanActive=0;MatrixLineWidth=1;MatrixLocked=0;TConnectorNotation=UML 2.1;TExplicitNavigability=0;AdvancedElementProps=1;AdvancedFeatureProps=1;AdvancedConnectorProps=1;ProfileData=;MDGDgm=' + (D.kind === 'bpmn' ? 'BPMN2.0::Business Process' : '') + ';STBLDgm=;ShowNotes=0;VisibleAttributeDetail=0;ShowOpRetType=1;SuppressBrackets=0;SuppConnectorLabels=0;PrintPageHeadFoot=0;ShowAsList=0;SuppressedCompartments=;' }, '\t\t\t');
     s += '\t\t\t<UML:Diagram.element>\n';
-    var seq = 0, order = zOrder(D).filter(function (e) { return !isContainer(e); }).reverse().concat(zOrder(D).filter(isContainer).reverse()), mnx = Math.min.apply(null, D.elements.map(function (e) { return e.x; }).concat([1e9])), mny = Math.min.apply(null, D.elements.map(function (e) { return e.y; }).concat([1e9])), ox = mnx < 10 ? Math.ceil(20 - mnx) : 0, oy = mny < 10 ? Math.ceil(20 - mny) : 0;
+    var seq = 0, order = zOrder(D).filter(function (e) { return !isContainer(e); }).reverse().concat(zOrder(D).filter(isContainer).reverse()), mnx = Math.min.apply(null, D.elements.map(function (e) { return e.x; }).concat([1e9])), mny = Math.min.apply(null, D.elements.map(function (e) { return e.y; }).concat([1e9])), ox = mnx < 10 && D.kind !== 'sequence' ? Math.ceil(20 - mnx) : 0, oy = mny < 10 && D.kind !== 'sequence' ? Math.ceil(20 - mny) : 0;
     order.forEach(function (e) {
       var st = 'DUID=' + duid[e.id] + ';';
       if (e.style.fill && e.style.fill !== 'none') st += 'BCol=' + colorToRef(e.style.fill) + ';';
@@ -3089,12 +3119,15 @@ function eaXmi(d, only) {
       if (e.style.text) st += 'BFol=' + colorToRef(e.style.text) + ';';
       if (isContainer(e)) st = 'Dockable=on;' + st;
       if (e.type === 'partition' && !e.horiz) st += 'VPartition=1;';
+      /* aktor bukan manusia: sama dengan menu EA Advanced → Use Rectangle Notation (gaya objek diagram ActRect=1, dicek langsung di EA 12) */
+      if (e.type === 'actor' && e.rect) st += 'ActRect=1;';
       if (e.lo && LBL_OUT[e.type]) { var LG = elLabGeom(e); if (LG) st += 'LBL=CX=' + Math.round(LG.w + 4) + ':CY=' + Math.round(LG.h) + ':OX=' + (Math.round(e.lo.x) || (Math.round(e.lo.y) ? 0 : 1)) + ':OY=' + Math.round(e.lo.y) + ':HDN=0:BLD=0:ITA=0:UND=0:CLR=-1:ALN=1:ALT=0:ROT=0;'; }
       s += '\t\t\t\t<UML:DiagramElement geometry="Left=' + Math.round(e.x + ox) + ';Top=' + Math.round(e.y + oy) + ';Right=' + Math.round(e.x + e.w + ox) + ';Bottom=' + Math.round(e.y + e.h + oy) + ';" subject="' + xid(e.guid) + '" seqno="' + (++seq) + '" style="' + st + '"/>\n';
     });
     var routes = routeAll(D);
     D.flows.forEach(function (f) {
       var r = routes.get(f.id), A = elOf(D, f.from), B = elOf(D, f.to); if (!r || !A || !B) return;
+      if (f.kind === 'smsg') { s += '\t\t\t\t<UML:DiagramElement geometry="SX=0;SY=0;EX=0;EY=0;Path=;" subject="' + xid(f.guid) + '" style=";Hidden=0;"/>\n'; return; }
       var P = r.pts, S = P[0], T = P[P.length - 1], ortho = fs(f).route > 0, mid = P.slice(1, -1);
       var s1 = P[1], t1 = P[P.length - 2], sHz = Math.abs(s1.y - S.y) < .5, tHz = Math.abs(t1.y - T.y) < .5;
       var sx = sHz ? 0 : Math.round(S.x - (A.x + A.w / 2)), sy = sHz ? -Math.round(S.y - (A.y + A.h / 2)) : 0, ex = tHz ? 0 : Math.round(T.x - (B.x + B.w / 2)), ey = tHz ? -Math.round(T.y - (B.y + B.h / 2)) : 0;
@@ -3198,10 +3231,11 @@ function startPage() {
     ['dfd', 'Data Flow Diagram', 'Gaya PowerDesigner 6. Buka dan simpan .pam, level 0 sampai level 2.', dfd && dfd.doc.diagrams.some(function (x) { return x.elements.length; }) ? 'Lanjutkan "' + dfd.doc.name + '"' : 'Mulai baru', '<circle cx="24" cy="24" r="10"/><rect x="3" y="18" width="10" height="12"/><path d="M13 24h1M34 24h4M38 20h8M38 28h8"/>'],
     ['activity', 'Activity Diagram', 'Alur aktivitas dengan swimlane, decision, fork/join.', ea && cnt(ea, 'activity') ? 'Lanjutkan (' + cnt(ea, 'activity') + ' diagram)' : 'Mulai baru', '<rect x="8" y="5" width="32" height="10" rx="5"/><path d="M24 15v6l-6 6 6 6 6-6-6-6M24 33v6"/><circle cx="24" cy="43" r="3"/>'],
     ['usecase', 'Use Case Diagram', 'Aktor, use case, batas sistem, «include» dan «extend».', ea && cnt(ea, 'usecase') ? 'Lanjutkan (' + cnt(ea, 'usecase') + ' diagram)' : 'Mulai baru', '<circle cx="9" cy="14" r="3.5"/><path d="M9 18v10M3 22h12M9 28l-5 8M9 28l5 8"/><ellipse cx="33" cy="16" rx="11" ry="6"/><ellipse cx="33" cy="34" rx="11" ry="6"/><path d="M15 22l7-4M15 24l7 8"/>'],
-    ['bpmn', 'BPMN', 'Proses bisnis: pool, lane, event, gateway, data store.', ea && cnt(ea, 'bpmn') ? 'Lanjutkan (' + cnt(ea, 'bpmn') + ' diagram)' : 'Mulai baru', '<rect x="2" y="8" width="44" height="32"/><path d="M8 8v32M8 24h38"/><circle cx="15" cy="16" r="3"/><rect x="22" y="12" width="12" height="8" rx="2"/><path d="M40 13l4 3-4 3-4-3z"/>']
+    ['bpmn', 'BPMN', 'Proses bisnis: pool, lane, event, gateway, data store.', ea && cnt(ea, 'bpmn') ? 'Lanjutkan (' + cnt(ea, 'bpmn') + ' diagram)' : 'Mulai baru', '<rect x="2" y="8" width="44" height="32"/><path d="M8 8v32M8 24h38"/><circle cx="15" cy="16" r="3"/><rect x="22" y="12" width="12" height="8" rx="2"/><path d="M40 13l4 3-4 3-4-3z"/>'],
+    ['sequence', 'Sequence Diagram', 'Lifeline V_/C_/M_, pesan, activation, fragment alt/opt/loop.', ea && cnt(ea, 'sequence') ? 'Lanjutkan (' + cnt(ea, 'sequence') + ' diagram)' : 'Mulai baru', '<rect x="3" y="4" width="12" height="7"/><rect x="33" y="4" width="12" height="7"/><path d="M9 11v33M39 11v33" stroke-dasharray="3 2"/><rect x="7" y="16" width="4" height="16"/><rect x="37" y="20" width="4" height="8"/><path d="M11 20h24M31 17l4 3-4 3"/>']
   ];
   var el = document.createElement('div'); el.id = 'start'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Halaman mulai');
-  el.innerHTML = '<div class="st-in"><header><div class="st-brand"><b>Alir</b><span>DFD · Activity · Use Case · BPMN</span></div>' + (doc ? '<button class="btn" data-st="close">Tutup</button>' : '') + '</header>' +
+  el.innerHTML = '<div class="st-in"><header><div class="st-brand"><b>Alir</b><span>DFD · Activity · Use Case · BPMN · Sequence</span></div>' + (doc ? '<button class="btn" data-st="close">Tutup</button>' : '') + '</header>' +
     '<h1>Mau menggambar apa hari ini?</h1><div class="st-cards">' + cards.map(function (c) { return '<button class="st-card" data-st="' + c[0] + '"><svg viewBox="0 0 48 48" aria-hidden="true">' + c[4] + '</svg><b>' + c[1] + '</b><span>' + c[2] + '</span><i>' + esc(c[3]) + ' →</i></button>'; }).join('') + '</div>' +
     '<div class="st-row"><button class="btn pri" data-st="open">Buka berkas (.pam, .eap, .xml, .json)</button>' + (ea ? '<button class="btn" data-st="neweap">Proyek UML baru (kosong)</button>' : '') + (dfd ? '<button class="btn" data-st="newdfd">DFD baru (kosong)</button>' : '') + '</div>' +
     '<p class="st-note"><b>Penting:</b> Alir alat bantu menggambar, bukan pengganti resmi PowerDesigner atau Enterprise Architect. Sebelum dikumpulkan, buka hasil akhirnya di aplikasi asli (PowerDesigner / EA) untuk memastikan semuanya benar.</p>' +
@@ -4596,6 +4630,7 @@ function reportModal() {
   var tabs = [];
   if (isDfd()) tabs.push(['Tabel alur data', repDfd(D)]);
   else if (D.kind === 'usecase') tabs.push(['Tabel aktor & use case', repUseCase(D)]);
+  else if (D.kind === 'sequence') tabs.push(['Tabel urutan pesan', repSeq(D)]);
   else {
     var secs = repWalk(D); if (!secs) { toast('Belum ada titik mulai (Initial / Start Event) di diagram ini.'); return; }
     tabs.push(['Tabel skenario', repTable(D, secs)], ['Narasi bernomor', repNarrative(D, secs)]);
@@ -4620,7 +4655,7 @@ function unb64u(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.lengt
 /* v3 (v40): link RINGKAS — id dibuat ulang berurutan (tidak disimpan), elemen & garis jadi larik [jenis, nama, x, y, w, h, sisa],
    garis merujuk nomor urut elemen, nilai yang sama di sebagian besar garis disimpan sekali per diagram, warna bawaan tidak ikut.
    Link lama (v2) tetap bisa dibuka. */
-var SL_TXT = { name: 1, code: 1, text: 1, note: 1, notes: 1, doc: 1, alias: 1, stereo: 1, guard: 1, cond: 1, desc: 1, label: 1, title: 1, guid: 1 };
+var SL_TXT = { args: 1, ret: 1, cons: 1, g: 1, sig: 1, name: 1, code: 1, text: 1, note: 1, notes: 1, doc: 1, alias: 1, stereo: 1, guard: 1, cond: 1, desc: 1, label: 1, title: 1, guid: 1 };
 function slCanon(o) { if (Array.isArray(o)) return '[' + o.map(slCanon).join(',') + ']'; if (o && typeof o === 'object') return '{' + Object.keys(o).sort().map(function (k) { return JSON.stringify(k) + ':' + slCanon(o[k]); }).join(',') + '}'; return JSON.stringify(o); }
 function slR(v, k) { return typeof v === 'number' ? Math.round(v * k) / k : v; }
 function slSideOk(a) { return !a || (typeof a === 'object' && typeof a.s === 'string' && a.s.length === 1 && typeof a.p === 'number' && Object.keys(a).every(function (k) { return k === 's' || k === 'p'; })); }
@@ -7831,6 +7866,7 @@ function cOverview(D, simple) {
   var k = cDiagKind(D);
   if (k === 'dfd') return cOverviewDfd(D);
   if (k === 'usecase') return cOverviewUc(D);
+  if (D.kind === 'sequence') return cRes(xSeqExplain(D), ['Diagram ini sudah benar belum?', 'Apa itu activation?'], null, 'overview');
   var A = xAnalyze(D), lanes = A.lanes.filter(function (l) { return l.name; });
   var nm = esc(D.name || 'Diagram ini'), h = '', more = '';
   var act = lanes.filter(function (l) { return cRole(D, l.name) === 'aktor'; }), sys = lanes.filter(function (l) { return cRole(D, l.name) === 'sistem'; });
@@ -8293,6 +8329,7 @@ function cPick(D, q, allowFocus) {
 /* ---------- router utama ---------- */
 function cAnswer(D, raw) {
   raw = String(raw || '').trim(); if (!raw) return cRes('');
+  if (!isDfd() && D.kind === 'sequence') return seqAnswer(D, raw);
   /* sapaan/basa-basi di depan pertanyaan ("halo, ...", "kak ...", "permisi, mau tanya ...") dibuang dulu */
   for (var gi = 0; gi < 3; gi++) raw = raw.replace(/^(halo+|hallo|hai+|hi+|hello|hey|permisi|kak|kakak|ka|min|mimin|bro|sis|gan|bang|mas|mbak|eh|btw|oh ya|oiya|oh iya|mau tanya|numpang tanya|tanya dong|tanya|tolong|maaf|assalamualaikum|pagi|siang|sore|malam)\b[\s,!.:;-]*(?=\S+\s+\S+)/i, '');
   raw = cFix(D, raw);
@@ -8648,7 +8685,7 @@ function chatPanel(focusId) {
     if (e.target.closest('[data-xmin]')) { pn.classList.toggle('min'); return; }
     var tb = e.target.closest('[data-xt]'); if (tb) {
       $$('.xtab', pn).forEach(function (b) { b.classList.toggle('on', b === tb); }); $$('.xpane', pn).forEach(function (p) { p.hidden = p.dataset.xp !== tb.dataset.xt; });
-      if (tb.dataset.xt === 'full') { var D3 = cur(); $('#xexp', pn).innerHTML = cLinkify(D3, isDfd() ? xDfdExplain(D3) : D3.kind === 'usecase' ? xUseCaseExplain(D3) : xFlowExplain(D3)); }
+      if (tb.dataset.xt === 'full') { var D3 = cur(); $('#xexp', pn).innerHTML = cLinkify(D3, isDfd() ? xDfdExplain(D3) : D3.kind === 'usecase' ? xUseCaseExplain(D3) : D3.kind === 'sequence' ? xSeqExplain(D3) : xFlowExplain(D3)); }
     }
   });
   pn.addEventListener('keydown', function (e) { var x = e.target.closest && e.target.closest('.xref'); if (x && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); cShowEl(x.dataset.el); } });
@@ -8872,7 +8909,7 @@ function diagramMenu(id, x, y) {
 function pkgMenu(pid, x, y) {
   var p = doc.packages.find(function (q) { return q.id === pid; }); if (!p) return;
   pkMenuId = pid;
-  var its = [{ hd: 'Paket ' + p.name }, item('Ganti nama…', 'pk:rename'), HR, { hd: 'Tambah di dalamnya' }, item('Activity Diagram', 'pk:new:activity'), item('Use Case Diagram', 'pk:new:usecase'), item('BPMN', 'pk:new:bpmn'), item('Paket baru', 'pk:newpkg'),
+  var its = [{ hd: 'Paket ' + p.name }, item('Ganti nama…', 'pk:rename'), HR, { hd: 'Tambah di dalamnya' }, item('Activity Diagram', 'pk:new:activity'), item('Use Case Diagram', 'pk:new:usecase'), item('BPMN', 'pk:new:bpmn'), item('Sequence Diagram', 'pk:new:sequence'), item('Paket baru', 'pk:newpkg'),
     HR, item('Duplikat paket beserta isinya', 'pk:dup'), item('Salin paket', 'pk:copy'), item('Tempel diagram/paket di sini', 'pk:paste', '', { dis: !canPasteDiagram() })];
   var others = doc.packages.filter(function (q) { return q.id !== pid && pkgDescendants(pid).indexOf(q.id) < 0; });
   if (others.length) { its.push({ hd: 'Pindah ke dalam paket' }); others.forEach(function (q) { its.push(item(q.name, 'pk:move:' + q.id, '', { ck: p.parent === q.id, dis: p.parent === q.id })); }); }
@@ -9576,11 +9613,790 @@ function alirApi44() {
   return {
     load: function (text, name) { if (/^\s*</.test(text)) return openXmiText(text, name || 'x.xml'); return openText(text, name || 'x.json'); },
     open: function (id) { var D = doc.diagrams.find(function (d) { return d.id === id || d.name === id; }); if (!D) return false; active = D.id; sel.clear(); draw(); return D.id; },
-    check: function () { var D = cur(); return umlCheck ? umlCheck(D) : []; },
+    check: function (id) { return this.checkJson(id); },
     select: function (ids) { sel = new Set(ids); panel(); syncBar(); draw(); return Array.from(sel); },
     move: function (ids, dx, dy) { var D = cur(), l = D.elements.filter(function (e) { return ids.indexOf(e.id) >= 0 && !e.locked; }); mutate(function () { moveEls(l, dx, dy); }); return l.length; },
-    busTidy: function () { ucBusTidy(); return true; }
+    busTidy: function () { ucBusTidy(); return true; },
+    svgOf: function (id) { if (id && !this.open(id)) return null; var x = exportSVG(); return x && x.svg; },
+    duplicate: function (id, name) { dupDiagram(id); var D = cur(); if (D && name) { D.name = name; panel(); draw(); } return D ? D.id : null; },
+    checkJson: function (id) { if (id) this.open(id); var D = cur(); return (isDfd() ? checkDiagram(D) : umlCheck(D)).map(function (i) { return { s: i.s, t: i.t, ids: i.ids || [] }; }); }
   };
+}
+
+/* ---------- pemeriksaan tambahan Use Case ---------- */
+function ucSorted(D) {
+  return D.elements.filter(function (e) { return e.type === 'usecase'; }).slice().sort(function (a, b) { var ya = a.y + a.h / 2, yb = b.y + b.h / 2; return Math.abs(ya - yb) < 1 ? a.x - b.x : ya - yb; });
+}
+function ucRules(D, items) {
+  var ucs = ucSorted(D), cy = function (e) { return e.y + e.h / 2; };
+  /* dua use case sejajar: nomor UC diambil dari urutan atas ke bawah, jadi urutannya ambigu */
+  for (var i = 0; i + 1 < ucs.length; i++) {
+    var a = ucs[i], b = ucs[i + 1];
+    if (Math.abs(cy(a) - cy(b)) < 20 && Math.abs((a.x + a.w / 2) - (b.x + b.w / 2)) > 4) items.push({ s: 'warn', t: 'Use case ' + nm(a) + ' dan ' + nm(b) + ' sejajar (tinggi hampir sama), jadi urutan nomor UC-nya ambigu. Geser salah satunya ke atas atau ke bawah.', ids: [a.id, b.id] });
+  }
+  /* urutan CRUD satu objek data dari atas ke bawah: Membuat, Melihat, Mengubah, Menghapus */
+  if (typeof dgParse === 'function') {
+    var by = {};
+    var CR = { membuat: 'c', menambah: 'c', menambahkan: 'c', melihat: 'r', menampilkan: 'r', mengubah: 'u', mengedit: 'u', memperbarui: 'u', menghapus: 'd' };
+    ucs.forEach(function (e) { var m = /^(\S+)\s+(?:data\s+)?(.+)$/i.exec(scClean(e.name || '')); if (!m || !CR[m[1].toLowerCase()]) return; var k = norm(m[2]); (by[k] = by[k] || []).push({ e: e, op: CR[m[1].toLowerCase()], obj: m[2] }); });
+    Object.keys(by).forEach(function (k) {
+      var L = by[k]; if (L.length < 2) return;
+      var bad = L.some(function (q, j) { return j && 'crud'.indexOf(q.op) < 'crud'.indexOf(L[j - 1].op); });
+      if (bad) items.push({ s: 'warn', t: 'Urutan use case data ' + nm({ name: L[0].obj, type: 'usecase' }) + ' dari atas ke bawah belum Membuat → Melihat → Mengubah → Menghapus. Sekarang: ' + L.map(function (q) { return q.e.name; }).join(', ') + '.', ids: L.map(function (q) { return q.e.id; }) });
+    });
+  }
+  /* use case «extend» yang tidak terhubung ke aktor mana pun (bisa dimatikan di Pengaturan) */
+  if (!(doc.prefs && doc.prefs.ucExtActor === false)) {
+    var els = new Map(D.elements.map(function (e) { return [e.id, e]; }));
+    D.flows.forEach(function (f) {
+      if (f.kind !== 'extend') return;
+      var ext = els.get(f.from); if (!ext || ext.type !== 'usecase') return;
+      var hasAct = D.flows.some(function (g) { if (g.kind !== 'assoc') return false; var o = g.from === ext.id ? els.get(g.to) : g.to === ext.id ? els.get(g.from) : null; return o && o.type === 'actor'; });
+      if (!hasAct && !items.some(function (it) { return it.ids && it.ids[0] === ext.id && /extend/.test(it.t); })) items.push({ s: 'warn', t: 'Use case «extend» ' + nm(ext) + ' belum punya garis asosiasi ke aktor.', ids: [ext.id] });
+    });
+  }
+}
+/* daftar UC01, UC02, … sesuai posisi atas ke bawah, untuk dicocokkan dengan tabel skenario */
+function ucOrderModal() {
+  var D = cur(); if (!D || D.kind !== 'usecase') return;
+  var ucs = ucSorted(D), els = new Map(D.elements.map(function (e) { return [e.id, e]; }));
+  function actorsOf(u) { var s = []; D.flows.forEach(function (f) { if (f.kind !== 'assoc') return; var o = f.from === u.id ? els.get(f.to) : f.to === u.id ? els.get(f.from) : null; if (o && o.type === 'actor' && s.indexOf(o.name) < 0) s.push(o.name); }); return s; }
+  var rows = ucs.map(function (u, i) { var n = i + 1; return '<tr><td>UC' + (n < 10 ? '0' : '') + n + '</td><td>' + esc(u.name || '(tanpa nama)') + '</td><td>' + esc(actorsOf(u).join(', ') || '-') + '</td></tr>'; }).join('');
+  var txt = ucs.map(function (u, i) { var n = i + 1; return 'UC' + (n < 10 ? '0' : '') + n + '\t' + (u.name || '') + '\t' + actorsOf(u).join(', '); }).join('\n');
+  modal('Urutan use case', '<p class="hint">Nomor diambil dari posisi atas ke bawah (yang sejajar: kiri ke kanan). Cocokkan dengan nomor di tabel skenario.</p>' + (ucs.length ? '<table class="uco"><tr><th>No</th><th>Use case</th><th>Aktor</th></tr>' + rows + '</table>' : '<p>Belum ada use case.</p>'),
+    '<button class="btn" data-copy>Salin sebagai teks</button><button class="btn pri" data-close>Tutup</button>', function (s, close) {
+      var b = s.querySelector('[data-copy]'); if (b) b.addEventListener('click', function () { try { navigator.clipboard.writeText(txt); toast('Daftar urutan UC disalin.'); } catch (x) { toast('Gagal menyalin.'); } });
+    });
+}
+
+/* ---------- pemeriksaan tambahan BPMN ---------- */
+function bpmnRules(D, items) {
+  var els = new Map(D.elements.map(function (e) { return [e.id, e]; }));
+  function ins(e) { return D.flows.filter(function (f) { return f.to === e.id && f.kind === 'seq'; }); }
+  function outs(e) { return D.flows.filter(function (f) { return f.from === e.id && f.kind === 'seq'; }); }
+  D.elements.forEach(function (e) {
+    if (e.type === 'gateway') {
+      var i = ins(e), o = outs(e), par = e.gw === 'and';
+      if (i.length === 1 && o.length === 1) items.push({ s: 'warn', t: 'Gateway ' + nm(e) + ' hanya punya 1 garis masuk dan 1 garis keluar, jadi tidak berguna (biasanya sisa garis yang dihapus). Klik kanan → Hapus & sambungkan garisnya.', ids: [e.id] });
+      if (i.length <= 1 && o.length >= 2 && !par) {
+        if (!String(e.name || '').trim()) items.push({ s: 'warn', t: 'Gateway keputusan belum diberi label pertanyaan (misalnya "Data valid?").', ids: [e.id] });
+        o.forEach(function (f) { if (!String(f.name || '').trim() && !String(f.guard || '').trim()) items.push({ s: 'warn', t: 'Cabang dari gateway ' + nm(e) + ' belum diberi label (misalnya Ya / Tidak).', ids: [f.id] }); });
+      }
+      if (i.length >= 2 && o.length === 1 && String(e.name || '').trim() && /\?\s*$/.test(e.name)) items.push({ s: 'warn', t: 'Gateway ' + nm(e) + ' dipakai sebagai penggabung (merge), jadi sebaiknya tanpa label pertanyaan.', ids: [e.id] });
+    }
+    if (e.type === 'task' && ins(e).length >= 2) items.push({ s: 'warn', t: 'Task ' + nm(e) + ' menerima ' + ins(e).length + ' sequence flow masuk langsung. Gabungkan dulu lewat gateway (merge) supaya jelas.', ids: [e.id] });
+    if (e.type === 'lane' && !D.elements.some(function (x) { return x !== e && !isContainer(x) && !isNoteish(x) && containerOf(D, x, ['lane']) === e; })) items.push({ s: 'warn', t: 'Lane ' + nm(e) + ' masih kosong.', ids: [e.id] });
+    if ((e.type === 'dataobject' || e.type === 'bstore') && !D.flows.some(function (f) { return f.from === e.id || f.to === e.id; })) items.push({ s: 'warn', t: (e.type === 'bstore' ? 'Data store ' : 'Data object ') + nm(e) + ' belum punya garis asosiasi ke task.', ids: [e.id] });
+    /* fork paralel: cabang yang bertemu lagi harus lewat join paralel (✚), bukan task atau gateway eksklusif */
+    if (e.type === 'gateway' && e.gw === 'and' && outs(e).length >= 2) {
+      var reach = outs(e).map(function (f) { var seen = {}, st = [f.to]; while (st.length) { var x = st.pop(); if (seen[x]) continue; seen[x] = 1; var el = els.get(x); if (el && el.type === 'gateway' && el.gw === 'and' && ins(el).length >= 2) continue; D.flows.forEach(function (g) { if (g.from === x && g.kind === 'seq') st.push(g.to); }); } return seen; });
+      var common = Object.keys(reach[0]).filter(function (k) { return reach.every(function (r) { return r[k]; }); });
+      var joined = common.some(function (k) { var el = els.get(k); return el && el.type === 'gateway' && el.gw === 'and' && ins(el).length >= 2; });
+      if (common.length && !joined) items.push({ s: 'warn', t: 'Cabang paralel dari ' + nm(e) + ' bertemu lagi tanpa join paralel (✚). Pakai gateway paralel untuk menggabungkannya.', ids: [e.id] });
+    }
+  });
+}
+/* hapus gateway / decision / merge lalu sambungkan langsung garis masuk dan keluarnya */
+function gwBypass() {
+  var D = cur(), g = D && D.elements.find(function (e) { return sel.has(e.id); }); if (!g) return;
+  var fk = D.kind === 'bpmn' ? 'seq' : 'control';
+  var I = D.flows.filter(function (f) { return f.to === g.id && f.kind === fk; }), O = D.flows.filter(function (f) { return f.from === g.id && f.kind === fk; });
+  if (!I.length || !O.length) { toast('Gateway ini tidak punya garis masuk dan keluar untuk disambungkan.'); return; }
+  if (I.length > 1 && O.length > 1) { toast('Gateway punya banyak garis masuk dan keluar sekaligus, jadi tidak bisa disambung otomatis.'); return; }
+  mutate(function () {
+    I.forEach(function (fi) { O.forEach(function (fo) {
+      if (fi.from === fo.to) return;
+      D.flows.push({ id: uid('f'), kind: fk, from: fi.from, to: fo.to, name: O.length > 1 ? (fo.name || '') : (fi.name || fo.name || ''), bends: [], style: Object.assign({}, fo.style || {}) }); if (fo.guard || fi.guard) D.flows[D.flows.length - 1].guard = fo.guard || fi.guard;
+    }); });
+    D.elements = D.elements.filter(function (e) { return e !== g; });
+    D.flows = D.flows.filter(function (f) { return f.from !== g.id && f.to !== g.id; });
+    sel.clear();
+  });
+  toast('Gateway dihapus dan garisnya disambungkan langsung.');
+}
+
+/* =====================================================================
+   v46: Sequence Diagram seperti Enterprise Architect 12
+   Semua ukuran/warna/garis diukur dari gambar yang dibuat EA 12 sendiri (Wine):
+   - lifeline (Object_Type "Sequence") 90×50 kepala kotak; boundary/control/entity 50 lebar, lingkaran Ø42; aktor 90 lebar
+   - semua kepala lifeline sejajar di atas (SeqTopMargin = 50), garis hidup putus-putus 6/5 sampai bawah yang sama
+   - pesan (t_connector "Sequence") mendatar di y = PtStartY, urutan = SeqNo (urut dari atas)
+   - activation (kotak sempit 10px) dihitung otomatis seperti EA dari urutan pesan
+   - combined fragment (InteractionFragment, NType = operator) dengan operand [kondisi] dipisah garis putus-putus
+   ===================================================================== */
+KINDS.sequence = { name: 'Sequence Diagram', short: 'SD', ea: 'Sequence', pre: 'sd' };
+var SQ_TOP = 50;
+/* jarak dari atas kepala ke awal garis hidup (diukur di EA 12) */
+var SQ_STEM = { sactor: 46, lifeline: 50, sboundary: 58, scontrol: 58, sentity: 58 };
+var SQ_STEREO = { sboundary: 'boundary', scontrol: 'control', sentity: 'entity' };
+var SQ_PREFIX = { sboundary: 'V_', scontrol: 'C_', sentity: 'M_' };
+var SQ_ROLE = { sboundary: 'View (boundary)', scontrol: 'Controller (control)', sentity: 'Model (entity)' };
+var SQ_OPS = ['alt', 'opt', 'break', 'par', 'loop', 'critical', 'neg', 'assert', 'strict', 'seq', 'ignore', 'consider'];
+var SQ_OPS_ID = { alt: 'alt — pilihan (if/else)', opt: 'opt — opsional (if)', 'break': 'break — keluar', par: 'par — paralel', loop: 'loop — perulangan', critical: 'critical — kritis', neg: 'neg — tidak boleh terjadi', assert: 'assert — wajib', strict: 'strict — urutan ketat', seq: 'seq — urutan lemah', ignore: 'ignore', consider: 'consider' };
+var SQ_LEN0 = 189; /* panjang lifeline bawaan EA 12 saat ditaruh dari toolbox */
+var SQ_MIN_GAP = 35; /* jarak bawaan antar pesan baru */
+var SQ_GAP = 35, SQ_FIRST = 135; /* tata letak pesan EA 12: pesan pertama di y 135, berikutnya +35 (digeser oleh SY) */
+function isLL(e) { return !!e && SQ_STEM[e.type] != null; }
+function isSeq(D) { return !!D && D.kind === 'sequence'; }
+function llCX(e) { return e.x + e.w / 2; }
+function llStem(e) { return e.y + (SQ_STEM[e.type] || 50); }
+/* warna garis EA untuk objek sequence = warna isi digelapkan (±12%), bukan hitam */
+function sqDark(fill) { var c = hexRgb(fill); if (!c) return '#000000'; return '#' + c.map(function (v) { return ('0' + Math.round(v * .12).toString(16)).slice(-2); }).join(''); }
+function sqFill(e, st) { return st.fill && st.fill !== 'none' ? st.fill : (e.type === 'sactor' ? '#f8e2c1' : '#00ffff'); }
+function sqStroke(e, st) { return e.style && e.style.stroke ? e.style.stroke : sqDark(sqFill(e, st)); }
+function sqLine(e) { return e.style && e.style.stroke ? e.style.stroke : '#000000'; } /* garis hidup ikut warna garis lifeline (EA) */
+
+/* ---------- tipe elemen ---------- */
+/* letak kepala & ujung lifeline yang sedang digambar (bisa turun karena Lifecycle New, berakhir X karena Delete) */
+function sqView(e) {
+  var q = SQ_LAST && SQ_LAST.life && SQ_LAST.life[e.id]; if (!q) return e;
+  var v = Object.assign({}, e); if (q.top != null) v.y = q.top; if (q.end != null) v.h = q.end - v.y; else v.h = e.y + e.h - v.y; v.xEnd = q.end != null; return v;
+}
+function sqName(e, st, cx, cy, bold) { var f = Object.assign({}, st.font, { b: bold != null ? bold : st.font.b }); return tblock([e.name || ''], cx, cy, f, st.text); }
+function sqStemPath(e) {
+  var y0 = llStem(e), y1 = e.y + e.h, cx = Math.round(llCX(e));
+  /* EA 12 (GDI PS_DASH): garis 8px, celah 3px, mulai tepat di bawah kepala */
+  return (y1 > y0 ? '<path class="sqstem" d="M' + cx + ' ' + (y0 - .5) + 'V' + y1 + '" fill="none" stroke="' + sqLine(e) + '" stroke-dasharray="8 3"/>' : '') + (e.xEnd ? '<path d="M' + (cx - 5.5) + ' ' + (y1 - 5.5) + 'L' + (cx + 5.5) + ' ' + (y1 + 5.5) + 'M' + (cx + 5.5) + ' ' + (y1 - 5.5) + 'L' + (cx - 5.5) + ' ' + (y1 + 5.5) + '" stroke="' + sqLine(e) + '" fill="none"/>' : '');
+}
+function sqBars(e, st) {
+  var M = SQ_LAST && SQ_LAST.bars[e.id]; if (!M || !M.length) return '';
+  var fill = sqFill(e, st), sk = sqStroke(e, st), s = '';
+  M.slice().sort(function (a, b) { return a.lvl - b.lvl || a.y0 - b.y0; }).forEach(function (b) {
+    s += '<rect class="sqbar" x="' + b.x0 + '" y="' + b.y0 + '" width="9" height="' + Math.max(9, b.y1 - b.y0) + '" rx="2.5" fill="' + fill + '" stroke="' + sk + '"/>';
+  });
+  return '<g class="sqbars">' + s + '</g>';
+}
+function sqHit(e) { return '<rect class="sqhit" x="' + (llCX(e) - 6) + '" y="' + llStem(e) + '" width="12" height="' + Math.max(0, e.y + e.h - llStem(e)) + '" fill="transparent" data-stem="' + e.id + '"/>'; }
+TT.sactor = T({ k: 'sequence', label: 'Actor', name: 'Aktor', ea: 'Actor', size: [90, SQ_LEN0], grow: true, font: ufont(false), icon: '<circle cx="12" cy="5" r="2.5"/><path d="M12 7.5v6M8 10h8M12 13.5l-3.5 4.5M12 13.5l3.5 4.5M12 19v3" />',
+  draw: function (e, st) {
+    e = sqView(e);
+    var cx = Math.round(llCX(e)), y = e.y, fill = fillOf({ fill: sqFill(e, st), et: 'sactor' }), sk = sqStroke(e, st);
+    /* figur aktor EA 12 di sequence: kepala Ø11 di y+0..11, badan sampai +19, lengan di +15 selebar 11, kaki sampai +30 */
+    var s = '<circle cx="' + (cx - .5) + '" cy="' + (y + 4.5) + '" r="4.5" fill="' + sqFill(e, st) + '" stroke="' + sk + '"' + shadowAttr() + '/>' +
+      '<path d="M' + cx + ' ' + (y + 9.5) + 'V' + (y + 20.5) + 'M' + (cx - 5.5) + ' ' + (y + 15) + 'H' + (cx + 5.5) + 'M' + cx + ' ' + (y + 20) + 'L' + (cx - 5.5) + ' ' + (y + 29.5) + 'M' + cx + ' ' + (y + 20) + 'L' + (cx + 5.5) + ' ' + (y + 29.5) + '" fill="none" stroke="' + sk + '"/>';
+    void fill;
+    return s + sqName(e, st, cx, y + 40, false) + sqStemPath(e) + sqBars(e, st) + sqHit(e);
+  } });
+TT.lifeline = T({ k: 'sequence', label: 'Lifeline', name: 'Objek', ea: 'Sequence', size: [90, SQ_LEN0], grow: true, font: ufont(false), icon: '<rect x="5" y="3" width="14" height="7"/><path d="M12 10v11" stroke-dasharray="2 2"/>',
+  draw: function (e, st) {
+    e = sqView(e);
+    var cx = Math.round(llCX(e)), sk = sqStroke(e, st);
+    var s = '<rect x="' + e.x + '" y="' + e.y + '" width="' + (e.w - 1) + '" height="49" rx="3" fill="' + fillOf({ fill: sqFill(e, st), et: 'lifeline' }) + '" stroke="' + sk + '"' + shadowAttr() + '/>';
+    var lines = wrap(e.name || '', e.w - 8, st.font), lh = st.font.size * 4 / 3 * 1.2;
+    return s + tblock(lines.slice(0, 3), cx, e.y + 9 + (lines.length - 1) * lh / 2, st.font, st.text) + sqStemPath(e) + sqBars(e, st) + sqHit(e);
+  } });
+function sqCircleHead(kind) {
+  return function (e, st) {
+    e = sqView(e);
+    var cx = Math.round(llCX(e)), cy = e.y + 21, r = 21, fill = sqFill(e, st), sk = sqStroke(e, st), s = '';
+    s += '<circle cx="' + (cx - .5) + '" cy="' + (cy - .5) + '" r="' + r + '" fill="' + fillOf({ fill: fill, et: 'sboundary' }) + '" stroke="' + sk + '"' + shadowAttr() + '/>';
+    if (kind === 'b') s += '<path d="M' + (cx - 25) + ' ' + (e.y + 3) + 'V' + (e.y + 39) + 'M' + (cx - 25) + ' ' + (e.y + 21) + 'H' + (cx - 21) + '" fill="none" stroke="#000000"/>';
+    if (kind === 'c') s += '<path d="M' + (cx + 6.5) + ' ' + (e.y - 6.5) + 'L' + (cx - 1) + ' ' + (e.y) + 'L' + (cx + 6.5) + ' ' + (e.y + 6.5) + '" fill="none" stroke="#000000"/>';
+    if (kind === 'e') s += '<path d="M' + (cx - 22) + ' ' + (e.y + 42) + 'H' + (cx + 20) + '" fill="none" stroke="#000000"/>';
+    return s + sqName(e, st, cx, e.y + 53) + sqStemPath(e) + sqBars(e, st) + sqHit(e);
+  };
+}
+TT.sboundary = T({ k: 'sequence', label: 'Boundary (View, V_)', name: 'V_Halaman', ea: 'Sequence', stereo: 'boundary', size: [50, SQ_LEN0], grow: true, font: ufont(false), icon: '<circle cx="14" cy="10" r="6"/><path d="M4 4v12M4 10h4M14 16v6" />', draw: sqCircleHead('b') });
+TT.scontrol = T({ k: 'sequence', label: 'Control (Controller, C_)', name: 'C_Kontrol', ea: 'Sequence', stereo: 'control', size: [50, SQ_LEN0], grow: true, font: ufont(false), icon: '<circle cx="12" cy="11" r="6"/><path d="M14 3l-3 2 3 2M12 17v5" />', draw: sqCircleHead('c') });
+TT.sentity = T({ k: 'sequence', label: 'Entity (Model, M_)', name: 'M_Data', ea: 'Sequence', stereo: 'entity', size: [50, SQ_LEN0], grow: true, font: ufont(false), icon: '<circle cx="12" cy="9" r="6"/><path d="M5 16h14M12 16v6" />', draw: sqCircleHead('e') });
+TT.fragment = T({ k: 'sequence', label: 'Fragment (alt/opt/loop…)', name: '', ea: 'InteractionFragment', size: [300, 150], grow: true, fill: 'none', font: ufont(false), container: true, icon: '<rect x="3.5" y="5.5" width="17" height="13"/><path d="M3.5 9.5h6l2-2v-2" />',
+  hit: function (e) { return { x: e.x, y: e.y, w: Math.min(e.w, sqTabW(e) + 4), h: 16 }; },
+  draw: function (e, st) {
+    var sk = e.style && e.style.stroke ? e.style.stroke : '#000000', tab = sqTabW(e), s = '';
+    var fl = e.style && e.style.fill && e.style.fill !== 'none' ? e.style.fill : null;
+    s += '<rect x="' + e.x + '" y="' + e.y + '" width="' + e.w + '" height="' + e.h + '" fill="' + (fl || 'none') + '" stroke="' + sk + '"/>';
+    /* tab nama: pentagon krem "alt Nama" seperti EA 12 */
+    s += '<path d="M' + e.x + ' ' + e.y + 'H' + (e.x + tab) + 'V' + (e.y + 4) + 'L' + (e.x + tab - 12) + ' ' + (e.y + 18) + 'H' + e.x + 'z" fill="' + fillOf({ fill: fl || '#fcf2e3', et: 'fragment' }) + '" stroke="' + sk + '"/>'; /* EA 12: tab bergradasi dari warna fragment (bawaan krem #fcf2e3) */
+    s += '<text x="' + (e.x + 5) + '" y="' + (e.y + 8.5) + '" dominant-baseline="central" ' + fontAttr(Object.assign({}, st.font, { b: true }), st.text) + '>' + esc(sqOpName(e) + (e.name ? ' ' + e.name : '')) + '</text>';
+    var ops = sqOperands(e), f2 = Object.assign({}, st.font, { b: false });
+    ops.forEach(function (o, i) {
+      if (i > 0) s += '<path d="M' + (e.x - .5) + ' ' + o.y + 'H' + (e.x + e.w) + '" stroke="' + sk + '" stroke-dasharray="4 3" fill="none"/>';
+      if (o.g) s += '<text x="' + (e.x + 5) + '" y="' + (o.y + (i === 0 ? 27 : 11)) + '" dominant-baseline="central" ' + fontAttr(f2, st.text) + '>' + esc('[' + o.g + ']') + '</text>';
+    });
+    return s;
+  } });
+function sqOpName(e) { return SQ_OPS[e.op | 0] || 'alt'; }
+function sqTabW(e) { var f = Object.assign({}, es(e).font, { b: true }); return Math.max(30, Math.round(textW(sqOpName(e) + (e.name ? ' ' + e.name : ''), fontCss(f)) + 20)); }
+/* operand: e.ops = [{g: kondisi, h: tinggi}] dari atas ke bawah; yang terakhir mengisi sisa */
+function sqOperands(e) {
+  var ops = e.ops || [], y = e.y, out = [];
+  ops.forEach(function (o, i) { var h = i === ops.length - 1 ? e.y + e.h - y : Math.max(16, o.h || 40); out.push({ g: o.g || '', y: y, h: h, i: i }); y += h; });
+  return out;
+}
+TOOLBOX.sequence = [['Interaction', ['sactor', 'lifeline', 'sboundary', 'scontrol', 'sentity', 'fragment', 'note']], ['Interaction Relationships', ['c:smsg', 'c:sself', 'c:sret', 'c:notelink']]];
+EA_THEME.sactor = '#f8e2c1'; EA_THEME.lifeline = '#00ffff'; EA_THEME.sboundary = '#00ffff'; EA_THEME.scontrol = '#00ffff'; EA_THEME.sentity = '#00ffff';
+CT.smsg = C({ label0: 'Message', ea: 'Sequence', head: '', icon: '<path d="M3 12h15"/><path d="M21 12l-6-4v8z" fill="currentColor"/>' });
+CT.sself = { label0: 'Self-Message', icon: '<path d="M6 6h12v8H8"/><path d="M6 14l5-3v6z" fill="currentColor"/>', alias: 'smsg' };
+CT.sret = { label0: 'Return (balasan)', icon: '<path d="M21 12H6" stroke-dasharray="3 2"/><path d="M10 7l-5 5 5 5" />', alias: 'smsg' };
+CT.smsg.label = function (f) { return sqLabel(f); };
+
+/* teks label pesan seperti EA: nama(parameter): nilai kembali. Nama yang sudah memuat "(" ditampilkan apa adanya. */
+function sqLabel(f) {
+  var n = String(f.name || '').trim();
+  if (!n) return '';
+  var t = /\(/.test(n) ? n : n + '(' + String(f.args || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean).join(', ') + ')';
+  if (f.ret) t += ': ' + f.ret;
+  /* EA 12: "*" = iterasi, [kondisi] di depan, lalu ":" tanpa spasi — mis. *[valid]:simpan(x): Array */
+  if (f.iter || f.cond) t = (f.iter ? '*' : '') + (f.cond ? '[' + f.cond + ']' : '') + ':' + t;
+  return t;
+}
+
+/* ---------- model: urutan pesan, activation, titik garis ---------- */
+var SQ_LAST = null, SQ_ROUTES = null;
+function sqMsgs(D) { return D.flows.filter(function (f) { return f.kind === 'smsg'; }); }
+function sqOrder(D) {
+  return sqMsgs(D).map(function (f, i) { return { f: f, i: i }; }).sort(function (a, b) { return (a.f.y || 0) - (b.f.y || 0) || a.i - b.i; }).map(function (q) { return q.f; });
+}
+function seqModel(D) {
+  var L = {}, bars = {}, mpos = {}, stack = [];
+  D.elements.forEach(function (e) { if (isLL(e)) { L[e.id] = e; bars[e.id] = []; } });
+  function lvlOf(id) { var n = 0; stack.forEach(function (fr) { if (fr.ll === id) n++; }); return n; }
+  function open(id, y, init) { var fr = { ll: id, y0: y, init: init, lvl: lvlOf(id), kids: [], last: null }; fr.x0 = Math.round(llCX(L[id])) - 5 + 5 * fr.lvl; if (stack.length) stack[stack.length - 1].kids.push(fr); stack.push(fr); bars[id].push(fr); return fr; }
+  function close(fr) {
+    var end = fr.y0 + 9;
+    /* EA 12: activation berakhir 14px di bawah pesan terakhir yang dikirimnya (pemicu yang hanya mengirim satu pesan: kotak 10px) */
+    if (fr.last != null) end = Math.max(end, fr.last + (fr.init && fr.last <= fr.y0 ? 9 : 14));
+    fr.kids.forEach(function (k) { if (k.y1 != null) end = Math.max(end, k.y1); });
+    if (fr.only) end = fr.y0 + 9;
+    /* objek yang dibuat (New) baru tampak aktif saat pertama kali mengirim pesan */
+    if (fr.hidden) { if (fr.first == null) { fr.skip = true; } else { fr.y0 = fr.first; end = Math.max(fr.first + 9, fr.last > fr.first ? fr.last + 14 : 0); fr.kids.forEach(function (k) { if (k.y1 != null) end = Math.max(end, k.y1); }); } }
+    fr.y1 = end;
+  }
+  function sent(fr, y) { fr.last = y; if (fr.hidden && fr.first == null) fr.first = y; }
+  function popTo(n) { while (stack.length > n) close(stack.pop()); }
+  function topOf(id) { for (var i = stack.length - 1; i >= 0; i--) if (stack[i].ll === id) return i; return -1; }
+  var life = {};
+  sqOrder(D).forEach(function (f) {
+    var S = L[f.from], Tg = L[f.to]; if (!S || !Tg) return;
+    var y = Math.round(f.y || 0), self = f.from === f.to, sf, tf;
+    if (f.life === 'new' && !self) {
+      /* Lifecycle New: kepala lifeline tujuan turun sejajar pesan (tanpa activation), garis putus-putus panah terbuka */
+      var i0 = topOf(f.from); if (i0 >= 0) { popTo(i0 + 1); sf = stack[i0]; } else { popTo(0); sf = open(f.from, y, true); }
+      sent(sf, y); (life[f.to] = life[f.to] || {}).top = y - 28; life[f.to].made = true;
+      var hf = open(f.to, y, false); hf.hidden = true;
+      mpos[f.id] = { sf: sf, tf: null, y: y, newHead: true }; return;
+    }
+    if (f.life === 'delete' && !self) (life[f.to] = life[f.to] || {}).del = true;
+    if (f.isRet && !self) {
+      var si = topOf(f.from), ti = topOf(f.to);
+      if (si >= 0 && si === stack.length - 1 && ti >= 0 && ti < si) {
+        sf = stack[si]; sf.ret = y; sent(sf, y); popTo(si);
+        tf = stack[stack.length - 1]; while (tf && tf.ll !== f.to) { popTo(stack.length - 1); tf = stack[stack.length - 1]; }
+      } else if (si >= 0) {
+        /* balasan dari lifeline yang masih aktif ke lifeline yang tidak sedang menunggu: diperlakukan seperti panggilan biasa */
+        popTo(si + 1); sf = stack[si]; sent(sf, y); tf = open(f.to, y, false);
+      } else {
+        popTo(0); sf = open(f.from, y, true); sf.last = y; sf.only = true; tf = open(f.to, y, false);
+      }
+    } else {
+      var i2 = topOf(f.from);
+      if (i2 >= 0) { popTo(i2 + 1); sf = stack[i2]; }
+      else { popTo(0); sf = open(f.from, y, true); }
+      sent(sf, y);
+      tf = open(f.to, self ? y + 15 : y, false);
+      /* asinkron: pengirim tidak menunggu, jadi activation tujuan tidak memperpanjang activation pengirim */
+      if (f.async && !self) sf.kids.splice(sf.kids.indexOf(tf), 1);
+      /* EA: activation pesan ke diri sendiri hanya kotak pendek (10px); pesan berikutnya keluar dari activation utama */
+      /* juga panggilan balik ke lifeline yang masih aktif di bawahnya (re-entrant): kotak pendek bertingkat */
+      if (tf && (self || tf.lvl > 0)) { stack.pop(); tf.y1 = tf.y0 + 9; }
+    }
+    mpos[f.id] = { sf: sf, tf: tf, y: y };
+  });
+  popTo(0);
+  Object.keys(bars).forEach(function (k) { bars[k] = bars[k].filter(function (b) { return !b.skip; }); bars[k].forEach(function (b) { if (b.y1 == null) b.y1 = b.y0 + 9; }); });
+  /* lifeline yang dihancurkan (Delete) atau dibuat (New) berakhir dengan tanda X, 31px di bawah activation terakhirnya */
+  Object.keys(life).forEach(function (k) {
+    var q = life[k]; if (!q.del && !q.made) return;
+    var last = q.top != null ? q.top + 50 : 0; bars[k].forEach(function (b) { last = Math.max(last, b.y1); });
+    sqMsgs(D).forEach(function (f) { if ((f.from === k || f.to === k) && !bars[k].length) last = Math.max(last, f.y || 0); });
+    q.end = last + 31;
+  });
+  return { L: L, bars: bars, mpos: mpos, life: life };
+}
+function seqRouteAll(D) {
+  var M = seqModel(D), out = new Map();
+  SQ_LAST = { bars: M.bars, life: M.life, d: D.id }; SQ_ROUTES = out;
+  sqMsgs(D).forEach(function (f) {
+    var S = M.L[f.from], Tg = M.L[f.to]; if (!S || !Tg) return;
+    var q = M.mpos[f.id] || { y: Math.round(f.y || 0) }, y = q.y, sx = Math.round(llCX(S)), tx = Math.round(llCX(Tg)), pts;
+    if (f.from === f.to) {
+      var a = q.sf ? q.sf.x0 + 10 : sx, b = q.tf ? q.tf.x0 + 10 : sx;
+      pts = [{ x: a, y: y }, { x: sx + 45, y: y }, { x: sx + 45, y: y + 15 }, { x: b, y: y + 15 }];
+    } else {
+      var right = tx > sx, x1 = q.sf ? (right ? q.sf.x0 + 10 : q.sf.x0) : sx, x2 = q.tf ? (right ? q.tf.x0 : q.tf.x0 + 10) : tx;
+      if (q.newHead) { var hw = SQ_STEREO[Tg.type] ? 21 : Tg.w / 2; x2 = right ? Math.round(tx - hw) : Math.round(tx + hw); }
+      if (!q.tf && f.isRet) { var tb = (M.bars[f.to] || []).filter(function (b) { return b.y0 <= y && b.y1 >= y; }).sort(function (u, v) { return v.lvl - u.lvl; })[0]; if (tb) x2 = right ? tb.x0 : tb.x0 + 10; }
+      pts = [{ x: x1, y: y }, { x: x2, y: y }];
+    }
+    out.set(f.id, { pts: pts, raw: pts, lab: labelAt(pts) });
+  });
+  /* label pesan: di atas garis, tengah (slot LMT EA); pesan ke diri sendiri: di kanan lengkungan */
+  D.flows.forEach(function (f) {
+    var r = out.get(f.id); if (!r) return;
+    var st = fs(f), t = sqLabel(f); r.text = ''; r.labs = [];
+    if (!t) return;
+    var tw = textW(t, fontCss(st.font)), fpx = st.font.size * 4 / 3, P = r.pts, b;
+    /* EA 12: label pesan ke diri sendiri rata kiri 4px dari activation, 7px di atas garis atas lengkungan */
+    if (f.from === f.to) b = { x: P[0].x + 4 + tw / 2, y: P[0].y - 7, ref: { x: P[0].x, y: P[0].y } };
+    else b = { x: (P[0].x + P[1].x) / 2, y: P[0].y - 7, ref: { x: (P[0].x + P[1].x) / 2, y: P[0].y } };
+    var o = f.lo && f.lo.mt;
+    r.labs.push({ k: 'mt', t: t, x: b.x + (o ? o.x : 0), y: b.y + (o ? o.y : 0), w: tw + 4, h: fpx * 1.25, ref: b.ref, moved: !!o, base: b });
+    r.lab.tx = r.labs[0].x; r.lab.ty = r.labs[0].y;
+  });
+  /* garis catatan (Note Link) */
+  D.flows.forEach(function (f) {
+    if (f.kind === 'smsg' || out.has(f.id)) return;
+    var A = elOf(D, f.from), B = elOf(D, f.to); if (!A || !B) return;
+    var RA = rect(A), RB = rect(B), p1, p2;
+    /* EA: garis catatan ke lifeline menempel di sisi kolom lifeline, sejajar tengah catatan */
+    function side(L, O) { var R = rect(O), y = Math.max(L.y + 5, Math.min(L.y + L.h - 5, R.cy)); return { x: R.cx < llCX(L) ? L.x : L.x + L.w, y: y }; }
+    if (isLL(B) && !isLL(A)) { p2 = side(B, A); p1 = clip(RA, { x: RA.cx, y: RA.cy }, p2); }
+    else if (isLL(A) && !isLL(B)) { p1 = side(A, B); p2 = clip(RB, { x: RB.cx, y: RB.cy }, p1); }
+    else { p1 = clip(RA, { x: RA.cx, y: RA.cy }, { x: RB.cx, y: RB.cy }); p2 = clip(RB, { x: RB.cx, y: RB.cy }, { x: RA.cx, y: RA.cy }); }
+    var pts = [p1, p2]; out.set(f.id, { pts: pts, raw: pts, lab: labelAt(pts), text: '', labs: [] });
+  });
+  return out;
+}
+function sqFlowMarkup(f, r, on, markers) {
+  if (f.kind !== 'smsg') return umlFlowMarkup(f, r, on, markers);
+  var st = fs(f), col = st.stroke, P = r.pts.map(function (p) { return { x: Math.round(p.x), y: Math.round(p.y) }; }), d = pathD(P, false);
+  var n = P.length, E = P[n - 1], Q = P[n - 2], dir = E.x >= Q.x ? 1 : -1, head = '';
+  /* ujung panah EA 12: pesan sinkron = segitiga penuh 12×9, asinkron & balasan = panah terbuka 10×9 */
+  var newH = f.life === 'new' && f.from !== f.to;
+  if (f.isRet || f.async || newH) head = '<path d="M' + (E.x - dir * 10) + ' ' + (E.y - 4.5) + 'L' + E.x + ' ' + E.y + 'L' + (E.x - dir * 10) + ' ' + (E.y + 4.5) + '" fill="none" stroke="' + col + '"/>';
+  else head = '<path d="M' + (E.x - dir * 12) + ' ' + (E.y - 4.5) + 'L' + E.x + ' ' + E.y + 'L' + (E.x - dir * 12) + ' ' + (E.y + 4.5) + 'z" fill="#000000" stroke="' + col + '" stroke-width=".5"/>'; /* EA: kepala panah sinkron selalu hitam, tepinya ikut warna garis */
+  var dash = f.isRet || newH ? ' stroke-dasharray="8 3"' : (st.dash && st.dash !== 'solid' && DASHARR[st.dash] ? ' stroke-dasharray="' + DASHARR[st.dash] + '"' : '');
+  var s = '<g class="fl sqmsg" data-id="' + f.id + '"><path class="hit" d="' + d + '"/>' + (on ? '<path class="halo" d="' + d + '" fill="none" stroke="#1a73e8" stroke-opacity=".28" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>' : '') + '<path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="' + (on ? 1.6 : 1) + '"' + dash + '/>' + head;
+  if (f.cons) { var ctw = textW(f.cons, fontCss(st.font)), cdir = P[1].x >= P[0].x ? 1 : -1; s += '<text x="' + (cdir > 0 ? P[0].x - 14 - ctw : P[0].x + 14).toFixed(1) + '" y="' + (P[0].y + .5) + '" dominant-baseline="central" ' + fontAttr(st.font, st.text) + '>' + esc(f.cons) + '</text>'; }
+  (r.labs || []).forEach(function (lb) {
+    var tw = lb.w - 4;
+    s += '<g class="flab" data-lab="' + lb.k + '"><rect class="labhit" x="' + (lb.x - lb.w / 2).toFixed(1) + '" y="' + (lb.y - lb.h / 2).toFixed(1) + '" width="' + lb.w.toFixed(1) + '" height="' + lb.h.toFixed(1) + '" fill="#ffffff" pointer-events="all"/><text x="' + (lb.x - tw / 2).toFixed(1) + '" y="' + lb.y.toFixed(1) + '" dominant-baseline="central" ' + fontAttr(st.font, st.text) + '>' + esc(lb.t) + '</text></g>';
+  });
+  return s + '</g>';
+}
+/* adegan sequence: lifeline dulu (dengan activation), lalu catatan & fragment, lalu pesan */
+function sqScene(D, routes, selSet) {
+  var markers = new Set(), body = '';
+  D.elements.filter(isLL).forEach(function (e) { body += umlShape(e, D); });
+  D.elements.filter(function (e) { return !isLL(e); }).forEach(function (e) { body += umlShape(e, D); });
+  D.flows.forEach(function (f) { var r = routes.get(f.id); if (r) body += sqFlowMarkup(f, r, selSet.has(f.id), markers); });
+  return { defs: defs(markers), body: body };
+}
+
+/* ---------- panjang lifeline: semua sama, ikut pesan terbawah ---------- */
+function sqBottom(D) {
+  var b = 0;
+  D.elements.forEach(function (e) { if (isLL(e)) b = Math.max(b, e.y + e.h); });
+  sqMsgs(D).forEach(function (f) { b = Math.max(b, (f.y || 0) + (f.from === f.to ? 15 : 0) + 35); });
+  return b;
+}
+function sqNormalize(D) {
+  if (!isSeq(D)) return;
+  var L = D.elements.filter(isLL); if (!L.length) return;
+  var b = Math.max(sqBottom(D), SQ_TOP + SQ_LEN0);
+  L.forEach(function (e) { e.y = SQ_TOP; e.h = b - SQ_TOP; });
+}
+
+/* ---------- membuat elemen & pesan ---------- */
+function sqAddEl(type, p, ev) {
+  var D = cur(), t = TT[type], s = t.size, o = { id: uid('e'), type: type, name: t.name, x: snap(p.x - s[0] / 2, ev), y: snap(p.y - s[1] / 2, ev), w: s[0], h: s[1], style: {} };
+  if (isLL(o)) {
+    o.y = SQ_TOP;
+    var L = D.elements.filter(isLL), n = L.filter(function (x) { return x.type === type; }).length + 1;
+    o.h = Math.max(SQ_LEN0, sqBottom(D) - SQ_TOP);
+    o.name = type === 'sactor' ? 'Aktor' + (n > 1 ? ' ' + n : '') : type === 'lifeline' ? 'Objek' + n : t.name + (n > 1 ? n : '');
+  }
+  if (type === 'fragment') { o.op = 0; o.ops = []; o.name = ''; }
+  return o;
+}
+function sqNextY(D, from) {
+  var ms = sqMsgs(D), y = SQ_TOP + 75;
+  ms.forEach(function (f) { y = Math.max(y, (f.y || 0) + (f.from === f.to ? 15 : 0) + SQ_MIN_GAP); });
+  void from; return y;
+}
+function sqCreateMsg(a, b, y, opt) {
+  var D = cur(), id;
+  mutate(function () {
+    var f = Object.assign({ id: uid('f'), kind: 'smsg', from: a, to: b, name: '', y: Math.round(y), bends: [], style: {} }, opt || {});
+    D.flows.push(f); sel = new Set([f.id]); id = f.id; sqNormalize(D);
+  });
+  startRename(id);
+  return id;
+}
+/* lifeline yang kolomnya berada di bawah titik p (untuk menyeret pesan) */
+function sqLLAt(D, p) {
+  var best = null, bd = 1e9;
+  D.elements.forEach(function (e) { if (!isLL(e)) return; var dx = Math.abs(p.x - llCX(e)); if (p.y >= e.y - 4 && p.y <= e.y + e.h + 20 && dx <= Math.max(e.w / 2, 18) && dx < bd) { bd = dx; best = e; } });
+  return best;
+}
+
+/* ---------- interaksi mouse (dipanggil dari app.js) ---------- */
+function seqDown(e, D, p, gid, hd) {
+  if (!isSeq(D)) return false;
+  if (hd && hd.dataset.h && hd.dataset.h.indexOf('sqop:') === 0 && sel.size === 1) {
+    var fe = elOf(D, Array.from(sel)[0]); if (!fe || fe.type !== 'fragment') return false;
+    var k = +hd.dataset.h.slice(5), ops = sqOperands(fe);
+    drag = { t: 'sqop', id: fe.id, k: k, y0: ops[k - 1].y, moved: false, sy: e.clientY }; return true;
+  }
+  if (hd && hd.dataset.h && hd.dataset.h.indexOf('sqend:') === 0 && sel.size === 1) {
+    var mf = flOf(D, Array.from(sel)[0]); if (!mf) return false;
+    drag = { t: 'sqend', id: mf.id, which: hd.dataset.h.slice(6), moved: false, sx: e.clientX, over: null }; return true;
+  }
+  var stem = e.target.closest && e.target.closest('[data-stem]');
+  var g = e.target.closest && e.target.closest('.sqmsg');
+  if (g && !hd) {
+    var f = flOf(D, g.dataset.id); if (!f) return false;
+    if (e.shiftKey || e.ctrlKey && !e.altKey && false) return false;
+    if (!sel.has(f.id)) { sel = new Set([f.id]); panel(); syncBar(); }
+    var below = (e.ctrlKey || e.metaKey) ? sqOrder(D).filter(function (x) { return (x.y || 0) >= (f.y || 0) && x !== f; }) : [];
+    var fr = (e.ctrlKey || e.metaKey) ? D.elements.filter(function (x) { return x.type === 'fragment' && x.y >= (f.y || 0) - 25; }) : [];
+    drag = { t: 'sqmv', id: f.id, y0: f.y || 0, py: p.y, sy: e.clientY, moved: false, below: below.map(function (x) { return [x.id, x.y || 0]; }), fr: fr.map(function (x) { return [x.id, x.y, x.h]; }) };
+    draw(); return true;
+  }
+  if (stem && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+    var ll = elOf(D, stem.dataset.stem); if (!ll) return false;
+    drag = { t: 'sqnew', from: ll.id, y: Math.round(p.y), sx: e.clientX, sy: e.clientY, moved: false, over: null, p: p };
+    if (!sel.has(ll.id)) { sel = new Set([ll.id]); panel(); syncBar(); }
+    draw(); return true;
+  }
+  return false;
+}
+function seqMove(e, D, p) {
+  var d = drag;
+  if (d.t === 'sqmv') {
+    if (!d.moved) { if (Math.abs(e.clientY - d.sy) < 3) return; push(); d.moved = true; }
+    var f = flOf(D, d.id); if (!f) return;
+    var ny = Math.max(SQ_TOP + 60, snap(d.y0 + p.y - d.py, e)), dy = ny - d.y0;
+    f.y = ny;
+    d.below.forEach(function (q) { var x = flOf(D, q[0]); if (x) x.y = Math.max(SQ_TOP + 60, q[1] + dy); });
+    d.fr.forEach(function (q) { var x = elOf(D, q[0]); if (x) x.y = q[1] + dy; });
+    sqNormalize(D); draw(); return;
+  }
+  if (d.t === 'sqop') {
+    if (!d.moved) { if (Math.abs(e.clientY - d.sy) < 3) return; push(); d.moved = true; }
+    var fe = elOf(D, d.id); if (!fe || !fe.ops || !fe.ops[d.k - 1]) return;
+    var ops = sqOperands(fe), nh = Math.round(snap(p.y, e) - d.y0), room = fe.y + fe.h - d.y0 - 16 * (fe.ops.length - d.k);
+    fe.ops[d.k - 1].h = Math.max(16, Math.min(nh, room)); void ops; draw(); return;
+  }
+  if (d.t === 'sqend') {
+    if (!d.moved && Math.abs(e.clientX - d.sx) < 4) return;
+    d.moved = true; var ov = sqLLAt(D, { x: p.x, y: (flOf(D, d.id) || {}).y || p.y }); d.over = ov ? ov.id : null; d.p = p; draw(); return;
+  }
+  if (d.t === 'sqnew') {
+    if (!d.moved && Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 5) return;
+    d.moved = true; d.p = p; d.far = Math.max(d.far || 0, Math.abs(e.clientX - d.sx));
+    var o = sqLLAt(D, p); d.over = o ? o.id : null; draw(); return;
+  }
+}
+function seqUp(d) {
+  var D = cur();
+  if (d.t === 'sqmv' || d.t === 'sqop') { if (d.moved) afterChange(); else draw(); return; }
+  if (d.t === 'sqend') {
+    var f = flOf(D, d.id); if (!d.moved || !f || !d.over) { draw(); return; }
+    mutate(function () { if (d.which === 's') f.from = d.over; else f.to = d.over; }); return;
+  }
+  if (d.t === 'sqnew') {
+    if (!d.moved) { draw(); return; }
+    if (!d.over) { draw(); toast('Lepas di garis lifeline lain untuk membuat pesan (atau di lifeline yang sama untuk pesan ke diri sendiri).'); return; }
+    var self = d.over === d.from;
+    if (self && (d.far || 0) < 15) { draw(); return; }
+    sqCreateMsg(d.from, d.over, Math.max(SQ_TOP + 60, snap(d.y)), null);
+  }
+}
+function seqOverlay(D, k) {
+  var s = '';
+  if (drag && drag.t === 'sqnew' && drag.moved) {
+    var A = elOf(D, drag.from); if (A) {
+      var x0 = llCX(A), y = drag.y, x1 = drag.over ? llCX(elOf(D, drag.over)) : drag.p.x;
+      if (drag.over === drag.from) s += '<path class="pv" style="stroke-width:' + 1.4 / k + 'px;stroke-dasharray:' + 5 / k + ' ' + 4 / k + '" d="M' + x0 + ' ' + y + 'H' + (x0 + 45) + 'V' + (y + 15) + 'H' + x0 + '"/>';
+      else s += '<path class="pv" style="stroke-width:' + 1.4 / k + 'px;stroke-dasharray:' + 5 / k + ' ' + 4 / k + '" d="M' + x0 + ' ' + y + 'H' + x1 + '"/>';
+      if (drag.over) { var O = elOf(D, drag.over); s += '<rect class="target" style="stroke-width:' + 2 / k + 'px" x="' + (llCX(O) - 8) + '" y="' + O.y + '" width="16" height="' + O.h + '" rx="' + 4 / k + '"/>'; }
+    }
+  }
+  if (drag && drag.t === 'sqend' && drag.moved && drag.over) { var OV = elOf(D, drag.over); if (OV) s += '<rect class="target" style="stroke-width:' + 2 / k + 'px" x="' + (llCX(OV) - 8) + '" y="' + OV.y + '" width="16" height="' + OV.h + '" rx="' + 4 / k + '"/>'; }
+  /* pegangan ujung pesan terpilih: seret ke lifeline lain untuk memindah asal/tujuan */
+  if (sel.size === 1) {
+    var mf = flOf(D, Array.from(sel)[0]), mr = mf && mf.kind === 'smsg' && SQ_ROUTES && SQ_ROUTES.get(mf.id);
+    if (mr) { var P = mr.pts, hs = 4 / k; [['s', P[0]], ['t', P[P.length - 1]]].forEach(function (q) { s += '<rect class="handle endh" data-h="sqend:' + q[0] + '" x="' + (q[1].x - hs) + '" y="' + (q[1].y - hs) + '" width="' + 2 * hs + '" height="' + 2 * hs + '" style="stroke-width:' + 1.3 / k + 'px;cursor:ew-resize"><title>Seret ke lifeline lain untuk memindah ' + (q[0] === 's' ? 'asal' : 'tujuan') + ' pesan</title></rect>'; }); }
+  }
+  /* pegangan pemisah operand fragment */
+  if (sel.size === 1) {
+    var fe = elOf(D, Array.from(sel)[0]);
+    if (fe && fe.type === 'fragment') sqOperands(fe).forEach(function (o, i) { if (i === 0) return; s += '<rect class="handle sqop" data-h="sqop:' + i + '" x="' + (fe.x + fe.w / 2 - 9 / k) + '" y="' + (o.y - 3 / k) + '" width="' + 18 / k + '" height="' + 6 / k + '" rx="' + 3 / k + '" style="stroke-width:' + 1.3 / k + 'px;cursor:ns-resize"><title>Seret untuk mengubah tinggi operand</title></rect>'; });
+  }
+  return s;
+}
+
+/* ---------- panel properti ---------- */
+function sqPanelEl(D, e) {
+  var h = '';
+  if (isLL(e)) {
+    h += '<div class="field"><label for="p-sqt">Jenis lifeline</label><select class="in" id="p-sqt" data-f="sqtype">' + ['sactor', 'lifeline', 'sboundary', 'scontrol', 'sentity'].map(function (k) { return '<option value="' + k + '"' + (e.type === k ? ' selected' : '') + '>' + TT[k].label + '</option>'; }).join('') + '</select></div>';
+    if (SQ_PREFIX[e.type]) {
+      var ok = String(e.name || '').indexOf(SQ_PREFIX[e.type]) === 0;
+      h += '<p class="hint">' + SQ_ROLE[e.type] + ': nama wajib diawali <b>' + SQ_PREFIX[e.type] + '</b>' + (ok ? ' ✓' : ' — belum.') + '</p>';
+      if (!ok) h += '<button class="btn block" data-act="sqprefix">Tambahkan awalan ' + SQ_PREFIX[e.type] + '</button>';
+    }
+  }
+  if (e.type === 'fragment') {
+    h += '<div class="field"><label for="p-op">Operator</label><select class="in" id="p-op" data-f="op">' + SQ_OPS.map(function (k, i) { return '<option value="' + i + '"' + ((e.op | 0) === i ? ' selected' : '') + '>' + esc(SQ_OPS_ID[k]) + '</option>'; }).join('') + '</select></div>';
+    h += '<div class="field"><label>Operand (kondisi [ ])</label>' + (e.ops || []).map(function (o, i) { return '<div class="row tight"><input class="in" data-f="opg:' + i + '" value="' + esc(o.g || '') + '" placeholder="kondisi, mis. data valid"><button class="btn sm" data-act="sqopdel:' + i + '" title="Hapus operand" aria-label="Hapus operand">✕</button></div>'; }).join('') + '<button class="btn block" data-act="sqopadd">+ Operand</button></div>';
+    h += '<p class="hint">alt = pilihan (Iya/Tidak) dengan 2 operand atau lebih; opt = satu kondisi; loop = perulangan. Seret pemisah putus-putus untuk mengubah tinggi operand.</p>';
+  }
+  return h;
+}
+function sqPanelFlow(D, f) {
+  var a = elOf(D, f.from) || {}, b = elOf(D, f.to) || {}, h = '';
+  h += '<div class="sec"><h2>' + (f.from === f.to ? 'Self-Message' : f.isRet ? 'Return Message' : 'Message') + '</h2>';
+  h += '<div class="field"><label for="p-name">Nama (tanpa kurung)</label><input class="in" id="p-name" data-f="name" value="' + esc(f.name || '') + '" placeholder="mis. getDataBuku"></div>';
+  h += '<div class="field"><label for="p-args">Parameter</label><input class="in" id="p-args" data-f="args" value="' + esc(f.args || '') + '" placeholder="mis. nama, jumlah"></div>';
+  h += '<div class="field"><label for="p-ret">Nilai kembali (return value)</label><input class="in" id="p-ret" data-f="ret" value="' + esc(f.ret || '') + '" placeholder="mis. Array"></div>';
+  h += '<div class="kv"><span>Tampil</span><b class="sqprev">' + esc(sqLabel(f) || '—') + '</b></div>';
+  h += '<div class="field"><label for="p-sync">Jenis</label><select class="in" id="p-sync" data-f="async"><option value=""' + (f.async ? '' : ' selected') + '>Synchronous (panah penuh)</option><option value="1"' + (f.async ? ' selected' : '') + '>Asynchronous (panah terbuka)</option></select></div>';
+  if (f.from !== f.to) h += '<label class="cbx"><input type="checkbox" data-f="isRet"' + (f.isRet ? ' checked' : '') + '> Is Return (pesan balasan, garis putus-putus)</label>';
+  var adv = f.cond || f.iter || f.cons || f.life || f.sig || f.alias;
+  h += '<details class="sqadv"' + (adv ? ' open' : '') + '><summary>Lanjutan (seperti dialog Message Properties EA)</summary>';
+  h += '<div class="field"><label for="p-cond">Condition [ ]</label><input class="in" id="p-cond" data-f="cond" value="' + esc(f.cond || '') + '" placeholder="opsional"></div>';
+  h += '<label class="cbx"><input type="checkbox" data-f="iter"' + (f.iter ? ' checked' : '') + '> Is Iteration (tanda *)</label>';
+  h += '<div class="field"><label for="p-cons">Constraint</label><input class="in" id="p-cons" data-f="cons" value="' + esc(f.cons || '') + '" placeholder="opsional"></div>';
+  if (f.from !== f.to) h += '<div class="field"><label for="p-life">Lifecycle</label><select class="in" id="p-life" data-f="life"><option value=""' + (f.life ? '' : ' selected') + '>&lt;none&gt;</option><option value="new"' + (f.life === 'new' ? ' selected' : '') + '>New (membuat objek)</option><option value="delete"' + (f.life === 'delete' ? ' selected' : '') + '>Delete (menghancurkan objek)</option></select></div>';
+  h += '<div class="field"><label for="p-sig">Kind</label><select class="in" id="p-sig" data-f="sig"><option value=""' + (f.sig ? '' : ' selected') + '>Call</option><option value="Signal"' + (f.sig === 'Signal' ? ' selected' : '') + '>Signal</option></select></div>';
+  h += '<div class="field"><label for="p-alias">Alias</label><input class="in" id="p-alias" data-f="alias" value="' + esc(f.alias || '') + '" placeholder="opsional"></div></details>';
+  h += '<div class="kv"><span>Dari → ke</span><b style="font-family:var(--f-body)">' + esc(a.name || '?') + ' → ' + esc(b.name || '?') + '</b></div>';
+  h += '<div class="kv"><span>Urutan</span><b>' + (sqOrder(D).indexOf(f) + 1) + '</b></div></div>';
+  h += '<p class="hint">Seret pesan naik/turun untuk mengubah urutan. Tahan <b>Ctrl</b> saat menyeret untuk ikut menggeser semua pesan di bawahnya. Untuk membuat pesan: seret dari garis putus-putus lifeline ke lifeline lain.</p>';
+  h += '<div class="row"><button class="btn" data-act="flip">Balik arah</button><button class="btn danger" data-act="del">Hapus pesan</button></div>';
+  return h;
+}
+function sqPanelChange(t, D, o) {
+  var f = t.dataset.f, v = t.type === 'checkbox' ? t.checked : t.value;
+  if (f === 'sqtype') { mutate(function () { var cx = llCX(o); o.type = v; o.w = TT[v].size[0]; o.x = Math.round(cx - o.w / 2); sqNormalize(D); }); return true; }
+  if (f === 'op') { mutate(function () { o.op = Number(v) || 0; }); return true; }
+  if (f && f.indexOf('opg:') === 0) { var i = +f.slice(4); mutate(function () { if (o.ops && o.ops[i]) o.ops[i].g = String(v).replace(/^\[|\]$/g, '').trim(); }); return true; }
+  if (f === 'args' || f === 'ret') { mutate(function () { v = String(v).trim(); if (f === 'args') v = v.replace(/^\(|\)$/g, '').trim(); if (v) o[f] = v; else delete o[f]; }); return true; }
+  if (f === 'cond' || f === 'cons' || f === 'alias' || f === 'life' || f === 'sig') { mutate(function () { v = String(v).trim(); if (f === 'cond') v = v.replace(/^\[|\]$/g, '').trim(); if (v) o[f] = v; else delete o[f]; }); return true; }
+  if (f === 'iter') { mutate(function () { if (v) o.iter = true; else delete o.iter; }); return true; }
+  if (f === 'async' || f === 'isRet') { mutate(function () { if (v) o[f] = true; else delete o[f]; }); return true; }
+  return false;
+}
+function sqPanelAct(a, D, o) {
+  if (a === 'sqrespace') { sqRespace(); return true; }
+  if (a === 'sqprefix' && o && SQ_PREFIX[o.type]) { mutate(function () { o.name = SQ_PREFIX[o.type] + String(o.name || '').replace(/^(V_|C_|M_)/i, ''); }); return true; }
+  if (a === 'sqopadd' && o) { mutate(function () { o.ops = o.ops || []; var n = o.ops.length; o.ops.push({ g: o.op === 0 ? (n === 0 ? 'Iya' : n === 1 ? 'Tidak' : '') : '', h: 40 }); var need = 16 + o.ops.length * 40; if (o.h < need) o.h = need; }); return true; }
+  if (a.indexOf('sqopdel:') === 0 && o) { var i = +a.slice(8); mutate(function () { o.ops.splice(i, 1); }); return true; }
+  return false;
+}
+
+/* alat Message / Self-Message / Return di toolbox: klik lifeline asal (tinggi klik = letak pesan), lalu lifeline tujuan */
+var sqFromY = 0;
+function seqToolDown(e, D, p) {
+  var k = tool.slice(2); if (['smsg', 'sself', 'sret'].indexOf(k) < 0) return false;
+  var ll = sqLLAt(D, p);
+  if (!ll) { flowFrom = null; status(); draw(); toast('Klik garis lifeline (di bawah kepalanya).'); return true; }
+  var y = Math.max(SQ_TOP + 60, snap(p.y, e));
+  if (k === 'sself') { sqCreateMsg(ll.id, ll.id, y < llStem(ll) + 10 ? sqNextY(D) : y, null); if (!e.shiftKey) setTool('select'); return true; }
+  if (!flowFrom) { flowFrom = ll.id; sqFromY = y < llStem(ll) + 10 ? sqNextY(D) : y; status(); draw(); return true; }
+  var a = flowFrom; flowFrom = null;
+  if (a === ll.id) { sqCreateMsg(a, a, sqFromY, null); }
+  else sqCreateMsg(a, ll.id, sqFromY, k === 'sret' ? { isRet: true } : null);
+  if (!e.shiftKey) setTool('select');
+  return true;
+}
+/* panah atas/bawah pada pesan terpilih = geser pesan */
+function sqNudge(dx, dy) {
+  var D = cur(); if (!isSeq(D)) return false;
+  var fl = D.flows.filter(function (f) { return sel.has(f.id) && f.kind === 'smsg'; });
+  if (!fl.length || dx) return false;
+  mutate(function () { fl.forEach(function (f) { f.y = Math.max(SQ_TOP + 60, (f.y || 0) + dy); }); sqNormalize(D); });
+  return true;
+}
+
+/* ---------- pemeriksaan sequence (aturan asprak: awalan V_/C_/M_ dan alur MVC) ---------- */
+function seqCheck(D, items) {
+  var L = D.elements.filter(isLL), msgs = sqOrder(D), byId = {};
+  L.forEach(function (e) { byId[e.id] = e; });
+  if (D.elements.length && !L.length) items.push({ s: 'bad', t: 'Belum ada lifeline. Taruh Actor, Boundary (V_), Control (C_), dan Entity (M_) dari Toolbox.' });
+  if (L.length && !L.some(function (e) { return e.type === 'sactor'; })) items.push({ s: 'warn', t: 'Belum ada Actor. Sequence diagram biasanya dimulai dari aktor yang memicu use case.' });
+  var role = { sboundary: 'V', scontrol: 'C', sentity: 'M' };
+  L.forEach(function (e) {
+    var n = String(e.name || '').trim(), pre = (/^(V|C|M)_/i.exec(n) || [])[1];
+    if (!n) { items.push({ s: 'warn', t: TT[e.type].label.split(' (')[0] + ' belum diberi nama.', ids: [e.id] }); return; }
+    if (SQ_PREFIX[e.type]) {
+      if (n.indexOf(SQ_PREFIX[e.type]) !== 0) items.push({ s: 'bad', t: SQ_ROLE[e.type] + ' "' + n + '" wajib diawali ' + SQ_PREFIX[e.type] + ' (aturan V_ = View/boundary, C_ = Controller/control, M_ = Model/entity).', ids: [e.id] });
+      if (pre && role[e.type] !== pre.toUpperCase()) items.push({ s: 'bad', t: '"' + n + '" berawalan ' + pre.toUpperCase() + '_ tapi jenisnya ' + SQ_ROLE[e.type] + '. Ganti jenisnya atau awalannya.', ids: [e.id] });
+    } else if (pre && e.type === 'lifeline') items.push({ s: 'warn', t: 'Lifeline "' + n + '" berawalan ' + pre.toUpperCase() + '_ tapi masih Lifeline biasa. Ganti jenisnya ke ' + ({ V: 'Boundary', C: 'Control', M: 'Entity' })[pre.toUpperCase()] + ' (panel kanan → Jenis lifeline).', ids: [e.id] });
+    if (/\s/.test(n) && e.type !== 'sactor') items.push({ s: 'warn', t: 'Nama "' + n + '" mengandung spasi. Biasanya ditulis tanpa spasi, mis. ' + n.replace(/\s+(\w)/g, function (m, c) { return c.toUpperCase(); }) + '.', ids: [e.id] });
+    if (!D.flows.some(function (f) { return f.kind === 'smsg' && (f.from === e.id || f.to === e.id); })) items.push({ s: 'warn', t: '"' + n + '" belum mengirim atau menerima pesan.', ids: [e.id] });
+  });
+  var seen = {};
+  L.forEach(function (e) { var k = String(e.name || '').trim().toLowerCase(); if (!k) return; if (seen[k]) items.push({ s: 'warn', t: 'Ada dua lifeline bernama "' + e.name + '". Kalau maksudnya objek yang sama, pakai satu lifeline saja.', ids: [seen[k], e.id] }); else seen[k] = e.id; });
+  var R = function (e) { return e ? ({ sactor: 'A', sboundary: 'V', scontrol: 'C', sentity: 'M' })[e.type] || '' : ''; };
+  var called = {};
+  msgs.forEach(function (f, i) {
+    var a = byId[f.from], b = byId[f.to]; if (!a || !b) return;
+    var n = String(f.name || '').trim(), ra = R(a), rb = R(b), lab = sqLabel(f) || 'pesan ke-' + (i + 1);
+    if (!n && !f.isRet) items.push({ s: 'warn', t: 'Pesan ke-' + (i + 1) + ' (' + a.name + ' → ' + b.name + ') belum diberi nama.', ids: [f.id] });
+    if (/[()]/.test(n)) items.push({ s: 'warn', t: 'Pesan "' + n + '" ditulis dengan kurung. Tulis namanya saja (mis. ' + n.replace(/\(.*$/, '') + ') — EA menambahkan "()" sendiri; isi di dalam kurung masuk ke kolom Parameter.', ids: [f.id] });
+    else if (/\s/.test(n)) items.push({ s: 'warn', t: 'Nama pesan "' + n + '" mengandung spasi. Nama method biasanya satu kata, mis. ' + n.replace(/[^\w\s]/g, '').replace(/\s+(\w)/g, function (m, c) { return c.toUpperCase(); }) + '.', ids: [f.id] });
+    if (ra === 'A' && rb && rb !== 'V') items.push({ s: 'bad', t: 'Aktor "' + a.name + '" langsung ke ' + (rb === 'C' ? 'Controller' : 'Model') + ' "' + b.name + '" (' + lab + '). Aktor hanya berinteraksi dengan View (V_).', ids: [f.id] });
+    if (ra === 'V' && rb === 'M') items.push({ s: 'bad', t: 'View "' + a.name + '" langsung ke Model "' + b.name + '" (' + lab + '). View harus lewat Controller (C_).', ids: [f.id] });
+    if (ra === 'M' && rb && rb !== 'C' && rb !== 'M') items.push({ s: 'bad', t: 'Model "' + a.name + '" mengirim ke ' + (rb === 'V' ? 'View' : 'Aktor') + ' "' + b.name + '" (' + lab + '). Model hanya membalas ke Controller.', ids: [f.id] });
+    if (ra === 'C' && rb === 'A') items.push({ s: 'bad', t: 'Controller "' + a.name + '" langsung ke Aktor "' + b.name + '" (' + lab + '). Tampilkan lewat View (V_).', ids: [f.id] });
+    if (f.isRet && !called[f.to + '>' + f.from]) items.push({ s: 'warn', t: 'Pesan balasan "' + lab + '" dari ' + a.name + ' ke ' + b.name + ', padahal sebelumnya ' + b.name + ' belum memanggil ' + a.name + '.', ids: [f.id] });
+    if (!f.isRet) called[f.from + '>' + f.to] = 1;
+    if (i === 0 && ra !== 'A' && L.some(function (e) { return e.type === 'sactor'; })) items.push({ s: 'warn', t: 'Pesan pertama sebaiknya dari Aktor (pemicu use case).', ids: [f.id] });
+  });
+  D.elements.forEach(function (e) {
+    if (e.type !== 'fragment') return;
+    var inside = msgs.filter(function (f) { return f.y > e.y && f.y < e.y + e.h; }), op = sqOpName(e), ops = e.ops || [];
+    if (!inside.length) items.push({ s: 'warn', t: 'Fragment ' + op + (e.name ? ' "' + e.name + '"' : '') + ' belum melingkupi pesan apa pun.', ids: [e.id] });
+    if (op === 'alt' && ops.length < 2) items.push({ s: 'warn', t: 'Fragment alt' + (e.name ? ' "' + e.name + '"' : '') + ' sebaiknya punya minimal 2 operand bersyarat (mis. [Iya] dan [Tidak]). Tambah di panel kanan → + Operand.', ids: [e.id] });
+    if ((op === 'opt' || op === 'loop' || op === 'break') && !ops.some(function (o) { return o.g; })) items.push({ s: 'warn', t: 'Fragment ' + op + ' belum diberi kondisi [ ]. Tambah di panel kanan → + Operand.', ids: [e.id] });
+    ops.forEach(function (o, i) { if (!String(o.g || '').trim() && (op === 'alt' || op === 'opt' || op === 'loop')) items.push({ s: 'warn', t: 'Operand ke-' + (i + 1) + ' fragment ' + op + ' belum diberi kondisi.', ids: [e.id] }); });
+  });
+}
+
+/* ---------- impor dari EA ---------- */
+function n0(v) { v = Number(v); return isNaN(v) ? 0 : v; }
+/* t_xref "Partitions": @PAR;Name=..;Size=..;@ENDPAR; … — EA menyimpan operand dari BAWAH ke atas (yang terakhir = paling atas) */
+function sqParseParts(desc) {
+  var out = [];
+  String(desc || '').replace(/@PAR;([\s\S]*?)@ENDPAR;/g, function (m, body) { var o = styleKV(body); out.push({ g: o.Name || '', h: Number(o.Size) || 40 }); return m; });
+  return out.reverse();
+}
+function sqXrefParts(x) {
+  if (!x) return '';
+  var m = /\$NAM=Partitions\$NAM;[\s\S]*?\$DES=([\s\S]*?)\$DES;/.exec(x);
+  return m ? m[1] : '';
+}
+function sqFromEa(f, c) {
+  f.y = Math.round(c.y1 || 0); f.seqno = c.seqno || 0;
+  var p2 = styleKV(c.pd2), args = p2.paramsDlg != null && p2.paramsDlg !== '' ? p2.paramsDlg : (p2.params || '');
+  if (args) f.args = args;
+  if (p2.retval && p2.retval !== 'void') f.ret = p2.retval;
+  if (String(c.pd1) === 'Asynchronous') f.async = true;
+  if (String(c.pd4) === '1') f.isRet = true;
+  if (c.pd3 && c.pd3 !== 'Call') f.sig = c.pd3;
+  var sx = styleKV(c.sx); if (sx.paramvalues) f.args = sx.paramvalues; if (sx.alias) f.alias = sx.alias;
+  if (/^new$/i.test(c.sub || '')) f.life = 'new'; else if (/^delete$/i.test(c.sub || '')) f.life = 'delete';
+  if (c.cond) f.cond = c.cond; if (c.cons) f.cons = c.cons; if (/iteration/i.test(c.card || '')) f.iter = true;
+  var g5 = styleKV(c.pd5), q = labKV(g5.LMT);
+  f.sy = Number(g5.SY) || 0;
+  if (q && (+q.OX || +q.OY)) f.lo = { mt: { x: +q.OX || 0, y: +q.OY || 0 } };
+}
+
+/* ---------- ekspor ke EA (XMI 1.1, sama dengan hasil ekspor EA 12) ---------- */
+function sqPartsXref(e, g) {
+  var des = (e.ops || []).slice().reverse().map(function (o, i, arr) { var real = sqOperands(e)[arr.length - 1 - i]; return '@PAR;Name=' + String(o.g || '').replace(/;/g, ',') + ';Size=' + Math.round(real ? real.h : (o.h || 40)) + ';GUID=' + newGuid() + ';@ENDPAR;'; }).join('');
+  return '$XREFPROP=$XID=' + newGuid() + '$XID;$NAM=Partitions$NAM;$TYP=element property$TYP;$VIS=Public$VIS;$PAR=0$PAR;$DES=' + des + '$DES;$CLT=' + g + '$CLT;$SUP=<none>$SUP;$ENDXREF;';
+}
+function sqArgsEa(a) { return String(a || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean).join(','); }
+function sqMsgXml(f, D, ind, H) {
+  var A = elOf(D, f.from), B = elOf(D, f.to), R = routeAll(D).get(f.id), P = R ? R.pts : [{ x: 0, y: f.y }, { x: 0, y: f.y }], ord = sqOrder(D).indexOf(f) + 1;
+  var args = sqArgsEa(f.args), pd2 = 'retval=' + (f.ret || 'void') + ';' + (args ? 'params=;paramsDlg=' + args + ';' : '');
+  var lab = R && R.labs && R.labs[0], st = fs(f), cx = lab ? Math.round(lab.w - 4 + 4) : 0;
+  var lmt = lab ? 'CX=' + cx + ':CY=13:OX=' + Math.round(lab.moved ? f.lo.mt.x : 0) + ':OY=' + Math.round(lab.moved ? f.lo.mt.y : 0) + ':HDN=0:BLD=0:ITA=0:UND=0:CLR=-1:ALN=1:DIR=0:ROT=0' : '';
+  var self = f.from === f.to, y1 = Math.round(f.y || 0), y2 = self ? y1 + 15 : y1;
+  /* EA menata pesan berurutan: y = y pesan sebelumnya + 35 − SY (pesan pertama: SQ_FIRST − SY). SY disimpan di PDATA5. */
+  var prev = sqOrder(D)[ord - 2], sy = (prev ? Math.round(prev.y || 0) + SQ_GAP : SQ_FIRST) - y1;
+  var tv = { style: '1', ea_type: 'Sequence', direction: 'Source -> Destination', linemode: '1', linecolor: String(f.style && f.style.stroke ? colorToRef(f.style.stroke) : -1), linewidth: '0', seqno: String(ord), headStyle: '0', lineStyle: '0',
+    subtype: f.life === 'new' ? 'New' : f.life === 'delete' ? 'Delete' : null, styleex: (args ? 'paramvalues=' + String(f.args).split(',').map(function (x) { return x.trim(); }).filter(Boolean).join(', ') + ';' : '') + (f.alias ? 'alias=' + f.alias + ';' : '') || null,
+    conditional: f.cond || null, constraint: f.cons || null, src_multiplicity: f.iter ? 'Iteration' : null,
+    privatedata1: f.async ? 'Asynchronous' : 'Synchronous', privatedata2: f.isRet && !f.ret && !args ? null : pd2, privatedata3: f.sig || 'Call', privatedata4: f.isRet ? '1' : '0', ea_localid: String(H.lid(f)),
+    ea_sourceName: A.name, ea_targetName: B.name, ea_sourceType: TT[A.type].ea, ea_targetType: TT[B.type].ea, ea_sourceID: String(H.lid(A)), ea_targetID: String(H.lid(B)),
+    src_visibility: 'Public', src_isOrdered: 'false', src_targetScope: 'instance', src_changeable: 'none', src_isNavigable: 'false', src_containment: 'Unspecified', src_style: 'Union=0;Derived=0;AllowDuplicates=0;Owned=0;Navigable=Non-Navigable;',
+    dst_visibility: 'Public', dst_aggregation: '0', dst_isOrdered: 'false', dst_targetScope: 'instance', dst_changeable: 'none', dst_isNavigable: 'true', dst_containment: 'Unspecified', dst_style: 'Union=0;Derived=0;AllowDuplicates=0;Owned=0;Navigable=Navigable;',
+    privatedata5: 'SX=0;SY=' + sy + ';EX=0;EY=0;$LLB=;LLT=;LMT=' + lmt + ';LMB=;LRT=;LRB=;IRHS=;ILHS=;', sequence_points: 'PtStartX=' + Math.round(P[0].x) + ';PtStartY=' + (-y1) + ';PtEndX=' + Math.round(P[P.length - 1].x) + ';PtEndY=' + (-y2) + ';', stateflags: 'Activation=0;', virtualInheritance: '0', diagram: xid(D.guid), mt: sqLabel(f) || null };
+  void st;
+  return ind + '<UML:Message' + (f.name ? ' name="' + H.xa(f.name) + '"' : '') + ' xmi.id="' + xid(f.guid) + '" visibility="public" sender="' + xid(A.guid) + '" receiver="' + xid(B.guid) + '">\n' + H.TVs(tv, ind + '\t') + ind + '</UML:Message>\n';
+}
+
+/* kotak isi diagram sequence seperti EA (kotak elemen apa adanya, garis & label pesan) */
+function sqBBox(D, routes) {
+  var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  function add(x, y) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+  D.elements.forEach(function (e) { add(e.x, e.y); add(e.x + e.w, e.y + e.h); if (isLL(e) && e.name) { var tw = textW(e.name, fontCss(es(e).font)); add(llCX(e) - tw / 2, e.y); add(llCX(e) + tw / 2, e.y); } });
+  (routes || routeAll(D)).forEach(function (r) { r.pts.forEach(function (p) { add(p.x, p.y); }); (r.labs || []).forEach(function (lb) { add(lb.x - lb.w / 2, lb.y - lb.h / 2); add(lb.x + lb.w / 2, lb.y + lb.h / 2); }); });
+  return isFinite(x0) ? { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } : null;
+}
+
+/* EA menggambar pesan berantai menurut SeqNo: pertama di y 135, berikutnya +35, digeser SY (PtStartY hanya salinan, bisa 0 kalau belum pernah dibuka) */
+function sqChainY(D) {
+  var ms = D.flows.filter(function (f) { return f.kind === 'smsg'; }).sort(function (a, b) { return (a.seqno || 0) - (b.seqno || 0); }), prev = null;
+  ms.forEach(function (f) { f.y = (prev == null ? SQ_FIRST : prev + SQ_GAP) - (f.sy || 0); prev = f.y; });
+  D.flows.forEach(function (f) { delete f.sy; });
+}
+
+/* rapikan jarak: semua pesan diberi jarak bawaan EA (pertama di 135, lalu +35) */
+function sqRespace() {
+  var D = cur(); if (!isSeq(D)) return;
+  mutate(function () { var y = SQ_FIRST, prev = null; sqOrder(D).forEach(function (f) { if (prev) y += SQ_GAP; f.y = y; prev = f; }); sqNormalize(D); });
+  toast('Jarak pesan dirapikan.');
+}
+
+/* ---------- teks laporan & penjelasan ---------- */
+function sqKindName(e) { return e ? ({ sactor: 'Aktor', lifeline: 'Lifeline', sboundary: 'View', scontrol: 'Controller', sentity: 'Model' })[e.type] || '' : ''; }
+function sqFragOf(D, f) { return D.elements.filter(function (e) { return e.type === 'fragment' && f.y > e.y && f.y < e.y + e.h && llCX(elOf(D, f.from) || { x: 0, w: 0 }) >= e.x && llCX(elOf(D, f.from) || { x: 0, w: 0 }) <= e.x + e.w; }).sort(function (a, b) { return b.y - a.y; })[0] || null; }
+function sqFragTxt(D, f) {
+  var fr = sqFragOf(D, f); if (!fr) return '';
+  var op = sqOperands(fr).filter(function (o) { return f.y >= o.y && f.y < o.y + o.h; })[0];
+  return sqOpName(fr) + (fr.name ? ' ' + fr.name : '') + (op && op.g ? ' [' + op.g + ']' : '');
+}
+function repSeq(D) {
+  var td = 'border:1px solid #000;padding:5px 8px;font-family:\'Times New Roman\',serif;font-size:12pt;';
+  var h = '<table style="border-collapse:collapse"><tr>' + ['No', 'Dari', 'Ke', 'Pesan', 'Keterangan'].map(function (x) { return '<th style="' + td + 'background:#d9d9d9">' + x + '</th>'; }).join('') + '</tr>';
+  sqOrder(D).forEach(function (f, i) {
+    var a = elOf(D, f.from), b = elOf(D, f.to); if (!a || !b) return;
+    var k = [f.from === f.to ? 'pesan ke diri sendiri' : f.isRet ? 'balasan' : f.async ? 'asinkron' : 'sinkron', sqFragTxt(D, f)].filter(Boolean).join('; ');
+    h += '<tr><td style="' + td + 'text-align:center">' + (i + 1) + '</td><td style="' + td + '">' + esc(a.name) + '</td><td style="' + td + '">' + esc(b.name) + '</td><td style="' + td + '">' + esc(sqLabel(f) || '(tanpa nama)') + '</td><td style="' + td + '">' + esc(k) + '</td></tr>';
+  });
+  return h + '</table>';
+}
+function xSeqExplain(D) {
+  var L = D.elements.filter(isLL), ms = sqOrder(D), h = '';
+  h += '<p><b>' + esc(D.name || 'Diagram ini') + '</b> adalah sequence diagram: urutan pesan antar objek dari atas ke bawah. Ada ' + L.length + ' lifeline (' + L.map(function (e) { return xB(e) + ' <i>' + sqKindName(e) + '</i>'; }).join(', ') + ') dan ' + ms.length + ' pesan.</p>';
+  if (!ms.length) return h + '<p>Belum ada pesan. Seret dari garis putus-putus satu lifeline ke lifeline lain untuk membuat pesan.</p>';
+  h += '<ol>' + ms.map(function (f) {
+    var a = elOf(D, f.from), b = elOf(D, f.to), fr = sqFragTxt(D, f), lab = sqLabel(f);
+    var t = f.from === f.to ? xB(a) + ' memproses sendiri ' + (lab ? '<b>' + esc(lab) + '</b>' : '') : f.isRet ? xB(a) + ' membalas ke ' + xB(b) + (lab ? ' dengan <b>' + esc(lab) + '</b>' : '') : xB(a) + ' memanggil ' + xB(b) + (lab ? ': <b>' + esc(lab) + '</b>' : '') + (f.async ? ' (tanpa menunggu)' : '');
+    return '<li>' + t + (fr ? ' <i>— hanya bila ' + esc(fr) + '</i>' : '') + '.</li>';
+  }).join('') + '</ol>';
+  return h;
+}
+
+/* ---------- "Tanya diagram" untuk sequence (berbasis aturan, tanpa AI) ---------- */
+var SQ_CONCEPTS = [
+  [/lifeline|garis (hidup|putus)/, '<p><b>Lifeline</b> adalah satu objek/peran yang ikut dalam skenario. Kepalanya di atas, garis putus-putus ke bawah menunjukkan "umur" objek itu selama skenario berjalan. Waktu mengalir dari atas ke bawah.</p>'],
+  [/activation|aktivasi|kotak (sempit|biru|panjang)|batang/, '<p><b>Activation</b> (kotak sempit di atas lifeline) menandai saat objek itu <b>sedang bekerja</b>: mulai ketika menerima pesan, berakhir setelah pesan terakhir yang ia kirim selesai. Di Alir dan EA kotak ini digambar otomatis dari urutan pesan, tidak perlu ditaruh sendiri.</p>'],
+  [/self|diri sendiri|balik ke (dirinya|sendiri)/, '<p><b>Self-message</b> (pesan ke diri sendiri) berarti objek memanggil method miliknya sendiri, misalnya <i>cekDataValid()</i> di controller. Digambar sebagai garis yang keluar lalu kembali ke lifeline yang sama.</p>'],
+  [/return|balasan|kembali|putus.?putus/, '<p><b>Return message</b> (garis putus-putus, panah terbuka) adalah balasan atas pesan sebelumnya, misalnya model mengembalikan data ke controller. Di EA dicentang lewat <i>Is Return</i>. Nilai yang dikembalikan bisa ditulis di kolom <i>Return value</i>.</p>'],
+  [/async|asinkron|sinkron|panah (penuh|terbuka)/, '<p><b>Synchronous</b> (panah segitiga penuh): pengirim menunggu sampai penerima selesai. <b>Asynchronous</b> (panah terbuka): pengirim langsung lanjut tanpa menunggu.</p>'],
+  [/fragment|alt\b|opt\b|loop|kondisi|operand/, '<p><b>Combined fragment</b> membingkai sebagian pesan dengan aturan: <b>alt</b> = pilihan (seperti if/else, tiap operand diberi kondisi [Iya] / [Tidak]); <b>opt</b> = hanya terjadi bila kondisinya benar; <b>loop</b> = diulang selama kondisinya benar; <b>par</b> = berjalan bersamaan. Garis putus-putus memisahkan operand.</p>'],
+  [/boundary|control|entity|mvc|v_|c_|m_|awalan|prefix/, '<p>Aturan MVC: <b>Boundary</b> = View (nama diawali <b>V_</b>, halaman/form yang dilihat aktor), <b>Control</b> = Controller (<b>C_</b>, pengatur logika), <b>Entity</b> = Model (<b>M_</b>, data/tabel). Aktor hanya berinteraksi dengan View, View meneruskan ke Controller, Controller yang mengakses Model, dan Model hanya membalas ke Controller.</p>'],
+  [/kurung|\(\)|parameter|argumen/, '<p>Nama pesan ditulis <b>tanpa kurung</b>, misalnya <i>getDataBuku</i>. EA (dan Alir) menambahkan "()" sendiri. Isi di dalam kurung diisi lewat kolom <b>Parameter</b> (mis. <i>nama, jumlah</i>), hasilnya tampil <i>getDataBuku(nama, jumlah)</i>. Nilai kembali ditulis di <b>Return value</b> → <i>getDataBuku(): Array</i>.</p>'],
+  [/sequence|urutan pesan/, '<p><b>Sequence diagram</b> menggambarkan <b>urutan pesan</b> antar objek untuk satu skenario use case, dibaca dari atas ke bawah. Sumbernya biasanya activity diagram/skenario: tiap langkah menjadi pesan antara aktor, View (V_), Controller (C_), dan Model (M_).</p>']
+];
+function seqAnswer(D, raw) {
+  var q = String(raw || '').toLowerCase(), chips = ['Jelaskan diagram ini', 'Diagram ini sudah benar belum?', 'Apa itu activation?'];
+  if (/(benar|bener|salah|cek|periksa|valid( gak| tidak)?\?|sudah oke|udah oke)/.test(q) && !/kalau|jika/.test(q)) {
+    var items = umlCheck(D);
+    if (!items.length) return cRes('<p>Aku cek: awalan V_/C_/M_, alur MVC, nama pesan, balasan, dan fragment. <b>Tidak ada masalah</b> di diagram ini.</p>', chips, null, 'check');
+    return cRes('<p>Aku menemukan ' + items.length + ' hal:</p><ul>' + items.map(function (i) { return '<li>' + esc(i.t) + '</li>'; }).join('') + '</ul>', chips, null, 'check');
+  }
+  var hit = null;
+  D.elements.forEach(function (e) { var n = String(e.name || '').toLowerCase(); if (n && q.indexOf(n) >= 0 && (!hit || n.length > String(hit.name).length)) hit = e; });
+  D.flows.forEach(function (f) { var n = String(f.name || '').toLowerCase().replace(/\(.*$/, ''); if (n && n.length > 2 && q.indexOf(n) >= 0 && (!hit || n.length > String(hit.name || '').length)) hit = f; });
+  if (hit && hit.kind === 'smsg') {
+    var a = elOf(D, hit.from), b = elOf(D, hit.to), fr = sqFragTxt(D, hit), no = sqOrder(D).indexOf(hit) + 1;
+    return cRes('<p>Pesan ke-' + no + ' <b>' + esc(sqLabel(hit)) + '</b>: ' + xB(a) + (hit.from === hit.to ? ' memanggil method miliknya sendiri' : hit.isRet ? ' membalas ke ' + xB(b) : ' memanggil ' + xB(b) + (hit.async ? ' tanpa menunggu (asinkron)' : ' lalu menunggu sampai selesai')) + '.' + (fr ? ' Pesan ini hanya terjadi bila <i>' + esc(fr) + '</i>.' : '') + '</p>', chips, hit.id, 'el');
+  }
+  if (hit && isLL(hit)) {
+    var outs = sqOrder(D).filter(function (f) { return f.from === hit.id; }), ins = sqOrder(D).filter(function (f) { return f.to === hit.id && f.from !== hit.id; });
+    return cRes('<p>' + xB(hit) + ' adalah <b>' + (SQ_ROLE[hit.type] || sqKindName(hit)) + '</b>. Ia menerima ' + ins.length + ' pesan' + (ins.length ? ' (' + ins.map(function (f) { return esc(sqLabel(f) || '…'); }).join(', ') + ')' : '') + ' dan mengirim ' + outs.length + ' pesan' + (outs.length ? ' (' + outs.map(function (f) { return esc(sqLabel(f) || '…') + ' ke ' + esc((elOf(D, f.to) || {}).name || ''); }).join(', ') + ')' : '') + '.</p>', chips, hit.id, 'el');
+  }
+  for (var i = 0; i < SQ_CONCEPTS.length; i++) if (SQ_CONCEPTS[i][0].test(q) && /(apa|maksud|arti|itu|gimana|bagaimana|kenapa|beda|jelas)/.test(q)) return cRes(SQ_CONCEPTS[i][1], chips, null, 'concept');
+  for (var j = 0; j < SQ_CONCEPTS.length; j++) if (SQ_CONCEPTS[j][0].test(q)) return cRes(SQ_CONCEPTS[j][1], chips, null, 'concept');
+  return cRes(xSeqExplain(D), ['Diagram ini sudah benar belum?', 'Apa itu activation?', 'Kenapa nama pesan tanpa kurung?'], null, 'overview');
 }
 
 
@@ -9823,6 +10639,7 @@ function defs(markers) {
   return s + '</defs>';
 }
 function sceneMarkup(D, routes, selSet) {
+  if (!isDfd() && D.kind === 'sequence') return sqScene(D, routes, selSet);
   var markers = new Set(), mig = migratedInfo(D).set, body = '';
   (isDfd() ? D.elements : zOrder(D)).forEach(function (e) { body += shapeMarkup(e, D); });
   D.flows.forEach(function (f) { var r = routes.get(f.id); if (r) body += flowMarkup(f, r, selSet.has(f.id), mig.has(f.id), markers); });
@@ -9838,7 +10655,7 @@ function overlay(D, routes, v) {
     if (e.grp && sel.has(e.id)) { var g = gbox[e.grp] || (gbox[e.grp] = { l: 1e9, t: 1e9, r: -1e9, b: -1e9 }); g.l = Math.min(g.l, e.x); g.t = Math.min(g.t, e.y); g.r = Math.max(g.r, e.x + e.w); g.b = Math.max(g.b, e.y + e.h); }
   });
   Object.keys(gbox).forEach(function (gk2) { var g = gbox[gk2], m = 8 / k; s += '<rect class="grpbox" style="stroke-width:' + 1.4 / k + 'px;stroke-dasharray:' + 6 / k + ' ' + 3 / k + '" x="' + (g.l - m) + '" y="' + (g.t - m) + '" width="' + (g.r - g.l + 2 * m) + '" height="' + (g.b - g.t + 2 * m) + '"/>'; });
-  if (!isDfd()) s += labOverlay(D, routes, k) + simOverlay(D, routes, k) + ucBadges(D, k);
+  if (!isDfd()) s += labOverlay(D, routes, k) + simOverlay(D, routes, k) + ucBadges(D, k) + (isSeq(D) ? seqOverlay(D, k) : '');
   if (drag && drag.free) s += '<path class="pv" style="stroke-width:' + 1.4 / k + 'px;stroke-dasharray:' + 5 / k + ' ' + 4 / k + '" d="M' + drag.free.a.x + ' ' + drag.free.a.y + 'L' + drag.free.b.x + ' ' + drag.free.b.y + '"/>';
   if (drag && drag.guides) drag.guides.forEach(function (g) { s += '<path class="guide" style="stroke-width:' + 1.5 / k + 'px;stroke-dasharray:' + 5 / k + ' ' + 3 / k + '" d="M' + g[0] + ' ' + g[1] + 'L' + g[2] + ' ' + g[3] + '"/>'; });
   D.elements.forEach(function (e) {
@@ -9859,7 +10676,7 @@ function overlay(D, routes, v) {
       s += '<rect class="handle" data-h="' + h[0] + '" style="stroke-width:' + sw + 'px;cursor:' + h[3] + '" x="' + (h[1] - hs) + '" y="' + (h[2] - hs) + '" width="' + hs * 2 + '" height="' + hs * 2 + '"/>';
     });
     var f = flOf(D, id), r = f && routes.get(id);
-    if (r) s += lnHandles(f, r, k);
+    if (r && !(f.kind === 'smsg')) s += lnHandles(f, r, k);
     else if (false) { /* pegangan lama DFD, diganti sistem garis seperti EA */
       var P = r.pts, ortho = fs(f).route > 0, hb = 3.6 / k;
       if (ortho) {
@@ -9880,7 +10697,7 @@ function overlay(D, routes, v) {
         s += '<rect class="handle endh" data-h="end:' + q[0] + '" x="' + (q[1].x - hs) + '" y="' + (q[1].y - hs) + '" width="' + hs * 2 + '" height="' + hs * 2 + '" style="stroke-width:' + sw + 'px;cursor:crosshair"><title>Seret untuk memindah ujung ' + (q[0] === 's' ? 'asal' : 'panah') + '</title></rect>';
       });
     }
-    if (e && tool === 'select' && !drag) {
+    if (e && tool === 'select' && !drag && !(isSeq(D) && (isLL(e) || e.type === 'fragment'))) {
       var R0 = rect(e), o = 13 / k, qr = 5.5 / k;
       [['n', R0.cx, R0.t - o, 0], ['e', R0.r + o, R0.cy, 90], ['s', R0.cx, R0.b + o, 180], ['w', R0.l - o, R0.cy, 270]].forEach(function (q) {
         s += '<g class="qc" data-h="qc:' + q[0] + '" transform="translate(' + q[1] + ' ' + q[2] + ') rotate(' + q[3] + ') scale(' + 1 / k + ')" style="cursor:pointer"><title>Seret ke objek lain untuk membuat alur, atau klik untuk memilih tujuan</title><circle r="7.5"/><path d="M0 3.2V-3.2M-2.8 -0.6L0 -3.6L2.8 -0.6"/></g>';
@@ -10003,7 +10820,7 @@ function checkDiagram(D) {
       if (ch && !ch.elements.some(function (x) { return x.type === 'process'; })) items.push({ s: 'warn', t: 'Proses ' + nm + ' sudah didekomposisi tapi diagram turunannya belum berisi sub-proses.', ids: [e.id] });
     } else if (e.type === 'store') {
       if (!i && !o) items.push({ s: 'warn', t: 'Data store ' + lbl(e) + ' belum terhubung.', ids: [e.id] });
-      else if (!i) items.push({ s: 'warn', t: 'Data store ' + lbl(e) + ' tidak punya input (hanya dibaca).', ids: [e.id] });
+      else if (!i && !e.ro) items.push({ s: 'warn', t: 'Data store ' + lbl(e) + ' tidak punya input (hanya dibaca). Kalau memang sengaja (data awal), centang "Sengaja hanya dibaca" di panel kanan.', ids: [e.id] });
       else if (!o) items.push({ s: 'warn', t: 'Data store ' + lbl(e) + ' tidak punya output (hanya diisi).', ids: [e.id] });
     } else if (isDeco(e)) { return;
     } else if (e.type === 'spmg') {
@@ -10065,6 +10882,7 @@ function panel() {
       h += '<div class="two"><div class="field"><label for="p-code">Kode</label><input class="in" id="p-code" data-f="code" value="' + esc(e.code || Pam.codeOf(e.name)) + '"></div>';
       if (e.type !== 'entity') h += '<div class="field"><label for="p-num">Nomor</label><input class="in" id="p-num" data-f="num" value="' + esc(e.num) + '"></div>';
       h += '</div>';
+      if (e.type === 'store') h += '<label class="cbx"><input type="checkbox" data-f="ro"' + (e.ro ? ' checked' : '') + '> Sengaja hanya dibaca (data awal, mis. dibuat saat instalasi)</label>';
       if (e.type === 'process') h += '<label class="cbx"><input type="checkbox" id="p-low" data-f="lowest"' + (e.lowest ? ' checked' : '') + '> Level terendah (tidak didekomposisi lagi)</label>';
       h += '</div>';
       if (e.type === 'process') {
@@ -10138,6 +10956,7 @@ panelEl.addEventListener('change', function (e) {
     if (f === 'code') o.code = v || undefined;
     else if (f === 'num') { var old = o.num; o.num = v; if (o.type === 'process') renumberChildren(D, o, old); }
     else if (f === 'lowest') o.lowest = v ? 1 : 0;
+    else if (f === 'ro') { if (v) o.ro = 1; else delete o.ro; }
     else if (f === 'full') o.full = !!v;
     else if (f === 'route') o.style.route = Number(v);
     else if (f === 'ref') { var pr = v.split('|'), PD = diag(pr[0]), pe = PD && elOf(PD, pr[1]); if (pe) { o.ref = { d: pr[0], e: pr[1] }; o.name = pe.name; delete o.refOid; delete o.oid; } }
@@ -10303,6 +11122,8 @@ function delSel() {
   if (!sel.size) return;
   var D = cur(), n = 0, lk = D.elements.filter(function (e) { return sel.has(e.id) && e.locked; });
   if (lk.length) { lk.forEach(function (e) { sel.delete(e.id); }); toast(lk.length + ' objek terkunci tidak dihapus. Buka kuncinya dulu kalau memang mau dihapus.'); if (!sel.size) { draw(); panel(); syncBar(); return; } }
+  var gw1 = sel.size === 1 && D.elements.find(function (e) { return sel.has(e.id) && (e.type === 'gateway' || e.type === 'decision' || e.type === 'merge'); });
+  if (gw1 && D.flows.some(function (f) { return f.to === gw1.id; }) && D.flows.some(function (f) { return f.from === gw1.id; })) setTimeout(function () { toast('Gateway dihapus beserta garisnya. Mau garisnya tetap tersambung? Ctrl+Z lalu klik kanan gateway → Hapus & sambungkan garisnya.'); }, 50);
   mutate(function () {
     var rm = new Set(sel);
     D.elements.forEach(function (e) { if (rm.has(e.id)) { var c = childOf(D, e); if (c) { dropDiagram(c.id); n++; } } });
@@ -10346,6 +11167,7 @@ function pasteClip() {
     clipb.flows.forEach(function (f) {
       var n = clone(f); n.id = uid('f'); delete n.oid; delete n.ssym; delete n.guid; n.from = map[f.from]; n.to = map[f.to];
       n.bends = (n.bends || []).map(function (b) { return { x: b.x + off, y: b.y + off }; });
+      if (n.kind === 'smsg' && n.y != null) n.y += off;
       D.flows.push(n); ns.add(n.id);
     });
     sel = ns;
@@ -10875,11 +11697,11 @@ var HR = { hr: 1 };
 function menuItems(name) {
   var D = cur(), one = selEls().length === 1 ? selEls()[0] : null, proc = one && one.type === 'process' ? one : null, has = sel.size > 0, nE = selEls().length, f = selFlows()[0], st = curStyleOf();
   if (name === 'file' && !isDfd()) return [item('Halaman mulai…', 'start'), item('Proyek UML baru (kosong)…', 'newuml'), item('DFD baru (kosong)…', 'new'), item('Buka .eap / .xml / .alir / .json…', 'open', 'Ctrl+O')].concat(FSA ? [item('Simpan' + (FH.h ? ' ke ' + FH.name : ' proyek (.alir)'), 'save', 'Ctrl+S'), item('Simpan sebagai…', 'saveas', 'Ctrl+Shift+S')] : []).concat([ item('Buat diagram dari skenario (.docx / tabel)…', 'scen'), HR, item('Jelaskan diagram ini (tanya jawab)…', 'explain', 'F3'), item('Teks untuk laporan (narasi & tabel)…', 'report'), item('Bagikan lewat link…', 'share'), item('Riwayat versi…', 'hist'), HR, item('Ekspor ke Enterprise Architect…', 'exportea', FSA ? 'Ctrl+E' : 'Ctrl+S'), item('Simpan proyek Alir (.json)', 'saveproj'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Gambar untuk laporan (pas lebar A4 / tabel)…', 'repimg'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar JPG', 'jpg'), item('Ekspor gambar SVG', 'svg'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Preferensi tampilan…', 'dispref')]);
-  if (name === 'dict' && !isDfd()) return [{ hd: 'Diagram baru' }, item('Activity Diagram', 'newdiag:activity'), item('Use Case Diagram', 'newdiag:usecase'), item('BPMN (Business Process)', 'newdiag:bpmn'), item('Dari skenario use case (tabel / .docx)…', 'scen'), HR, item('Jalankan alur ▶', 'sim', '', { dis: !(D.kind === 'activity' || D.kind === 'bpmn') }), item('Jelaskan diagram ini…', 'explain', 'F3'), item('Teks untuk laporan…', 'report'), HR, item('Ganti nama diagram…', 'renamediag'), item('Hapus diagram ini', 'deldiag', '', { dis: doc.diagrams.length < 2 }), item('Paket (folder) baru', 'newpkg'), HR, item('Periksa diagram', 'check', 'F4')];
+  if (name === 'dict' && !isDfd()) return [{ hd: 'Diagram baru' }, item('Activity Diagram', 'newdiag:activity'), item('Use Case Diagram', 'newdiag:usecase'), item('BPMN (Business Process)', 'newdiag:bpmn'), item('Sequence Diagram', 'newdiag:sequence'), item('Dari skenario use case (tabel / .docx)…', 'scen'), HR, item('Jalankan alur ▶', 'sim', '', { dis: !(D.kind === 'activity' || D.kind === 'bpmn') }), item('Jelaskan diagram ini…', 'explain', 'F3'), item('Teks untuk laporan…', 'report'), HR, item('Ganti nama diagram…', 'renamediag'), item('Hapus diagram ini', 'deldiag', '', { dis: doc.diagrams.length < 2 }), item('Paket (folder) baru', 'newpkg'), HR, item('Periksa diagram', 'check', 'F4')];
   if (name === 'file') return [item('Halaman mulai…', 'start'), item('DFD baru (kosong)…', 'new'), item('Proyek UML baru (kosong)…', 'newuml'), item('Buka .pam / .alir / .json / .zip…', 'open', 'Ctrl+O'), item('Buat DFD dari skenario (.docx / tabel)…', 'dfdscen')].concat(FSA ? [item('Simpan' + (FH.h ? ' ke ' + FH.name : ''), 'save', 'Ctrl+S'), item('Simpan sebagai…', 'saveas', 'Ctrl+Shift+S')] : []).concat([HR, item('Jelaskan diagram ini (tanya jawab)…', 'explain', 'F3'), item('Teks untuk laporan (tabel alur data)…', 'report'), item('Bagikan lewat link…', 'share'), item('Riwayat versi…', 'hist'), HR, item('Simpan sebagai .pam', 'savepam', FSA ? '' : 'Ctrl+S'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Gambar untuk laporan (pas lebar A4 / tabel)…', 'repimg'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar JPG', 'jpg'), item('Ekspor gambar SVG', 'svg'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Opsi model…', 'modelopt'), item('Preferensi tampilan…', 'dispref')]);
   if (name === 'edit') return [item('Urungkan', 'undo', 'Ctrl+Z', { dis: !undoS.length }), item('Ulangi', 'redo', 'Ctrl+Y', { dis: !redoS.length }), HR, item('Potong', 'cut', 'Ctrl+X', { dis: !has }), item('Salin', 'copy', 'Ctrl+C', { dis: !has }), item('Tempel', 'paste', 'Ctrl+V', { dis: !canPaste() }), item('Hapus', 'del', 'Del', { dis: !has }), HR, item('Pilih simbol terhubung', 'selconn', '', { dis: !has }), item('Pilih semua', 'selall', 'Ctrl+A'), item('Pilih beberapa (klik satu per satu)', 'multipick', '', { ck: multiPick }), item('Pilih semua yang sejenis', 'selsame', '', { dis: !has }), item('Cari elemen…', 'find', 'Ctrl+F'), HR, item('Kunci / buka kunci posisi', 'lock', '', { dis: !nE }), item('Kelompokkan', 'group', 'Ctrl+G', { dis: nE < 2 }), item('Pisahkan kelompok', 'ungroup', 'Ctrl+Shift+G', { dis: !nE }), HR, item('Duplikat', 'dup', 'Ctrl+D', { dis: !has }), item('Ubah nama', 'rename', 'F2', { dis: sel.size !== 1 })];
   if (name === 'dict') return [item('Properti model…', 'modelopt'), { hd: 'Sub-proses' }, item(proc && childOf(D, proc) ? 'Buka diagram turunan' : 'Dekomposisi proses terpilih', 'decomp', 'Alt+↓', { dis: !proc }), item('Naik satu level', 'up', 'Alt+↑', { dis: !D.parent }), item('Hapus dekomposisi', 'undecomp', '', { dis: !(proc && childOf(D, proc)) }), item('Pohon proses…', 'tree'), HR, item('Daftar objek…', 'objlist'), item('Urutkan ulang nomor objek', 'renum'), item('Auto-balance alur', 'autobal', '', { dis: !D.parent }), item('Tambah konektor off-page', 'offadd'), item('Buat DFD dari skenario use case…', 'dfdscen'), item('Migrasikan alur terpilih ke induk', 'migrate', '', { dis: !D.parent || !f }), HR, item('Periksa model…', 'check', 'F4')];
-  if (name === 'arrange') return [item('Sesuaikan dengan teks', 'adjust', 'Ctrl+J', { dis: !nE }), item('Ukuran normal', 'normsize', '', { dis: !nE }), HR, { hd: 'Ratakan' }, item('Kiri', 'alL', '', { dis: nE < 2 }), item('Tengah (sumbu vertikal)', 'alC', '', { dis: nE < 2 }), item('Kanan', 'alR', '', { dis: nE < 2 }), item('Atas', 'alT', '', { dis: nE < 2 }), item('Tengah (sumbu horizontal)', 'alM', '', { dis: nE < 2 }), item('Bawah', 'alB', '', { dis: nE < 2 }), item('Samakan lebar', 'sameW', '', { dis: nE < 2 }), item('Samakan tinggi', 'sameH', '', { dis: nE < 2 }), item('Samakan lebar & tinggi', 'sameS', '', { dis: nE < 2 }), HR, item('Sebar horizontal', 'distH', '', { dis: nE < 3 }), item('Sebar vertikal', 'distV', '', { dis: nE < 3 }), HR, { hd: 'Alur' }, item('Rapikan alur terpilih', 'tidy', 'Ctrl+L', { dis: !selFlows().length }), item('Rapikan semua alur… (pilih tampilan)', 'tidyall', 'Ctrl+Shift+L'), item('Rapikan tata letak (pindahkan objek, proporsional)', 'relayout', 'Ctrl+Shift+K', { dis: !(isDfd() || D.kind === 'activity' || D.kind === 'usecase' || D.kind === 'bpmn') }), item('Pengaturan & pilihan perapian…', 'tidyset', '', { dis: !(isDfd() || D.kind === 'activity' || D.kind === 'usecase') }), item('Rapikan yang terpilih saja (objek lain tetap)', 'tidysel', '', { dis: nE < 2 }), item('Pilih alur objek terpilih', 'selflows', '', { dis: !nE }), item('Rapikan letak nama (Mulai, Selesai, gateway)', 'labfix', '', { dis: isDfd() || !(D.kind === 'activity' || D.kind === 'bpmn') }), item('Rapikan bus aktor (use case)', 'bustidy', '', { dis: D.kind !== 'usecase' }), item('Rapikan otomatis setiap ada perubahan', 'autotidy', '', { ck: autoTidyOn() }), HR, { hd: 'Urutan' }, item('Bawa ke depan', 'front', 'Ctrl+]', { dis: !has }), item('Kirim ke belakang', 'back', 'Ctrl+[', { dis: !has }), item('Maju satu', 'fwd', '', { dis: !has }), item('Mundur satu', 'bwd', '', { dis: !has })];
+  if (name === 'arrange') return [item('Sesuaikan dengan teks', 'adjust', 'Ctrl+J', { dis: !nE }), item('Ukuran normal', 'normsize', '', { dis: !nE }), HR, { hd: 'Ratakan' }, item('Kiri', 'alL', '', { dis: nE < 2 }), item('Tengah (sumbu vertikal)', 'alC', '', { dis: nE < 2 }), item('Kanan', 'alR', '', { dis: nE < 2 }), item('Atas', 'alT', '', { dis: nE < 2 }), item('Tengah (sumbu horizontal)', 'alM', '', { dis: nE < 2 }), item('Bawah', 'alB', '', { dis: nE < 2 }), item('Samakan lebar', 'sameW', '', { dis: nE < 2 }), item('Samakan tinggi', 'sameH', '', { dis: nE < 2 }), item('Samakan lebar & tinggi', 'sameS', '', { dis: nE < 2 }), HR, item('Sebar horizontal', 'distH', '', { dis: nE < 3 }), item('Sebar vertikal', 'distV', '', { dis: nE < 3 }), HR, { hd: 'Alur' }, item('Rapikan alur terpilih', 'tidy', 'Ctrl+L', { dis: !selFlows().length }), item('Rapikan semua alur… (pilih tampilan)', 'tidyall', 'Ctrl+Shift+L'), item('Rapikan tata letak (pindahkan objek, proporsional)', 'relayout', 'Ctrl+Shift+K', { dis: !(isDfd() || D.kind === 'activity' || D.kind === 'usecase' || D.kind === 'bpmn') }), item('Pengaturan & pilihan perapian…', 'tidyset', '', { dis: !(isDfd() || D.kind === 'activity' || D.kind === 'usecase') }), item('Rapikan yang terpilih saja (objek lain tetap)', 'tidysel', '', { dis: nE < 2 }), item('Pilih alur objek terpilih', 'selflows', '', { dis: !nE }), item('Rapikan letak nama (Mulai, Selesai, gateway)', 'labfix', '', { dis: isDfd() || !(D.kind === 'activity' || D.kind === 'bpmn') }), item('Rapikan bus aktor (use case)', 'bustidy', '', { dis: D.kind !== 'usecase' }), item('Urutan use case (UC01, UC02, …)', 'ucorder', '', { dis: D.kind !== 'usecase' }), item('Rapikan otomatis setiap ada perubahan', 'autotidy', '', { ck: autoTidyOn() }), HR, { hd: 'Urutan' }, item('Bawa ke depan', 'front', 'Ctrl+]', { dis: !has }), item('Kirim ke belakang', 'back', 'Ctrl+[', { dis: !has }), item('Maju satu', 'fwd', '', { dis: !has }), item('Mundur satu', 'bwd', '', { dis: !has })];
   if (name === 'format') return [item('Bayangan (shadow)', 'shadow', '', { ck: doc.prefs.shadow }), HR, item('Warnai semua alur sesuai ' + (isDfd() ? 'entitasnya' : 'aktor / partition') + '', 'colallflows'), item('Warnai alur objek terpilih sesuai warnanya', 'colflows', '', { dis: !nE }), HR, item('Warna garis…', 'pop:stroke', '', { dis: !has }), item('Warna isi…', 'pop:fill', '', { dis: !nE }), item('Warna teks…', 'pop:text', '', { dis: !has }), HR, { hd: 'Pola garis' }]
     .concat(Object.keys(DASHES).map(function (k) { return item(DASHES[k], 'dash:' + k, '', { dis: !has, ck: st && st.dash === k }); }))
     .concat([{ hd: 'Garis alur' }], routeNames().map(function (r, i) { return item(r, 'route:' + i, '', { dis: !f, ck: f && fs(f).route === i }); }), [HR], Object.keys(ARROWS).map(function (k) { return item(ARROWS[k], 'arrow:' + k, '', { dis: !f, ck: f && arrowKey(fs(f).arrows) === k }); }),
@@ -10941,6 +11763,7 @@ function contextMenu(e, id) {
       items.push(item('Ubah nama', 'rename', 'F2'), item('Potong', 'cut', 'Ctrl+X'), item('Salin', 'copy', 'Ctrl+C'), item('Salin sebagai gambar HD', 'copyselimg'), item('Duplikat', 'dup', 'Ctrl+D'), item('Hapus', 'del', 'Del'), HR, item(multiPick ? 'Selesai memilih' : 'Pilih beberapa (klik satu per satu)', 'multipick'), item('Pilih semua yang sejenis', 'selsame'), item('Pilih yang terhubung', 'selconn'), HR);
       if (o.type) items.push(item(o.locked ? 'Buka kunci' : 'Kunci posisi', 'lock'), HR);
       if (o.type && !isContainer(o)) items.push(item('Jelaskan objek ini', 'explainel'), item('Pilih semua alurnya (masuk & keluar)', 'selflows'), item('Warnai alurnya sesuai warna objek ini', 'colflows'), HR);
+      if (o.type === 'gateway' || o.type === 'decision' || o.type === 'merge') items.push(item('Hapus & sambungkan garisnya', 'gwbypass'), HR);
       if (o.type === 'usecase') items.push(item(ucDiagram(o) ? 'Buka Activity Diagram-nya' : 'Buat Activity Diagram untuk use case ini', 'ucad'), HR);
       if (o.type) { if (!isContainer(o)) items.push(item('Sesuaikan dengan teks', 'adjust', 'Ctrl+J'), item('Ukuran normal', 'normsize')); if (o.type === 'partition') items.push(item(o.horiz ? 'Jadikan partition tegak' : 'Jadikan partition mendatar', 'porient')); if (o.type === 'partition' || o.type === 'lane') items.push(item('Rapatkan semua ' + (o.type === 'lane' ? 'lane' : 'partition'), 'dockall'), HR); items.push(item('Warna garis…', 'pop:stroke'), item('Warna isi…', 'pop:fill'), item('Warna teks…', 'pop:text')); }
       else {
@@ -10983,6 +11806,8 @@ function contextMenu(e, id) {
 function run(a, btn) {
   if (runBrowse(a)) return;
   var D = cur(), id = Array.from(sel)[0];
+  if (!isDfd() && isSeq(D) && /^sq/.test(a) && sqPanelAct(a, D, elOf(D, id) || flOf(D, id))) return;
+  if (!isDfd() && isSeq(D) && ['tidy', 'tidyall', 'tidysel', 'relayout', 'adjust', 'normsize', 'labfix'].indexOf(a) >= 0) { toast('Sequence diagram ditata seperti EA: lifeline sejajar di atas, pesan mendatar. Untuk merapikan jarak pesan pakai panel kanan → Rapikan jarak pesan.'); return; }
   var qm = /^qconn:(.*)$/.exec(a);
   if (qm && !isDfd()) { if (qcPending) { var qp = qcPending; setTimeout(function () { var r0 = cv.getBoundingClientRect(); eaKindMenu(qp.from, qm[1], qp.side, lastMenuXY.x || r0.left + 100, lastMenuXY.y || r0.top + 100); }, 0); } return; }
   var qk = /^qkind:(.*)$/.exec(a);
@@ -11004,7 +11829,7 @@ function run(a, btn) {
   }
   switch (a) {
     case 'start': startPage(); return;
-    case 'newdiag': (function () { var r0 = btn && btn.getBoundingClientRect ? btn.getBoundingClientRect() : { left: 200, bottom: 120 }; renderMenu([{ hd: 'Diagram baru' }, item('Activity Diagram', 'newdiag:activity'), item('Use Case Diagram', 'newdiag:usecase'), item('BPMN (Business Process)', 'newdiag:bpmn')], r0.left, r0.bottom + 4); })(); return;
+    case 'newdiag': (function () { var r0 = btn && btn.getBoundingClientRect ? btn.getBoundingClientRect() : { left: 200, bottom: 120 }; renderMenu([{ hd: 'Diagram baru' }, item('Activity Diagram', 'newdiag:activity'), item('Use Case Diagram', 'newdiag:usecase'), item('BPMN (Business Process)', 'newdiag:bpmn'), item('Sequence Diagram', 'newdiag:sequence')], r0.left, r0.bottom + 4); })(); return;
     case 'newpkg': (function () { var nm0 = 'Paket ' + (doc.packages.length + 1); mutate(function () { doc.packages.push({ id: uid('p'), name: nm0, parent: doc.packages[0].id }); }); toast('Paket "' + nm0 + '" dibuat. Diagram baru akan masuk ke paket diagram yang sedang dibuka.'); })(); return;
     case 'renamediag': renameDiagramModal(); return;
     case 'deldiag': removeDiagram(active); return;
@@ -11080,6 +11905,8 @@ function run(a, btn) {
     case 'labreset': labReset(Array.from(sel)); break;
     case 'labfix': labFixCmd(); break;
     case 'bustidy': ucBusTidy(); break;
+    case 'ucorder': ucOrderModal(); break;
+    case 'gwbypass': gwBypass(); break;
     case 'dockall': dockAll(Array.from(sel).filter(function (x) { return x[0] === 'e'; })); break;
     case 'porient': { var po = elOf(D, id); if (po && po.type === 'partition') mutate(function () { if (po.horiz) delete po.horiz; else po.horiz = true; }); break; }
     case 'alL': case 'alC': case 'alR': case 'alT': case 'alM': case 'alB': case 'sameW': case 'sameH': case 'sameS': align(a); break;
@@ -11333,6 +12160,7 @@ cv.addEventListener('pointerdown', function (e) {
       D.elements.forEach(function (x) { if (sel.has(x.id) && !x.locked) grp[x.id] = { x: x.x, y: x.y, w: x.w, h: x.h }; });
       drag = { t: 'resize', id: lead.id, h: hd.dataset.h, pushed: false, o: { x: lead.x, y: lead.y, w: lead.w, h: lead.h }, grp: grp }; return;
     }
+    if (!isDfd() && seqDown(e, D, p, gid, hd)) return;
     if (lnDown(e, D, p, gid, hd)) return;
     if (hd && sel.size === 1) {
       var id = Array.from(sel)[0], hv = hd.dataset.h;
@@ -11368,6 +12196,7 @@ cv.addEventListener('pointerdown', function (e) {
     return;
   }
   if (tool === 'flow' || tool.indexOf('c:') === 0) {
+    if (!isDfd() && isSeq(D) && seqToolDown(e, D, p)) return;
     gid = null;
     document.elementsFromPoint(e.clientX, e.clientY).some(function (n) { var q = n.closest && n.closest('.el[data-id]'); if (q && !(elOf(D, q.dataset.id) && isContainer(elOf(D, q.dataset.id)) && !isNoteish(elOf(D, q.dataset.id)))) { gid = q.dataset.id; return true; } return false; });
     if (gid && isDeco(elOf(D, gid))) { toast('Teks dan gambar bebas tidak bisa disambung alur.'); flowFrom = null; status(); draw(); return; }
@@ -11383,7 +12212,7 @@ cv.addEventListener('pointerdown', function (e) {
 /* mulai menggeser semua objek terpilih (dan titik belok garis yang kedua ujungnya ikut terpilih); lead = objek yang diklik */
 function beginMoveDrag(D, p, e, lead, unpick) {
   var ms = new Set(Array.from(sel).filter(function (x) { return x[0] === 'e'; })), orig = {}, bo = {};
-  if (!isDfd()) Array.from(ms).forEach(function (cid) { var c = elOf(D, cid); if (c && isContainer(c) && !c.locked) contentsOf(D, c).forEach(function (o) { ms.add(o.id); }); });
+  if (!isDfd() && !isSeq(D)) Array.from(ms).forEach(function (cid) { var c = elOf(D, cid); if (c && isContainer(c) && !c.locked) contentsOf(D, c).forEach(function (o) { ms.add(o.id); }); });
   D.elements.forEach(function (x) { if (ms.has(x.id) && !x.locked) orig[x.id] = { x: x.x, y: x.y }; });
   D.flows.forEach(function (f2) { if (ms.has(f2.from) && ms.has(f2.to) && f2.bends && f2.bends.length) bo[f2.id] = f2.bends.map(function (q) { return { x: q.x, y: q.y }; }); });
   drag = { t: 'move', start: p, sx: e.clientX, sy: e.clientY, moved: false, orig: orig, bo: bo, lead: lead, unpick: unpick };
@@ -11398,6 +12227,7 @@ cv.addEventListener('pointermove', function (e) {
   if (drag.t === 'lab') { labMove(e, D, p); return; }
   if (drag.t === 'pan') { v.x = drag.vx + e.clientX - drag.sx; v.y = drag.vy + e.clientY - drag.sy; v.fresh = false; drawView(); return; }
   else if (drag.t.indexOf('ln') === 0) lnMove(e, D, p);
+  else if (drag.t.indexOf('sq') === 0) seqMove(e, D, p);
   else if (drag.t === 'move') {
     if (!Object.keys(drag.orig).length) { if (!drag.warned && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) >= 4) { drag.warned = true; toast('Objek ini dikunci. Klik kanan → Buka kunci untuk menggesernya.'); } return; }
     if (!drag.moved) { if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 4) return; push(); drag.moved = true; var mvSet = new Set(Object.keys(drag.orig)); pinAround(D, mvSet, false); drag.bo2 = {};
@@ -11407,7 +12237,7 @@ cv.addEventListener('pointermove', function (e) {
     D.elements.forEach(function (x) { var o = drag.orig[x.id]; if (!o || !first) return; sdx = snap(o.x + dx, e) - o.x; sdy = snap(o.y + dy, e) - o.y; first = false; });
     drag.guides = null;
     if (!isDfd() && drag.lead && !e.altKey) { var le = elOf(D, drag.lead), lo = le && drag.orig[le.id]; if (lo && DOCK_T[le.type]) { var sn = dockMove(D, le, { l: lo.x + sdx, t: lo.y + sdy, r: lo.x + sdx + le.w, b: lo.y + sdy + le.h }, drag.orig, 10 / v.k); sdx += sn.dx; sdy += sn.dy; drag.guides = sn.g; } }
-    D.elements.forEach(function (x) { var o = drag.orig[x.id]; if (!o) return; x.x = o.x + sdx; x.y = o.y + sdy; });
+    D.elements.forEach(function (x) { var o = drag.orig[x.id]; if (!o) return; x.x = o.x + sdx; x.y = isLL(x) ? o.y : o.y + sdy; });
     D.flows.forEach(function (f) { var b0 = drag.bo[f.id]; if (b0) f.bends = b0.map(function (b) { return { x: b.x + sdx, y: b.y + sdy }; }); });
     Object.keys(drag.bo2 || {}).forEach(function (fid) { var f = flOf(D, fid), o = drag.bo2[fid]; if (f) f.bends = shiftStub(f, o.b, o.mov, sdx, sdy, D); });
     draw();
@@ -11420,6 +12250,7 @@ cv.addEventListener('pointermove', function (e) {
     drag.guides = null;
     if (!isDfd() && DOCK_T[el.type] && !e.altKey) { var rs = dockResize(D, el, { l: l, t: t, r: r, b: b }, hv, 10 / v.k); l = rs.l; t = rs.t; r = rs.r; b = rs.b; drag.guides = rs.g; }
     el.x = l; el.y = t; el.w = r - l; el.h = b - t;
+    if (isLL(el)) { el.y = o.y; el.h = Math.max(60, b - o.y); D.elements.forEach(function (q) { if (isLL(q)) q.h = el.h; }); }
     /* EA 12 selalu menggambar use case selebar 1,5 × tingginya (diukur di EA) */
     if (el.type === 'usecase') { if (hv === 'e' || hv === 'w') el.h = Math.max(mh, Math.round(el.w / 1.5)); else el.w = Math.round(el.h * 1.5); if (hv.indexOf('w') >= 0) el.x = r - el.w; }
     if (drag.grp) {
@@ -11487,6 +12318,7 @@ function endPointer(e) {
   var d = drag; drag = null;
   if (fastDraw) { fastDraw = false; draw(); }
   if (d.t.indexOf('ln') === 0) { lnUp(d); return; }
+  if (d.t.indexOf('sq') === 0) { seqUp(d); return; }
   if (d.t === 'qc') {
     if (!isDfd() && d.moved) { draw(); var oe = d.over && elOf(cur(), d.over); if (oe && isContainer(oe) && !linkKinds(elOf(cur(), d.from), oe, cur().kind).length) d.over = null; if (d.over) eaKindMenu(d.from, d.over, d.side, e.clientX, e.clientY); else eaNewElementMenu(d.from, d.side, lastPt, e.clientX, e.clientY); return; }
     if (d.moved) { if (d.over) createFlow(d.from, d.over, { sa: { s: d.side, p: .5 } }); else draw(); }
@@ -11555,7 +12387,7 @@ window.addEventListener('keydown', function (e) {
   if (e.key === 'F2') { e.preventDefault(); run('rename'); return; }
   if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) { e.preventDefault(); var r = cv.getBoundingClientRect(); contextMenu({ clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }, sel.size === 1 ? Array.from(sel)[0] : null); return; }
   var arrows = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
-  if (arrows[e.key]) { e.preventDefault(); var st = e.shiftKey ? 20 : 5; nudge(arrows[e.key][0] * st, arrows[e.key][1] * st); return; }
+  if (arrows[e.key]) { e.preventDefault(); var st = e.shiftKey ? 10 : 1; if (!isDfd() && sqNudge(arrows[e.key][0] * st, arrows[e.key][1] * st)) return; nudge(arrows[e.key][0] * st, arrows[e.key][1] * st); return; }
   var tk = isDfd() ? { v: 'select', h: 'hand', p: 'process', e: 'entity', d: 'store', f: 'flow', m: 'spmg', o: 'offpage', t: 'ptext' }[k] : { v: 'select', h: 'hand' }[k];
   if (tk) setTool(tk);
 });
@@ -11746,10 +12578,12 @@ function exportSVG0(D, ids) {
     if (!isDfd()) D.elements.forEach(function (c) { if (keep.has(c.id) && isContainer(c)) contentsOf(D, c).forEach(function (o) { keep.add(o.id); }); });
     D = Object.assign({}, D, { elements: D.elements.filter(function (e) { return keep.has(e.id); }), flows: D.flows.filter(function (f) { return keep.has(f.id) || (keep.has(f.from) && keep.has(f.to)); }) });
   }
-  var b = bbox(D, routes); if (!b) return null;
+  var b = (!isDfd() && isSeq(D)) ? sqBBox(D, routes) : bbox(D, routes); if (!b) return null;
   /* diagram UML diberi bingkai seperti gambar dari EA: garis tepi tipis hitam dan tab nama di kiri atas ("act Nama Diagram") */
   var fr = !isDfdDiagram(D) && doc.prefs.frame !== false, ft = fr ? eaFrameLabel(D) : '';
   var m = 24, mt = fr ? 36 : m, sc = sceneMarkup(D, routes, new Set()), W = Math.ceil(b.w + m * 2), H = Math.ceil(b.h + m + mt);
+  /* EA 12 memotong gambar sequence 25px dari tepi kotak elemen (35px di atas bila ada bingkai), tanpa ruang bayangan */
+  if (!isDfd() && isSeq(D)) { m = 25; mt = fr ? 35 : 25; W = Math.ceil(b.w + m * 2); H = Math.ceil(b.h + m + mt); }
   var fsT = { family: 'Tahoma', size: 8, b: true }, tw = fr ? textW(ft, fontCss(fsT)) : 0;
   if (fr) W = Math.max(W, Math.ceil(tw + 60));
   var body = sc.body.replace(/ data-(id|dec)="[^"]*"/g, '').replace(/ class="(el|fl|dec)"/g, '').replace(/<path class="hit"[^>]*\/>/g, '').replace(/<rect x="[^"]*" y="[^"]*" width="[^"]*" height="[^"]*" fill="transparent"\/>/g, '');
@@ -11896,10 +12730,15 @@ var HELP = {
     '<tr><td><span class="sw3" style="background:var(--warn)"></span><b>Kuning: peringatan</b></td><td>Boleh, tapi perlu dicek. Contoh: alur belum diberi nama, data store hanya diisi tapi tidak pernah dibaca, entitas belum terhubung, nama proses dipakai dua kali.</td></tr>' +
     '<tr><td><span class="sw3" style="background:var(--ok)"></span><b>Hijau: aman</b></td><td>Contoh: "Seimbang dengan induk: 10 alur cocok".</td></tr></table>' +
     '<p><b>Seimbang (balancing)</b> artinya setiap alur yang masuk atau keluar dari proses di level induk harus muncul juga di level turunannya, dengan nama yang sama.</p>',
-  kunci: '<table>' + [['V / H / P / D / E / F', 'Alat Pilih / Geser / Proses / Store / Entitas / Alur'], ['Ctrl+A, Ctrl+C, Ctrl+X, Ctrl+V', 'Pilih semua, salin, potong, tempel'], ['Shift+klik, atau klik kanan → Pilih beberapa', 'Memilih banyak objek satu per satu'], ['Ctrl+G, Ctrl+Shift+G', 'Kelompokkan, pisahkan kelompok'], ['Ctrl+F', 'Cari elemen di semua diagram'], ['Klik kanan → Kunci posisi', 'Objek tidak bisa tergeser, diubah ukurannya, atau terhapus'], ['Shift saat menggeser, Esc saat menyeret', 'Gerak lurus, batalkan geseran'], ['Ctrl+D', 'Duplikat'], ['Ctrl+Z / Ctrl+Y', 'Urungkan / ulangi'], ['Delete', 'Hapus pilihan'], ['F2', 'Ganti nama'], ['Ctrl+L', 'Rapikan garis alur terpilih'], ['Ctrl+J', 'Sesuaikan ukuran dengan teks'], ['Panah / Shift+panah', 'Geser objek 5 / 20 px'], ['Alt+↓ / Alt+↑', 'Masuk dekomposisi / naik satu level'], ['Ctrl + scroll, cubit touchpad', 'Zoom'], ['Scroll, geser dua jari di touchpad, Shift+scroll, Spasi+seret', 'Geser kanvas'], ['Alt saat menyeret', 'Tanpa snap ke grid'], ['F1', 'Bantuan ini'], ['F3', 'Jelaskan diagram (tanya jawab tentang alur)'], ['F4', 'Periksa model'], ['F5 / F6 / F7', 'Skala 100% / perbesar / perkecil'], ['F8 / F9', 'Tampilan global / tampilan sebelumnya'], ['Ctrl+S', 'Simpan .pam'], ['Ctrl+O', 'Buka berkas']].map(function (r) { return '<tr><td><kbd>' + r[0] + '</kbd></td><td>' + r[1] + '</td></tr>'; }).join('') + '</table>',
-  uml: '<h4>Memulai</h4><ul><li>Klik ikon <b>rumah</b> di kiri atas (Halaman mulai) untuk memilih <b>Activity</b>, <b>Use Case</b>, atau <b>BPMN</b>. Semua diagram UML disimpan dalam satu proyek, terpisah dari DFD.</li>' +
+  kunci: '<table>' + [['V / H / P / D / E / F', 'Alat Pilih / Geser / Proses / Store / Entitas / Alur'], ['Ctrl+A, Ctrl+C, Ctrl+X, Ctrl+V', 'Pilih semua, salin, potong, tempel'], ['Shift+klik, atau klik kanan → Pilih beberapa', 'Memilih banyak objek satu per satu'], ['Ctrl+G, Ctrl+Shift+G', 'Kelompokkan, pisahkan kelompok'], ['Ctrl+F', 'Cari elemen di semua diagram'], ['Klik kanan → Kunci posisi', 'Objek tidak bisa tergeser, diubah ukurannya, atau terhapus'], ['Shift saat menggeser, Esc saat menyeret', 'Gerak lurus, batalkan geseran'], ['Ctrl+D', 'Duplikat'], ['Ctrl+Z / Ctrl+Y', 'Urungkan / ulangi'], ['Delete', 'Hapus pilihan'], ['F2', 'Ganti nama'], ['Ctrl+L', 'Rapikan garis alur terpilih'], ['Ctrl+J', 'Sesuaikan ukuran dengan teks'], ['Panah / Shift+panah', 'Geser objek 1 / 10 px'], ['Alt+↓ / Alt+↑', 'Masuk dekomposisi / naik satu level'], ['Ctrl + scroll, cubit touchpad', 'Zoom'], ['Scroll, geser dua jari di touchpad, Shift+scroll, Spasi+seret', 'Geser kanvas'], ['Alt saat menyeret', 'Tanpa snap ke grid'], ['F1', 'Bantuan ini'], ['F3', 'Jelaskan diagram (tanya jawab tentang alur)'], ['F4', 'Periksa model'], ['F5 / F6 / F7', 'Skala 100% / perbesar / perkecil'], ['F8 / F9', 'Tampilan global / tampilan sebelumnya'], ['Ctrl+S', 'Simpan .pam'], ['Ctrl+O', 'Buka berkas']].map(function (r) { return '<tr><td><kbd>' + r[0] + '</kbd></td><td>' + r[1] + '</td></tr>'; }).join('') + '</table>',
+  uml: '<h4>Memulai</h4><ul><li>Klik ikon <b>rumah</b> di kiri atas (Halaman mulai) untuk memilih <b>Activity</b>, <b>Use Case</b>, <b>BPMN</b>, atau <b>Sequence</b>. Semua diagram UML disimpan dalam satu proyek, terpisah dari DFD.</li>' +
     '<li><b>Toolbox</b> di kiri berisi elemen dan jenis garis, sama seperti di Enterprise Architect. Klik elemen lalu klik di kanvas.</li>' +
     '<li><b>Project Browser</b> di kanan menampilkan paket, diagram, dan elemennya. Klik diagram untuk membukanya; tanda <b>›</b> di kiri untuk menampilkan/melipat isinya, lalu klik elemen untuk langsung menuju ke elemennya. Kotak <b>Cari diagram</b> menyaring daftar (Enter membuka hasil pertama, Esc mengosongkan). Titik biru = diagram yang sedang terbuka di tab. Tarik pojok kanan bawah kotaknya untuk mengubah tinggi.</li></ul>' +
+    '<h4>Sequence Diagram</h4><ul><li>Taruh <b>Actor</b>, <b>Boundary</b> (View, nama diawali <b>V_</b>), <b>Control</b> (Controller, <b>C_</b>), dan <b>Entity</b> (Model, <b>M_</b>) dari Toolbox. Semua kepala lifeline sejajar di atas seperti EA dan hanya bisa digeser ke kiri/kanan.</li>' +
+    '<li><b>Membuat pesan:</b> seret dari <b>garis putus-putus</b> satu lifeline ke lifeline lain (lepas di lifeline yang sama untuk pesan ke diri sendiri), lalu ketik namanya <b>tanpa kurung</b>. Parameter, nilai kembali, sinkron/asinkron, dan <i>Is Return</i> diisi di panel kanan; label tampil seperti EA, mis. <i>getData(id): Array</i>.</li>' +
+    '<li>Seret pesan naik/turun untuk mengubah urutan (tahan <b>Ctrl</b> untuk ikut menggeser semua pesan di bawahnya), atau panah atas/bawah. Seret kotak di ujung pesan terpilih untuk memindah asal/tujuannya.</li>' +
+    '<li><b>Activation</b> (kotak sempit) digambar otomatis dari urutan pesan, sama dengan EA. <b>Fragment</b> alt/opt/loop: atur operator dan operand [kondisi] di panel kanan, seret pemisah putus-putusnya untuk mengubah tinggi.</li>' +
+    '<li>Pemeriksaan otomatis mengecek awalan V_/C_/M_, alur MVC (aktor hanya ke View, View lewat Controller, Model hanya membalas ke Controller), nama pesan berkurung, dan balasan tanpa pemanggil.</li></ul>' +
     '<h4>Menyambung elemen</h4><ul><li>Pilih elemen, lalu <b>seret panah biru</b> di sisinya ke elemen lain. Kalau ada beberapa jenis hubungan (misalnya «include», «extend», Generalization), Alir menanyakan jenisnya.</li>' +
     '<li>Seret panah biru ke <b>area kosong</b> untuk membuat elemen baru yang langsung tersambung (seperti Quick Link di EA).</li>' +
     '<li>Atau pilih jenis garis di Toolbox, klik elemen asal, lalu klik elemen tujuan.</li>' +
