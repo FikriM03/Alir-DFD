@@ -10033,6 +10033,7 @@ function sqLLAt(D, p) {
 /* ---------- interaksi mouse (dipanggil dari app.js) ---------- */
 function seqDown(e, D, p, gid, hd) {
   if (!isSeq(D)) return false;
+  if (!hd) { var cl = sqLLNear(D, p); if (cl) { sqQId = cl.id; sqQY = p.y; } }
   if (hd && hd.dataset.h && hd.dataset.h.indexOf('sqop:') === 0 && sel.size === 1) {
     var fe = elOf(D, Array.from(sel)[0]); if (!fe || fe.type !== 'fragment') return false;
     var k = +hd.dataset.h.slice(5), ops = sqOperands(fe);
@@ -10041,6 +10042,10 @@ function seqDown(e, D, p, gid, hd) {
   if (hd && hd.dataset.h && hd.dataset.h.indexOf('sqend:') === 0 && sel.size === 1) {
     var mf = flOf(D, Array.from(sel)[0]); if (!mf) return false;
     drag = { t: 'sqend', id: mf.id, which: hd.dataset.h.slice(6), moved: false, sx: e.clientX, over: null }; return true;
+  }
+  if (hd && hd.dataset.h && hd.dataset.h.indexOf('sqql:') === 0 && sel.size === 1) {
+    var ql = elOf(D, Array.from(sel)[0]); if (!ql || !isLL(ql)) return false;
+    drag = { t: 'sqql', from: ql.id, side: hd.dataset.h.slice(5), sx: e.clientX, sy: e.clientY, cx: e.clientX, cy: e.clientY, moved: false, over: null, p: p, y: 0 }; return true;
   }
   var stem = e.target.closest && e.target.closest('[data-stem]');
   var g = e.target.closest && e.target.closest('.sqmsg');
@@ -10082,6 +10087,13 @@ function seqMove(e, D, p) {
     if (!d.moved && Math.abs(e.clientX - d.sx) < 4) return;
     d.moved = true; var ov = sqLLAt(D, { x: p.x, y: (flOf(D, d.id) || {}).y || p.y }); d.over = ov ? ov.id : null; d.p = p; draw(); return;
   }
+  if (d.t === 'sqql') {
+    if (!d.moved && Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 5) return;
+    d.moved = true; d.p = p; d.cx = e.clientX; d.cy = e.clientY;
+    var oq = sqLLNear(D, p); d.over = oq ? oq.id : null;
+    var fl = elOf(D, d.from); d.y = fl && p.y < llStem(fl) + 10 ? sqNextY(D) : Math.max(SQ_TOP + 60, snap(p.y, e));
+    draw(); return;
+  }
   if (d.t === 'sqnew') {
     if (!d.moved && Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 5) return;
     d.moved = true; d.p = p; d.far = Math.max(d.far || 0, Math.abs(e.clientX - d.sx));
@@ -10095,6 +10107,17 @@ function seqUp(d) {
     var f = flOf(D, d.id); if (!d.moved || !f || !d.over) { draw(); return; }
     mutate(function () { if (d.which === 's') f.from = d.over; else f.to = d.over; }); return;
   }
+  if (d.t === 'sqql') {
+    draw();
+    if (!d.moved) { toast('Seret panah biru ke lifeline tujuan. Lepas di tinggi mana pun: pesan jadi mendatar dan masuk urutan sesuai tinggi lepas. Lepas di area kosong untuk membuat lifeline baru.'); return; }
+    if (d.over) { sqCreateMsg(d.from, d.over, d.y, null); return; }
+    var A = elOf(D, d.from); if (!A) return;
+    sqPending = { from: d.from, y: d.y, x: d.p.x };
+    var pref = { sactor: ['sboundary', 'scontrol', 'sentity', 'lifeline', 'sactor'], sboundary: ['scontrol', 'sentity', 'sboundary', 'lifeline', 'sactor'], scontrol: ['sentity', 'sboundary', 'scontrol', 'lifeline', 'sactor'], sentity: ['scontrol', 'sentity', 'sboundary', 'lifeline', 'sactor'] }[A.type] || ['sboundary', 'scontrol', 'sentity', 'lifeline', 'sactor'];
+    var items = [{ hd: 'Buat lifeline baru yang tersambung' }];
+    pref.forEach(function (k) { items.push(item(TT[k].label, 'sqqnew:' + k)); });
+    renderMenu(items, d.cx, d.cy); return;
+  }
   if (d.t === 'sqnew') {
     if (!d.moved) { draw(); return; }
     if (!d.over) { draw(); toast('Lepas di garis lifeline lain untuk membuat pesan (atau di lifeline yang sama untuk pesan ke diri sendiri).'); return; }
@@ -10103,8 +10126,57 @@ function seqUp(d) {
     sqCreateMsg(d.from, d.over, Math.max(SQ_TOP + 60, snap(d.y)), null);
   }
 }
+/* lifeline terdekat dari kursor (toleransi lebih lebar daripada sqLLAt supaya mudah dibidik saat menarik panah biru) */
+function sqLLNear(D, p) {
+  var best = null, bd = 1e9;
+  D.elements.forEach(function (e) { if (!isLL(e)) return; var dx = Math.abs(p.x - llCX(e)); if (p.y >= e.y - 4 && dx <= Math.max(e.w / 2, 30) && dx < bd) { bd = dx; best = e; } });
+  return best;
+}
+var sqPending = null;
+var sqQId = null, sqQY = 0;
+/* letak panah biru: di tinggi klik terakhir pada lifeline itu (di bawah kepala), kalau tidak di samping kepala */
+function sqQPos(E, side, k) {
+  var on = sqQId === E.id && sqQY > llStem(E) + 6 && sqQY < E.y + E.h;
+  if (on) return { x: llCX(E) + (side === 'w' ? -18 : 18) / k, y: sqQY };
+  return { x: side === 'w' ? E.x - 13 / k : E.x + E.w + 13 / k, y: E.y + SQ_STEM[E.type] / 2 };
+}
+function sqQNew(type) {
+  var D = cur(), q = sqPending; sqPending = null; if (!q || !elOf(D, q.from) || !TT[type]) return;
+  var nid;
+  mutate(function () {
+    var o = sqAddEl(type, { x: q.x, y: SQ_TOP }, null), L = D.elements.filter(isLL), guard = 0;
+    o.x = Math.round(q.x - o.w / 2);
+    function clash() { return L.some(function (x) { return Math.abs(llCX(x) - llCX(o)) < (x.w + o.w) / 2 + 12; }); }
+    while (clash() && guard++ < 40) o.x += 20;
+    D.elements.push(o); nid = o.id;
+    D.flows.push({ id: uid('f'), kind: 'smsg', from: q.from, to: o.id, name: '', y: Math.round(q.y), bends: [], style: {} });
+    sqNormalize(D); sel = new Set([o.id]);
+  });
+  startRename(nid);
+}
 function seqOverlay(D, k) {
   var s = '';
+  /* panah biru Quick Link (kiri/kanan) pada lifeline terpilih */
+  if (!drag && tool === 'select' && sel.size === 1) {
+    var QE = elOf(D, Array.from(sel)[0]);
+    if (QE && isLL(QE)) [['e', 90], ['w', 270]].forEach(function (q) {
+      var qp = sqQPos(QE, q[0], k);
+      s += '<g class="qc" data-h="sqql:' + q[0] + '" transform="translate(' + qp.x + ' ' + qp.y + ') rotate(' + q[1] + ') scale(' + 1 / k + ')" style="cursor:pointer"><title>Seret ke lifeline lain untuk membuat pesan. Lepas di area kosong untuk membuat lifeline baru.</title><circle r="7.5"/><path d="M0 3.2V-3.2M-2.8 -0.6L0 -3.6L2.8 -0.6"/></g>';
+    });
+  }
+  if (drag && drag.t === 'sqql' && drag.moved) {
+    var QA = elOf(D, drag.from);
+    if (QA) {
+      var qpp = sqQPos(QA, drag.side, k), qx = qpp.x, qy = qpp.y, st = 'stroke-width:' + 1.4 / k + 'px;stroke-dasharray:' + 5 / k + ' ' + 4 / k;
+      s += '<path class="pv" style="' + st + '" d="M' + qx + ' ' + qy + 'L' + drag.p.x + ' ' + drag.p.y + '"/>';
+      if (drag.over) {
+        var QO = elOf(D, drag.over), x0 = llCX(QA), x1 = llCX(QO);
+        if (drag.over === drag.from) s += '<path class="pv" style="stroke-width:' + 1.4 / k + 'px" d="M' + x0 + ' ' + drag.y + 'H' + (x0 + 45) + 'V' + (drag.y + 15) + 'H' + x0 + '"/>';
+        else s += '<path class="pv" style="stroke-width:' + 1.4 / k + 'px" d="M' + x0 + ' ' + drag.y + 'H' + x1 + '"/>';
+        s += '<rect class="target" style="stroke-width:' + 2 / k + 'px" x="' + (x1 - 8) + '" y="' + QO.y + '" width="16" height="' + QO.h + '" rx="' + 4 / k + '"/>';
+      }
+    }
+  }
   if (drag && drag.t === 'sqnew' && drag.moved) {
     var A = elOf(D, drag.from); if (A) {
       var x0 = llCX(A), y = drag.y, x1 = drag.over ? llCX(elOf(D, drag.over)) : drag.p.x;
@@ -10164,7 +10236,7 @@ function sqPanelFlow(D, f) {
   h += '<div class="field"><label for="p-alias">Alias</label><input class="in" id="p-alias" data-f="alias" value="' + esc(f.alias || '') + '" placeholder="opsional"></div></details>';
   h += '<div class="kv"><span>Dari → ke</span><b style="font-family:var(--f-body)">' + esc(a.name || '?') + ' → ' + esc(b.name || '?') + '</b></div>';
   h += '<div class="kv"><span>Urutan</span><b>' + (sqOrder(D).indexOf(f) + 1) + '</b></div></div>';
-  h += '<p class="hint">Seret pesan naik/turun untuk mengubah urutan. Tahan <b>Ctrl</b> saat menyeret untuk ikut menggeser semua pesan di bawahnya. Untuk membuat pesan: seret dari garis putus-putus lifeline ke lifeline lain.</p>';
+  h += '<p class="hint">Seret pesan naik/turun untuk mengubah urutan. Tahan <b>Ctrl</b> saat menyeret untuk ikut menggeser semua pesan di bawahnya. Untuk membuat pesan: klik lifeline, lalu seret panah biru di sampingnya ke lifeline lain (atau seret dari garis putus-putus lifeline).</p>';
   h += '<div class="row"><button class="btn" data-act="flip">Balik arah</button><button class="btn danger" data-act="del">Hapus pesan</button></div>';
   return h;
 }
@@ -10182,6 +10254,7 @@ function sqPanelChange(t, D, o) {
 function sqPanelAct(a, D, o) {
   if (a === 'sqrespace') { sqRespace(); return true; }
   if (a === 'sqprefix' && o && SQ_PREFIX[o.type]) { mutate(function () { o.name = SQ_PREFIX[o.type] + String(o.name || '').replace(/^(V_|C_|M_)/i, ''); }); return true; }
+  if (a.indexOf('sqqnew:') === 0) { sqQNew(a.slice(7)); return true; }
   if (a === 'sqopadd' && o) { mutate(function () { o.ops = o.ops || []; var n = o.ops.length; o.ops.push({ g: o.op === 0 ? (n === 0 ? 'Iya' : n === 1 ? 'Tidak' : '') : '', h: 40 }); var need = 16 + o.ops.length * 40; if (o.h < need) o.h = need; }); return true; }
   if (a.indexOf('sqopdel:') === 0 && o) { var i = +a.slice(8); mutate(function () { o.ops.splice(i, 1); }); return true; }
   return false;
