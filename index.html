@@ -291,6 +291,16 @@ circle.mid { fill: #e03e2d; opacity: .35; } circle.mid:hover { opacity: .9; }
 .sclist { display: flex; flex-direction: column; gap: 2px; max-height: 260px; overflow: auto; border: 1px solid var(--bd); border-radius: 8px; padding: 6px 8px; }
 .scchk { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; line-height: 1.45; padding: 3px 0; cursor: pointer; }
 .scchk .mut { color: var(--mut); }
+.lnk { background: none; border: 0; padding: 0; color: var(--acc); text-decoration: underline; cursor: pointer; font: inherit; }
+textarea.in.sqname { resize: vertical; min-height: 32px; font-family: inherit; line-height: 1.35; }
+.scto { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 13px; margin: 2px 0 8px; }
+.scto label { display: flex; gap: 5px; align-items: center; cursor: pointer; }
+.scfix { border: 1px solid #f0c27a; background: #fff8ec; border-radius: 8px; padding: 8px 10px; margin-top: 8px; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; }
+.scfixh { color: #92400e; font-weight: 600; }
+.scfixr { display: flex; flex-direction: column; gap: 3px; }
+.scfixr select { max-width: 100%; font-size: 12px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .scfix { background: #3a2a10; border-color: #7a5520; } :root:not([data-theme="light"]) .scfixh { color: #f5c97a; } }
+:root[data-theme="dark"] .scfix { background: #3a2a10; border-color: #7a5520; } :root[data-theme="dark"] .scfixh { color: #f5c97a; }
 .repview { background: #fff; color: #000; border: 1px solid var(--bd); border-radius: 8px; padding: 14px 16px; max-height: 52vh; overflow: auto; font: 12pt 'Times New Roman', serif; }
 .xask { display: flex; gap: 8px; } .xask .in { flex: 1; min-width: 0; }
 .xchips { display: flex; flex-wrap: wrap; gap: 6px; flex-shrink: 0; }
@@ -3893,6 +3903,9 @@ var SC_DETAIL = /\b[a-z]+_[a-z0-9_]+\b|\(\s*((var)?char|int|integer|text|timesta
 var SC_VERB = /^(me[a-z]{3,}|di[a-z]{3,}|ber[a-z]{3,}|ter[a-z]{3,}|klik|tekan|pilih|isi|masuk|keluar|kembali|cari|unggah|upload|login|logout|click|press|select|choose|enter|fill|open|display|show|save|submit|input|type|view|return|go|send|check|verify|validate|redirect|delete|update|create|log|add|edit|remove|search|print|manage|register|download|sistem\s|system\s|aktor\s|actor\s|user\s|pengguna\s)/i;
 var SC_NOUN = /^(member|members|menu|media|metode|merk|merek|meja|merchant|meter|message|memo|mekanisme|meeting|metadata|method|mentor|denda|diskon|dimensi|direktori|dokumen|berita|berkas|terminal)\b/i;
 function scVerb(t) { return SC_VERB.test(t) && !SC_NOUN.test(t); }
+/* kata kerja perintah (Tampilkan, Simpan, Validasi …) hanya untuk membuang subjek "Sistem tampilkan …" */
+var SC_IMP = /^(tampilkan|simpan|validasi|hapus|ubah|kirim|cek|periksa|proses|hitung|buat|tambah|unduh|cetak|verifikasi|arahkan|perbarui|catat)\b/i;
+function scVerbS(t) { return scVerb(t) || SC_IMP.test(t); }
 var SC_BACK = /^(?:(?:use\s*case|alur|skenario|flow|aktor|actor|sistem|system)\s+)?(?:kembali|lanjut\w*|berlanjut|back|return\w*|go\s*back|resume\w*|continue\w*)\b[^0-9]{0,40}?(\d{1,3})[a-z]?\s*\.?$/i;
 var SC_END = /^(?:(?:use\s*case|alur|skenario|flow)\s+)?(selesai|berakhir|end|ends|finish(ed)?|stop|done|use\s*case\s*(selesai|berakhir|ends?))\s*\.?$/i;
 /* isi sel yang menandakan tabel skenario (untuk tabel di dalam tabel) */
@@ -4110,6 +4123,16 @@ function scParse(rows) {
     }
     return false;
   }
+  function nextFlowRow(i) {
+    for (var j = i + 1; j < rows.length && j < i + 4; j++) {
+      var f = rows[j].filter(function (c) { return c.length; }); if (!f.length) continue;
+      var tx2 = rows[j].map(txt);
+      if (tx2.some(function (x) { return SC_COL_S.test(x); })) return true;
+      if ((f.length >= 2 || rows[j].length >= 2) && !f.map(txt).some(isKey)) return true;
+      return false;
+    }
+    return false;
+  }
   /* baris pertama tabel baru: masih bagian alur? (langkah bernomor, kepala kolom, judul alur) */
   function flowish(r, tx) {
     if (sec && sec !== (u && u.normal) && !sec.length) return true;
@@ -4151,9 +4174,12 @@ function scParse(rows) {
       var nm = cleanName(m[3]);
       if (nm || /^(uc|u\.c|use)/i.test(t)) { if (!u || busy() || u.no) start(); u.no = m[1].replace(/[\s.]/g, '').toUpperCase().replace(/^USECASE$/, 'UC') + m[2]; if (nm) u.name = nm; return true; }
     }
-    if (SC_NORMAL.test(t)) { if (!u || u.normal.length) start(true); else if (title && !u.name) { u.name = title; title = ''; } sec = u.normal; state = 'flow'; return true; }
+    if (SC_NORMAL.test(t)) { if (!u || u.normal.length) start(true); else if (title && !u.name) { u.name = title; title = ''; } sec = u.normal; state = 'flow'; rowNum = null; return true; }
     if ((m = t.match(SC_ALT))) {
-      if (!u) start(true); var a = { title: scClean(m[m.length - 1]).replace(/^[:\-–—.)\s]+/, '').replace(/^[(\[“"']\s*(.*?)\s*[)\]”"']$/, '$1') || ('Alternatif ' + (u.alts.length + 1)), steps: [] }; u.alts.push(a); sec = a.steps; state = 'flow'; return true;
+      if (!u) start(true); var a = { title: scClean(m[m.length - 1]).replace(/^[:\-–—.)\s]+/, '').replace(/^[(\[“"']\s*(.*?)\s*[)\]”"']$/, '$1') || ('Alternatif ' + (u.alts.length + 1)), steps: [] }; u.alts.push(a); sec = a.steps; state = 'flow'; rowNum = null; return true;
+    }
+    if (u && u.normal.length && kvKey == null && rows[curRi] && rows[curRi].length === 1 && !SC_BACK.test(t) && !SC_BACKT.test(t.replace(/^\d{1,3}\s*[a-z]?\s*[.):]\s*/i, '')) && (m = scCondTitle(t)) && (rows[curRi].src === 't' ? u.cols : nextFlowRow(curRi))) {
+      var ac = { title: m.t, steps: [] }; if (m.ref) ac.ref = m.ref; u.alts.push(ac); sec = ac.steps; state = 'flow'; rowNum = null; return true;
     }
     if ((m = t.match(/^(?:tabel|table)\s*[\d.]+\s*[:.\-–—]?\s*(.*)$/i))) { var cap = cleanName(m[1]); if (cap && !/^(use\s*case|uc)$/i.test(cap)) { title = cap; if (busy()) { start(true); } else if (u && !u.name) { u.name = title; title = ''; } } return true; }
     if ((m = t.match(/^(?:skenario|scenario)\s*(?:use\s*case\s*)?[:\-–—]?\s*(.+)$/i))) { var nm2 = cleanName(m[1]); if (nm2 && nm2.split(' ').length <= 10 && !/[.?!]$/.test(nm2)) { title = nm2; if (busy()) start(true); else if (u && !u.name) { u.name = title; title = ''; } return true; } }
@@ -4179,13 +4205,14 @@ function scParse(rows) {
     if (sec && ft.length >= 2 && ft.filter(function (x) { return /^(atribut|attributes?|field|fields|kolom|columns?|nama\s*(field|kolom|atribut)|tipe(\s*data)?|type|data\s*type|keterangan|description|panjang|length|size|constraints?|key)$/i.test(x); }).length >= 2) { close(); return; }
     /* baris kepala kolom langkah: Aktor | Sistem (boleh ada kolom No) */
     var is = tx.findIndex(function (x) { return SC_COL_S.test(x); }), ia = tx.findIndex(function (x) { return SC_COL_A.test(x); });
-    if (is >= 0 && ia < 0 && ft.length === 2) ia = tx.findIndex(function (x, i) { return i !== is && x && x.split(' ').length <= 4 && !/^\d/.test(x) && !SC_KEY_SKIP.test(x); });
+    var noLike = function (x) { return /^(no\.?|nomor|#|langkah|step)$/i.test(x); };
+    if (is >= 0 && ia < 0 && (ft.length === 2 || (ft.length === 3 && tx.some(noLike)))) ia = tx.findIndex(function (x, i) { return i !== is && x && !noLike(x) && x.split(' ').length <= 4 && !/^\d/.test(x) && !SC_KEY_SKIP.test(x); });
     if (is >= 0 && ia >= 0 && ft.length <= 3 && ft.every(function (x) { return x.split(' ').length <= 4; })) {
       if (!u || (busy() && state !== 'flow' && u.normal.length) || (r.first && u.normal.length && !(sec && sec !== u.normal && !sec.length))) start(true);
       colA = ia; colS = is; colN = tx.findIndex(function (x) { return /^(no\.?|nomor|#|langkah|step)$/i.test(x); }); rowNum = null;
       if (!/^(aktor|actor|aksi\s*aktor|actor\s*action|kegiatan\s*aktor|tindakan\s*aktor|aksi\s*pengguna|user\s*action)(\s*\(.*\))?$/i.test(tx[ia]) && !u.actor) u.actor = tx[ia].replace(/\s*\(.*\)$/, '');
       /* kepala kolom tabel dipakai apa adanya sebagai nama lajur: "Aktor" tetap "Aktor", "Admin" jadi lajur "Admin" */
-      u.colHead = scClean(tx[ia].replace(/\s*\(.*\)$/, '')) || '';
+      u.colHead = scClean(tx[ia].replace(/\s*\(.*\)$/, '')) || ''; u.cols = 1;
       if (!sec) { sec = u.normal; state = 'flow'; }
       return;
     }
@@ -4242,21 +4269,79 @@ function scParse(rows) {
   ucs.forEach(function (x, i) {
     function fill(list, n0) { var n = n0; list.forEach(function (s) { delete s.typed; delete s.k; if (s.num == null) { s.num = n; s.auto = true; } n = s.num + 1; s.t = scClean(s.t).replace(/[:;,]\s*$/, '').replace(/\.\s*$/, ''); }); }
     /* langkah kendali alur: "Use case selesai" dibuang; "Kembali ke langkah 4" di akhir alternatif → garis kembali ke langkah 4 */
-    x.normal = x.normal.filter(function (s) { return !SC_END.test(scClean(s.t)) && !SC_BACK.test(scClean(s.t)); });
+    x.normal = x.normal.filter(function (s) { return !SC_END.test(scClean(s.t)) && !SC_BACK.test(scClean(s.t)) && !SC_BACKT.test(scClean(s.t)); });
     fill(x.normal, 1);
+    x.normal.forEach(function (s) { scUnsubj(s, x); });
     x.alts.forEach(function (a) {
       var L = a.steps[a.steps.length - 1], mb;
       while (L && (mb = scClean(L.t).match(SC_BACK) || (SC_END.test(scClean(L.t)) ? ['end'] : null))) { a.steps.pop(); if (mb[0] === 'end') a.end = true; else a.back = +mb[1]; L = a.steps[a.steps.length - 1]; }
+      /* "Kembali ke halaman login" / "Kembali ke form tambah menu" (tanpa nomor) → garis kembali ke langkah utama yang paling cocok */
+      while (L && !SC_BACK.test(scClean(L.t)) && (mb = scClean(L.t).match(SC_BACKT))) { var bi = scBackTo(mb[1], x.normal); if (bi < 0) break; a.steps.pop(); a.backAt = bi; L = a.steps[a.steps.length - 1]; }
+      a.steps.forEach(function (s) { scUnsubj(s, x); });
       fill(a.steps, a.steps.length && a.steps[0].num != null ? a.steps[0].num : 1);
       if (a.steps.every(function (s) { return s.num != null && !s.auto; })) a.steps.sort(function (p, q) { return p.num - q.num || (p.sub || 0) - (q.sub || 0); });
       a.steps.forEach(function (s) { delete s.sub; });
     });
     x.normal.forEach(function (s) { delete s.sub; });
-    x.alts = x.alts.filter(function (a) { return a.steps.length || a.back != null; });
+    x.alts = x.alts.filter(function (a) { return a.steps.length || a.back != null || a.backAt != null; });
+    scUnsubjAll(x); delete x._sj;
     x.name = x.name || (x.no ? x.no : 'Skenario ' + (i + 1)); x.actor = x.actor || 'Aktor';
     delete x.tbl;
   });
   return ucs.filter(function (x) { return x.normal.length; });
+}
+/* judul alternatif berupa kondisi: "Jika password salah", "[Password salah]", "6a. Password salah" (6 = langkah yang dirujuk) */
+var SC_IF = /^(?:jika|apabila|bila|kalau|ketika|saat|seandainya|andaikan|if|when|in\s+case)\b\s*[:,]?\s*(.+)$/i;
+function scCondTitle(t) {
+  t = scClean(t); var m;
+  if (t.length > 120 || /[.;]$/.test(t) && t.split(' ').length > 10) return null;
+  if ((m = t.match(SC_IF)) && m[1].split(' ').length <= 14) return { t: t };
+  if ((m = t.match(/^\[\s*(.{2,80}?)\s*\]$/))) return { t: m[1] };
+  if ((m = t.match(/^(\d{1,3})\s*\.?\s*([a-z])\s*[.):]?\s+(\S.{1,80})$/i)) && !/^(sistem|system|aktor|actor)\b/i.test(m[3]) && !/^(me[a-z]{3,}|di[a-z]{3,}|klik|tekan|pilih|isi|tampilkan|simpan)\b/i.test(m[3])) return { t: m[3], ref: +m[1] };
+  return null;
+}
+var SC_BACKT = /^(?:(?:aktor|actor|sistem|system|pengguna|user|alur|use\s*case)\s+)?(?:kembali|dikembalikan|diarahkan\s+kembali|lanjut(?:kan)?|back|return|go\s+back)\s+(?:lagi\s+)?(?:ke|kepada|menuju|to)\s+([^0-9]{3,})$/i;
+/* kata dasar kasar Indonesia: menampilkan ~ tampilkan ~ ditampilkan, memilih ~ pilih, mengirim ~ kirim */
+function scCore(w) { w = String(w).toLowerCase(); var c = w.replace(/^(meng|meny|mem|men|me|di|ber|ter)(?=[a-z]{3,})/, ''); var d = c.replace(/(kan|an|i)$/, ''); return d.length >= 4 ? d : c; }
+function scWEq(a, b) { if (a === b) return true; var x = scCore(a), y = scCore(b); if (x.length < 3 || y.length < 3) return false; return x === y || (x.length >= 4 && y.length >= 4 && (x.slice(-4) === y.slice(-4)) && (x.endsWith(y) || y.endsWith(x))); }
+var SC_GENW = /^(data|yang|ke|di|pada|dan|untuk|dari|halaman|page|form|menu|the|a|an|to|of|ini|itu|tersebut|sebelumnya|awal|utama)$/;
+function scBackTo(rest, N) {
+  var W = scWords(rest).filter(function (w) { return !/^(ke|kembali|lagi|langkah|step|to)$/.test(w); }); if (!W.length) return -1;
+  var best = -1, bs = 0;
+  N.forEach(function (s, j) {
+    var S2 = scWords(s.t), hit = 0, key = 0;
+    W.forEach(function (w) { if (S2.some(function (v) { return scWEq(w, v); })) { hit++; if (!SC_GENW.test(w)) key++; } });
+    var sc = hit / W.length + (/^(menampilkan|tampilkan|display|show)/i.test(s.t) ? .05 : 0);
+    if (key && sc > bs + 1e-9) { bs = sc; best = j; }
+  });
+  return bs >= .5 ? best : -1;
+}
+/* "Sistem menampilkan …" → "Menampilkan …", "Admin menekan …" → "Menekan …" (hanya bila sisanya diawali kata kerja) */
+function scUnsubj(s, u) {
+  var t = scClean(s.t), m;
+  if (s.lane === 's') m = t.match(/^(?:sistem|system|aplikasi|website|the\s+system)\s+(?:akan\s+|will\s+|lalu\s+|kemudian\s+)?(\S.*)$/i);
+  else {
+    var nm = ['aktor', 'actor', 'pengguna', 'user', u.actor, u.colHead].filter(Boolean).map(function (x) { return String(x).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+'); });
+    m = t.match(new RegExp('^(?:' + nm.join('|') + ')\\s+(?:akan\\s+|will\\s+|lalu\\s+|kemudian\\s+)?(\\S.*)$', 'i'));
+  }
+  /* subjek nama aktor lain (mis. "Kasir membuka …", "Calon Anggota memilih …") */
+  if (!m && s.lane === 'a') { var m2 = t.match(/^((?:[A-Z][A-Za-z]+\s+){1,2})((?:me|mem|men|meng|meny)[a-z]{3,}\b.*)$/); if (m2 && !scVerbS(m2[1])) m = [t, m2[2]]; }
+  if (m && scVerbS(m[1]) && !/^(sistem|system)\b/i.test(m[1])) { var pf = scClean(t.slice(0, t.length - m[1].length)).replace(/\s+(akan|will|lalu|kemudian)$/i, ''); u._sj = u._sj || {}; u._sj[s.lane + '|' + pf] = (u._sj[s.lane + '|' + pf] || 0) + 1; s.t = m[1].charAt(0).toUpperCase() + m[1].slice(1); }
+}
+/* subjek yang berulang di banyak langkah satu lajur ("Kasir membuka …", "Kasir memilih …") dibuang dari semua langkah lajur itu */
+function scUnsubjAll(x) {
+  var all = x.normal.slice(); x.alts.forEach(function (a) { all = all.concat(a.steps); });
+  ['a', 's'].forEach(function (ln) {
+    var st = all.filter(function (s) { return s.lane === ln; }), cnt = {};
+    Object.keys(x._sj || {}).forEach(function (k) { if (k.indexOf(ln + '|') === 0) cnt[k.slice(2)] = x._sj[k]; });
+    st.forEach(function (s) {
+      var w = scClean(s.t).split(' ');
+      for (var n = 1; n <= 2 && n < w.length; n++) { var p = w.slice(0, n).join(' '), r = w.slice(n).join(' '); if (/^[A-Z]/.test(p) && !scVerbS(p) && scVerbS(r)) cnt[p] = (cnt[p] || 0) + 1; }
+    });
+    var best = '', bc = 0; Object.keys(cnt).forEach(function (p) { if (cnt[p] > bc || (cnt[p] === bc && p.length > best.length)) { bc = cnt[p]; best = p; } });
+    if (!best || bc < 2 || bc < st.length * .4) return;
+    st.forEach(function (s) { var t = scClean(s.t); if (t.indexOf(best + ' ') === 0) { var r = t.slice(best.length + 1); if (scVerbS(r)) s.t = r.charAt(0).toUpperCase() + r.slice(1); } });
+  });
 }
 var SC_STOP = { kembali: 1, ke: 1, di: 1, dan: 1, yang: 1, pada: 1, untuk: 1, dari: 1, the: 1, a: 1 };
 function scWords(t) { return String(t).toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').split(' ').filter(function (w) { return w && !SC_STOP[w]; }); }
@@ -4270,10 +4355,38 @@ function scJoinSim(a, b) {
   if (scJoinNorm(a) === scJoinNorm(b)) return 1.01;
   if (SC_MSG.test(a) !== SC_MSG.test(b) || SC_NEG.test(a) !== SC_NEG.test(b)) return 0;
   /* hampir sama = semua kata langkah yang lebih pendek ada di langkah lainnya ("Menampilkan Form Ubah X" ~ "Menampilkan Form Ubah X Yang Terisi Data Lama") */
-  var A = new Set(scWords(a)), B = new Set(scWords(b)), n = 0; A.forEach(function (w) { if (B.has(w)) n++; });
-  return Math.min(A.size, B.size) >= 3 && n === Math.min(A.size, B.size) ? .9 : 0;
+  var A = new Set(scWords(a)), B = new Set(scWords(b)), n = 0, Bl = Array.from(B); A.forEach(function (w) { if (B.has(w) || Bl.some(function (v) { return scWEq(w, v); })) n++; });
+  return Math.min(A.size, B.size) >= 3 && n >= Math.min(A.size, B.size) ? .9 : 0;
 }
 function scCap(t) { t = String(t || '').toLowerCase(); return t.charAt(0).toUpperCase() + t.slice(1); }
+/* huruf kapital: "Password Salah" → "Password salah", singkatan (PIN, PDF, ID) tetap */
+function scCapQ(t) {
+  t = scClean(t); var allUp = t === t.toUpperCase();
+  t = t.split(' ').map(function (w) { return !allUp && /^[A-Z0-9]{2,5}$/.test(w.replace(/[^A-Za-z0-9]/g, '')) && /[A-Z]/.test(w) ? w : w.toLowerCase(); }).join(' ');
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+/* judul alternatif yang tidak bermakna ("Alternative Flow 1", "Alternatif 2", "Exception") */
+var SC_GEN_T = /^(?:alternat\w*|alur\s*alternatif|skenario\s*alternatif|exception\w*|extensions?|alt|pengecualian)?(?:\s*(?:flow|course|path|scenario|events?))?\s*[-:.#]?\s*\d*\s*[a-z]?\s*[:.)]?$/i;
+/* pertanyaan decision dari isi langkah pertama alternatif bila judulnya tidak bermakna */
+function scQFromStep(f) {
+  if (!f) return '';
+  var t = scClean(f.t), q = t.match(/["“”]([^"“”]{2,90})["“”]/);
+  if (f.lane === 's') {
+    if (q) return q[1].split(/[,.;!]\s|[!.]$/)[0].replace(/^(anda|kamu)\s+/i, '');
+    return t.replace(/^(menampilkan|tampilkan|memunculkan|munculkan|mengeluarkan|memberikan|memberi|displays?|shows?)\s+(an?\s+)?(pesan|peringatan|notifikasi|informasi|keterangan|tulisan|alert|message|error\s*message|warning|pemberitahuan|info)?\s*(error\s*)?(bahwa|that|:)?\s*/i, '');
+  }
+  var b = t.match(/^(?:menekan|tekan|mengklik|klik|memilih|pilih|click|press|select|choose|tap|mengetuk)\s+(?:tombol|button|ikon|icon|opsi|pilihan|link|tautan)?\s*["“]?([^"”]{1,40}?)["”]?\s*$/i);
+  if (b) return /^(batal|cancel|tidak|no|kembali|tutup|close|back|x)$/i.test(scClean(b[1])) ? 'Batal' : b[1];
+  return t;
+}
+function scQuestion(a) {
+  var t = scClean(a.title).replace(/\s*\(?\s*(pada|di|dari|mulai|setelah|sesudah|at|from|in)?\s*(langkah|step|nomor|no\.?)\s*(ke-?\s*)?\d{1,3}[a-z]?\s*\)?\s*$/i, '');
+  t = t.replace(/^\d{1,3}\s*\.?\s*[a-z]\s*[.):]\s+/i, '');
+  var m = t.match(SC_IF); if (m) t = m[1];
+  t = scClean(t.replace(/^\[\s*|\s*\]$/g, '').replace(/^[(“"']\s*(.*?)\s*[)”"']$/, '$1'));
+  if (!t || SC_GEN_T.test(t)) t = scQFromStep(a.steps[0]) || t || 'Kondisi alternatif';
+  return scCapQ(t.replace(/[?.!:\s]+$/, '')) + '?';
+}
 var SC_VAL = /\b(memvalidasi|validasi|mengecek|cek|memeriksa|periksa|verifikasi|memverifikasi|validate|check|verify)\b/i;
 var SC_ACTBTN = /\b(tombol|button|klik|click|tekan|menekan|press|pilih|memilih|select)\b/i;
 /* letak decision bila nomor alternatif tidak bisa dipakai: cocokkan dengan langkah utama yang mirip */
@@ -4307,7 +4420,7 @@ function scGuessFork(N, f, title) {
   }
   if (f && f.lane === 'a' && /\b(batal|membatalkan|cancel|tidak\s+jadi)\b/i.test(f.t)) {
     /* "Batal" berpasangan dengan tombol kirim/simpan pertama setelah form (bukan tombol menu/cari) */
-    for (i = 0; i < N.length; i++) if (N[i].lane === 'a' && /\b(simpan|kirim|submit|save|ajukan|proses|bayar|hapus|daftar(kan)?|pesan(\s+sekarang)?|ya|ok|lanjut(kan)?|konfirmasi|send)\b["”]?\s*$/i.test(N[i].t.replace(/["“”]/g, ''))) return i;
+    for (i = 0; i < N.length; i++) if (N[i].lane === 'a' && (/\b(simpan|kirim|submit|save|ajukan|proses|bayar|hapus|daftar(kan)?|pesan(\s+sekarang)?|ya|ok|lanjut(kan)?|konfirmasi|send)\b["”]?\s*$/i.test(N[i].t.replace(/["“”]/g, '')) || /\b(tombol|button)\s+["“]?(simpan|save|update|perbarui)\b/i.test(N[i].t))) return i;
   }
   if (f && f.lane === 'a') {
     for (i = 0; i < N.length; i++) if (N[i].lane === 'a') { var v = scSimLoose(f.t, N[i].t); if (v > 0 && v >= best) { best = v; k = i; } }
@@ -4344,11 +4457,20 @@ function scLocalNum(a) {
 function scPlan(u) {
   var N = u.normal, groups = {};
   u.alts.forEach(function (a) {
-    var f = a.steps[0], k = -1, ref = scAltRef(a.title, N), loc = scLocalNum(a);
+    var f = a.steps[0], k = -1, ref = a.ref != null ? N.findIndex(function (s) { return s.num === a.ref; }) : scAltRef(a.title, N), loc = scLocalNum(a), conf = 'num';
+    /* tujuan kembali lebih dulu: langkah terakhir alternatif yang sama dengan langkah utama, "Kembali ke langkah N", atau "Kembali ke <nama langkah>" */
+    var body = a.steps.slice(), loop = -1, best = 0;
+    if (a.backAt != null) loop = a.backAt;
+    else if (a.back != null) loop = N.findIndex(function (s) { return s.num === a.back; });
+    else if (!a.end && body.length) {
+      var last = body[body.length - 1];
+      N.forEach(function (s, j) { var v = scJoinSim(last.t, s.t); if (v >= .75 && v > best) { best = v; loop = j; } });
+      if (loop >= 0) body.pop();
+    }
     /* nomor di kolom "No." alternatif flow yang dimulai lagi dari 1 hanyalah nomor lokal, bukan rujukan ke langkah utama;
-       rujukan yang sebenarnya diambil dari judul ("pada langkah 8", "di langkah 8", "setelah langkah 7"), kalau tidak ada ditebak dari makna */
+       rujukan yang sebenarnya diambil dari judul ("pada langkah 8", "6a. …", "setelah langkah 7"), kalau tidak ada ditebak dari makna */
     if (ref >= 0) {
-      k = ref; if (f && N[k].lane !== f.lane) { var jr = k; if (f.lane === 's') { while (jr < N.length && N[jr].lane !== 's') jr++; } else { while (jr >= 0 && N[jr].lane !== 'a') jr--; } k = jr >= 0 && jr < N.length ? jr : k; }
+      k = ref; conf = 'ref'; if (f && N[k].lane !== f.lane) { var jr = k; if (f.lane === 's') { while (jr < N.length && N[jr].lane !== 's') jr++; } else { while (jr >= 0 && N[jr].lane !== 'a') jr--; } k = jr >= 0 && jr < N.length ? jr : k; }
     } else if (f && !f.auto && !loc) {
       k = N.findIndex(function (s) { return s.num === f.num; });
       if (k >= 0 && N[k].lane !== f.lane) {
@@ -4358,8 +4480,7 @@ function scPlan(u) {
         k = j >= 0 && j < N.length ? j : k;
       }
     }
-    var guessed = k < 0;
-    if (k < 0) k = scGuessFork(N, f, a.title);
+    if (k < 0) { var gg = scGuess2(N, a, body, loop); k = gg.k; conf = gg.conf; }
     k = Math.max(0, Math.min(N.length - 1, k));
     /* letak decision: alternatif yang dimulai langkah AKTOR → decision di lajur Aktor tepat sebelum langkah aktor itu;
        alternatif yang dimulai langkah SISTEM → decision di lajur Sistem tepat setelah langkah aktor pemicunya
@@ -4367,19 +4488,67 @@ function scPlan(u) {
     var dl = f ? f.lane : N[k].lane, at = k;
     if (dl === 's') { var j0 = k - 1; while (j0 >= 0 && N[j0].lane !== 'a') j0--; at = j0 >= 0 ? j0 + 1 : k; }
     else if (N[k].lane !== 'a') { var j1 = k; while (j1 >= 0 && N[j1].lane !== 'a') j1--; at = j1 >= 0 ? j1 : k; }
+    if (a.fork != null && a.fork >= 0 && a.fork < N.length) { at = a.fork; conf = 'user'; }
     k = at;
-    var body = a.steps.slice(), loop = -1, best = 0;
-    if (a.back != null) loop = N.findIndex(function (s) { return s.num === a.back; });
-    else if (!a.end && body.length) {
-      var last = body[body.length - 1];
-      N.forEach(function (s, j) { var v = scJoinSim(last.t, s.t); if (v >= .75 && v > best) { best = v; loop = j; } });
-      if (loop >= 0) body.pop();
-    }
-    /* pertanyaan decision = judul ALTERNATIVE FLOW dijadikan pertanyaan; "Ya" selalu menuju alur alternatif, "Tidak" melanjutkan alur normal */
-    var tt = scClean(a.title).replace(/\s*\(?\s*(pada|di|dari|mulai|setelah|sesudah|at|from)?\s*(langkah|step|nomor|no\.?)\s*\d{1,3}[a-z]?\s*\)?\s*$/i, '') || scClean(a.title), q = scCap(tt.replace(/[?.!\s]+$/, '')) + '?';
-    (groups[k] = groups[k] || []).push({ title: tt, q: q, yes: 'Ya', no: 'Tidak', body: body, loop: loop, lane: dl });
+    /* pertanyaan decision = judul ALTERNATIVE FLOW dijadikan pertanyaan (atau isi langkahnya bila judulnya hanya "Alternatif 1");
+       "Ya" selalu menuju alur alternatif, "Tidak" melanjutkan alur normal */
+    var tt = scClean(a.title).replace(/\s*\(?\s*(pada|di|dari|mulai|setelah|sesudah|at|from)?\s*(langkah|step|nomor|no\.?)\s*\d{1,3}[a-z]?\s*\)?\s*$/i, '') || scClean(a.title), q = scQuestion(a);
+    (groups[k] = groups[k] || []).push({ title: tt, q: q, yes: 'Ya', no: 'Tidak', body: body, loop: loop, lane: dl, conf: conf, alt: a });
   });
   return { N: N, groups: groups };
+}
+/* sinonim kecil untuk mencocokkan judul/isi alternatif dengan langkah utama */
+var SC_SYN = [['lokasi', 'area', 'posisi', 'wilayah', 'jarak', 'radius', 'gps', 'koordinat', 'location'], ['stok', 'persediaan', 'ketersediaan', 'stock', 'kuota', 'kapasitas', 'slot', 'quota', 'penuh', 'habis', 'sisa', 'tersedia'],
+  ['saldo', 'dana', 'balance'], ['sandi', 'password', 'kata'], ['email', 'surel', 'surat elektronik'], ['format', 'ukuran', 'file', 'berkas', 'dokumen', 'size'], ['jadwal', 'tanggal', 'jam', 'waktu', 'schedule'],
+  ['lengkap', 'kelengkapan', 'wajib', 'kosong', 'diisi', 'isian', 'kolom', 'field', 'required', 'complete'], ['valid', 'validasi', 'sesuai', 'cocok', 'benar', 'salah', 'invalid', 'credentials'],
+  ['ditemukan', 'terdaftar', 'dikenal', 'tercatat', 'found', 'registered'], ['bayar', 'pembayaran', 'payment', 'transaksi'], ['login', 'masuk', 'sesi'], ['nilai', 'skor', 'score', 'rentang']];
+var SC_SYNM = (function () { var m = {}; SC_SYN.forEach(function (g, i) { g.forEach(function (w) { m[scCore(w)] = i; }); }); return m; })();
+function scWEq2(a, b) { if (scWEq(a, b)) return 1; var x = SC_SYNM[scCore(a)], y = SC_SYNM[scCore(b)]; return x != null && x === y ? .7 : 0; }
+var SC_QSTOP = /^(menampilkan|tampilkan|pesan|tombol|menekan|klik|mengklik|sistem|aktor|data|yang|ke|di|pada|dan|untuk|dari|halaman|form|menu|the|a|an|to|of|tidak|belum|sudah|masih|ada|harus|silakan|coba|lagi|akan|dengan|atau|anda|is|are|message|display|error|alternatif|alternative|flow|jika|apabila|bila)$/;
+var SC_VAL2 = /\b(memvalidasi|validasi|mengecek|cek|memeriksa|periksa|verifikasi|memverifikasi|mendeteksi|memastikan|mencocokkan|menghitung|validate|check|verify|detect|validates|checks)\b/i;
+/* tebakan letak decision tanpa nomor: nilai tiap kemungkinan letak menurut kecocokan kata (jarang = lebih berarti),
+   jenis alternatif (gagal validasi, data kosong, tidak ditemukan), dan tujuan kembalinya (decision setelah langkah tujuan kembali) */
+function scGuess2(N, a, body, L) {
+  var f = a.steps[0]; if (!f) return { k: N.length - 1, conf: 'low' };
+  var title = SC_GEN_T.test(scClean(a.title)) ? '' : a.title;
+  var qtext = title + ' ' + body.map(function (s) { return s.t; }).join(' ');
+  var Q = []; scWords(qtext).forEach(function (w) { if (!SC_QSTOP.test(w) && w.length > 2 && Q.indexOf(w) < 0) Q.push(w); });
+  var df = {}; N.forEach(function (s) { new Set(scWords(s.t)).forEach(function (w) { df[w] = (df[w] || 0) + 1; }); });
+  function wscore(t) { var S2 = scWords(t), sc = 0; Q.forEach(function (w) { var bm = 0, bw = ''; S2.forEach(function (v) { var e = scWEq2(w, v); if (e > bm) { bm = e; bw = v; } }); if (bm) sc += bm / Math.max(1, df[bw] || 1); }); return sc; }
+  if (f.lane === 'a') {
+    return { k: scGuessFork(N, f, a.title), conf: 'guess' };
+  }
+  var neg = SC_NEG.test(qtext) || SC_MSG.test(f.t), EMPTY = /\b(belum\s+(ada|tersedia|terdaftar)|kosong|tidak\s+(ada|tersedia)|no\s+data|empty)\b/i.test(qtext) && !/\b(valid|lengkap|wajib|diisi|kolom|format|input|isian|field|required)\b/i.test(qtext),
+    NF = /\b(tidak\s+ditemukan|not\s+found)\b/i.test(qtext), FAIL = /\b(gagal|failed|ditolak)\b/i.test(qtext);
+  var C = [];
+  for (var b = 1; b < N.length; b++) if (N[b].lane === 's' && N[b - 1].lane === 'a') C.push(b);
+  if (!C.length) return { k: N.length - 1, conf: 'low' };
+  /* decision sesudah langkah tujuan kembali; boleh tepat di langkah itu bila alternatifnya berisi aksi aktor pengganti ("Mengisi ulang email" lalu kembali ke validasi) */
+  var allowEq = body.some(function (s) { return s.lane === 'a'; });
+  var after = L >= 0 ? C.filter(function (b) { return b > L || (allowEq && b === L); }) : [];
+  /* data kosong / belum ada: decision tepat sebelum tampilan daftar pertama (bukan validasi) */
+  if (EMPTY && !NF) {
+    var LST = /^(menampilkan|tampilkan|displays?|shows?)\b.*\b(daftar|list|tabel|riwayat|katalog|isi|semua|data)\b/i;
+    var pool = after.length ? after : C;
+    for (var pi = 0; pi < pool.length; pi++) { var bb = pool[pi], ee = bb; while (ee < N.length && N[ee].lane === 's') ee++; var run = N.slice(bb, ee); if (!run.some(function (s) { return SC_VAL2.test(s.t); }) && run.some(function (s) { return LST.test(s.t); })) return { k: bb, conf: 'guess' }; }
+  }
+  var cand = after.length ? after : C, sc = [];
+  cand.forEach(function (b, ci) {
+    var e = b; while (e < N.length && N[e].lane === 's') e++;
+    var s0 = b - 1; while (s0 > 0 && N[s0 - 1].lane === 'a') s0--;
+    var sys = N.slice(b, e).map(function (s) { return s.t; }).join(' '), act = N.slice(s0, b).map(function (s) { return s.t; }).join(' ');
+    var v = wscore(sys) + .6 * wscore(act);
+    if (neg && !NF && SC_VAL2.test(sys)) v += .6;
+    if (EMPTY && /\b(daftar|list|tabel|riwayat|isi|katalog|semua|data)\b/i.test(sys) && !SC_VAL2.test(sys)) v += .5;
+    if (NF && /\b(cari|mencari|pencarian|search|hasil)\b/i.test(sys + ' ' + act)) v += .7;
+    if (FAIL && /\b(proses|memproses|process)\b/i.test(sys)) v += .4;
+    if (after.length && ci === 0) v += .25;
+    sc.push(v);
+  });
+  var bi = 0; sc.forEach(function (v, i) { if (v > sc[bi] + 1e-9) bi = i; });
+  if (sc[bi] <= 1e-9 && !after.length) { var lv = -1; cand.forEach(function (b, i) { var e = b; while (e < N.length && N[e].lane === 's') e++; if (SC_VAL2.test(N.slice(b, e).map(function (s) { return s.t; }).join(' '))) lv = i; }); bi = lv >= 0 ? lv : cand.length - 1; }
+  var sorted = sc.slice().sort(function (x, y) { return y - x; });
+  return { k: cand[bi], conf: cand.length === 1 || sorted[0] - (sorted[1] || 0) >= .5 ? 'guess' : 'low' };
 }
 var SC_GREEN = '#00ff00', SC_RED = '#ff0000';
 function scMakeActivity(u, name) {
@@ -4451,6 +4620,155 @@ function scMakeUseCase(list) {
   try { ucLayout(D); } catch (err) { /* susunan awal */ }
   return D;
 }
+/* ---------- v52: skenario → Sequence Diagram (MVC: Aktor, View V_, Controller C_, Model M_) ----------
+   Memakai hasil baca & rencana yang SAMA dengan activity diagram (scParse + scPlan), jadi letak percabangan dan isi cabangnya sama.
+   Langkah aktor → pesan Aktor → View. Langkah sistem: View memanggil Controller; Controller mengakses Model (simpan/cek/ambil data),
+   memeriksa sendiri (kelengkapan/format), lalu menampilkan hasil ke View (balasan). Tiap decision → fragment alt: [kondisi alternatif] dan [else]. */
+var SQV_ROOT = { menekan: 'klik', mengklik: 'klik', klik: 'klik', tekan: 'klik', click: 'klik', press: 'klik', memilih: 'pilih', pilih: 'pilih', select: 'pilih', choose: 'pilih', menentukan: 'pilih',
+  mengisi: 'isi', isi: 'isi', fill: 'isi', memasukkan: 'input', menginput: 'input', menginputkan: 'input', input: 'input', enter: 'input', mengetik: 'ketik', mengetikkan: 'ketik', type: 'ketik',
+  membuka: 'buka', buka: 'buka', open: 'buka', menampilkan: 'tampil', tampilkan: 'tampil', display: 'tampil', displays: 'tampil', show: 'tampil', memunculkan: 'tampil',
+  menyimpan: 'simpan', simpan: 'simpan', save: 'simpan', mencatat: 'simpan', memeriksa: 'cek', mengecek: 'cek', cek: 'cek', check: 'cek', memvalidasi: 'validasi', validasi: 'validasi', validate: 'validasi',
+  menghapus: 'hapus', hapus: 'hapus', delete: 'hapus', mengubah: 'ubah', ubah: 'ubah', memperbarui: 'update', update: 'update', mencari: 'cari', cari: 'cari', search: 'cari', mengambil: 'get', ambil: 'get',
+  mengirim: 'kirim', mengirimkan: 'kirim', kirim: 'kirim', send: 'kirim', menghitung: 'hitung', memproses: 'proses', proses: 'proses', mendeteksi: 'deteksi', mengunggah: 'unggah', unggah: 'unggah', upload: 'unggah',
+  mengunduh: 'unduh', unduh: 'unduh', download: 'unduh', mencetak: 'cetak', cetak: 'cetak', print: 'cetak', melihat: 'lihat', lihat: 'lihat', view: 'lihat', mengarahkan: 'arahkan', menutup: 'tutup', tutup: 'tutup',
+  menambahkan: 'tambah', menambah: 'tambah', tambah: 'tambah', menerima: 'terima', login: 'login', logout: 'logout', menyetujui: 'setujui', setujui: 'setujui', menolak: 'tolak', mengonfirmasi: 'konfirmasi',
+  memverifikasi: 'verifikasi', verifikasi: 'verifikasi', mengunci: 'kunci', membatalkan: 'batal', mengetuk: 'klik', tap: 'klik', masuk: 'masuk', keluar: 'keluar', mendaftar: 'daftar', daftar: 'daftar' };
+var SQV_SKIP = /^(tombol|button|ikon|icon|link|tautan|yang|ke|di|pada|dan|atau|untuk|dari|akan|sudah|ini|itu|the|a|an|to|of|on|in|and|with|dengan|dalam|bentuk|format|salah|satu|sebuah|semua|baru|lama|ingin|hendak|berisi|sesuai|menjadi|kolom|field|halaman|page|kembali|lagi|apakah|bahwa)$/i;
+function sqvCap(w) { return w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : ''; }
+/* nama method camelCase dari kalimat langkah: "Menekan tombol "Simpan"" → klikSimpan, "Menampilkan halaman login" → tampilLogin */
+function sqvMethod(t, maxW) {
+  var ws = String(t || '').replace(/["“”'‘’]/g, ' ').replace(/[^A-Za-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
+  if (!ws.length) return 'proses';
+  var v = SQV_ROOT[ws[0].toLowerCase()], rest = ws.slice(1);
+  if (!v) { v = ws[0].toLowerCase(); }
+  var obj = rest.filter(function (w) { return !SQV_SKIP.test(w) && !/^\d+$/.test(w); }).slice(0, maxW || (v === 'tampil' && /^pesan$/i.test(rest[0] || '') ? 3 : 2));
+  if (v === 'tampil' && /^(pesan|notifikasi|peringatan|informasi|keterangan|tulisan|alert|message)$/i.test(obj[0] || '')) {
+    var q = String(t).match(/["“”]([^"“”]{2,90})["“”]/), qw = q ? q[1].replace(/[^A-Za-z0-9\s]/g, ' ').split(/\s+/).filter(function (w) { return w && !/^(atau|dan|yang|anda|di|ke|harus|silakan|coba|lagi|sudah|semua)$/i.test(w); }) : [];
+    if (qw.length) { var ng = qw.findIndex(function (w) { return /^(tidak|belum|bukan|gagal|tak)$/i.test(w); }); obj = ['pesan'].concat(qw.length <= 2 ? qw : ng > 0 ? [qw[0], qw[ng], qw[qw.length - 1]].filter(function (w, i, A) { return A.indexOf(w) === i; }) : qw.slice(-2)); }
+  }
+  return v + obj.map(sqvCap).join('');
+}
+function sqvCamel(t) { return String(t || '').replace(/[^A-Za-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean).map(sqvCap).join(''); }
+/* nama View/Controller: nama use case tanpa kata kerja CRUD ("Menghapus Data Siswa" → Siswa, "Meminjam Buku" → Peminjaman, "Login" → Login) */
+function sqvBase(u) {
+  var nm = scClean(u.name).replace(/^(UC\s*-?\s*\d+\s*[-:.]?\s*)/i, '');
+  if (/^(log ?in|login|masuk|log ?out|logout|keluar|registrasi|register|reset\s+password|lupa\s+(kata\s+sandi|password))\b/i.test(nm.replace(/^melakukan\s+/i, ''))) return sqvCamel(nm.replace(/^melakukan\s+/i, '').replace(/\s+(admin|pengguna|user|anggota|akun)$/i, ''));
+  var p = typeof dgParse === 'function' ? dgParse(nm) : { obj: nm };
+  return sqvCamel(p.obj || nm) || 'Sistem';
+}
+var SQV_FIELD = /^(email|e-mail|password|sandi|username|nim|nip|pin|nominal|tanggal|jam|nilai|stok|kuota|saldo|lokasi|format|ukuran|jumlah|status|kode|id|nama|harga|foto|alamat|sisa|ketersediaan|kelengkapan|detail|daftar|riwayat|rincian|data|informasi|apakah|semua|hasil|input|isian|form|pesan|tabel|link|tautan|sesi|login|database|ke|di|yang|dan|baru|lama|sesuai|tersebut|pada)$/i;
+/* entitas (Model) yang disentuh langkah sistem: "Memeriksa stok buku" → Buku, "Menyimpan data peminjaman" → Peminjaman, email/password → Akun */
+function sqvEntity(t) {
+  var m = String(t).match(/^(menyimpan|simpan|mencatat|mengambil|mencari|cari|menghapus|hapus|mengubah|ubah|memperbarui|update|memeriksa|periksa|mengecek|cek|memvalidasi|validasi|menambahkan|tambah|save|delete|check|validate|get)\s+(.+)$/i);
+  if (!m) return '';
+  var ws = m[2].replace(/["“”]/g, '').split(/\s+/), acct = false;
+  for (var i = 0; i < ws.length; i++) { var w = ws[i].replace(/[^A-Za-z]/g, ''); if (!w) continue; if (/^(email|password|sandi|username|pin|nim|nip|login|akun|credentials|kredensial|sesi)$/i.test(w)) acct = true; if (SQV_FIELD.test(w)) continue; if (/^(menjadi|dalam|untuk|dengan|bahwa)$/i.test(w)) break; return sqvCap(w); }
+  return acct ? 'Akun' : '';
+}
+var SQV_DISP = /^(menampilkan|tampilkan|memunculkan|mengarahkan|arahkan|menutup|tutup|redirect|displays?|shows?)\b/i;
+var SQV_DATA = /\b(daftar|riwayat|detail|rincian|tabel|hasil|laporan|jadwal|katalog|list|profil|rekap|bukti|kode|data|isi\s+keranjang|status|informasi\s+event|gambar)\b/i;
+var SQV_MSGW = /\b(pesan|notifikasi|peringatan|alert|message|error|keterangan|tulisan|konfirmasi)\b/i;
+var SQV_OPV = /^(menyimpan|simpan|mencatat|mengambil|mencari|cari|menghapus|hapus|mengubah|ubah|memperbarui|update|memeriksa|periksa|mengecek|cek|memvalidasi|validasi|menambahkan|tambah|save|delete|check|validate|verify|memverifikasi)\b/i;
+var SQV_CHECK = /^(memeriksa|periksa|mengecek|cek|memvalidasi|validasi|memverifikasi|verifikasi|mendeteksi|menghitung|mencocokkan|memastikan|check|validate|verify)\b/i;
+var SQV_LOCAL = /\b(kelengkapan|lengkap|format|ukuran|isian|input|tipe\s+file)\b/i;
+function scMakeSequence(u, name, P) {
+  P = P || scPlan(u);
+  var N = P.N, D = newDiagram('sequence'); D.name = name;
+  var base = sqvBase(u), ents = [];
+  function entOf(s) { var e = sqvEntity(s.t); if (!e) e = ents[0] || sqvCamel((typeof dgParse === 'function' ? dgParse(u.name).obj : '') || base); if (ents.indexOf(e) < 0) ents.push(e); return e; }
+  /* model utama: entitas yang disimpan, kalau tidak ada dari nama use case */
+  N.concat([].concat.apply([], u.alts.map(function (a) { return a.steps; }))).forEach(function (s) { if (s.lane === 's' && /^(menyimpan|simpan|mencatat|save)\b/i.test(s.t)) { var e = sqvEntity(s.t); if (e && ents.indexOf(e) < 0) ents.unshift(e); } });
+  var L = [], byKey = {};
+  function ll(key, type, nm) {
+    if (byKey[key]) return byKey[key];
+    var t = TT[type], o = { id: uid('e'), type: type, name: nm, x: 0, y: SQ_TOP, w: t.size[0], h: SQ_LEN0, style: {} };
+    L.push(o); byKey[key] = o; return o;
+  }
+  var A = ll('A', 'sactor', u.colHead && !SC_COL_A.test(u.colHead) ? u.colHead : u.actor || 'Aktor'), V = ll('V', 'sboundary', 'V_' + base), C = ll('C', 'scontrol', 'C_' + base);
+  function M(s) { var e = entOf(s); return ll('M:' + e, 'sentity', 'M_' + e); }
+  /* urutan kejadian: pesan {a,b,n,ret}, buka/tutup fragment, ganti operand */
+  var ev = [];
+  function msg(a, b, n, ret) { ev.push({ k: 'm', a: a, b: b, n: n || '', ret: !!ret }); }
+  function step(s, st) {
+    var t = scClean(s.t);
+    if (s.lane === 'a') { st.c = false; msg(A, V, sqvMethod(t)); return; }
+    var disp = SQV_DISP.test(t), data = disp && SQV_DATA.test(t) && !SQV_MSGW.test(t) && !/\b(form|halaman\s+(login|masuk|utama|beranda|dashboard))\b/i.test(t);
+    var call = function (nm) { if (!st.c) { msg(V, C, nm); st.c = true; } };
+    if (disp && !data) { var tn = sqvMethod(t); if (st.c) { msg(C, V, tn, true); st.c = false; } else msg(V, V, tn); return; }
+    if (data) { var en = M(s), gn = 'get' + en.name.replace(/^M_/, ''); call(sqvMethod(t)); msg(C, en, gn); msg(en, C, '', true); msg(C, V, sqvMethod(t), true); st.c = false; return; }
+    var nm = sqvMethod(t);
+    call(nm);
+    if (SQV_OPV.test(t) && !(SQV_LOCAL.test(t) && !/\b(email|username|password|akun|terdaftar|database)\b/i.test(t))) { var mm = M(s); msg(C, mm, nm); msg(mm, C, '', true); }
+    else msg(C, C, nm);
+  }
+  function runEnd(i) { var j = i; if (N[i].lane === 'a') { while (j < N.length && N[j].lane === 'a') j++; } while (j < N.length && N[j].lane === 's') j++; return j; }
+  function range(i0, i1, st, skipAt) {
+    for (var i = i0; i < i1; i++) {
+      var G = P.groups[i];
+      if (G && i !== skipAt) {
+        var end = Math.min(runEnd(i), i1);
+        if (N[i].lane === 's' && !st.c) { msg(V, C, sqvMethod(N[i].t)); st.c = true; }
+        /* pemeriksaan (cek/validasi/verifikasi) terjadi sebelum percabangan: keputusan diambil dari hasilnya */
+        var i2 = i; if (N[i].lane === 's') while (i2 < end - 1 && SQV_CHECK.test(N[i2].t)) { step(N[i2], st); i2++; }
+        ev.push({ k: 'open' });
+        G.forEach(function (g, gi) {
+          if (gi) ev.push({ k: 'sep' });
+          ev.push({ k: 'guard', g: scClean(String(g.q || g.title || '').replace(/\?+\s*$/, '')) });
+          var s2 = { c: st.c }; g.body.forEach(function (s) { step(s, s2); });
+          /* kembali ke langkah tampilan sebelumnya (mis. form login) atau bergabung lagi ke langkah di dalam percabangan: langkah itu ikut digambar di operand ini */
+          if (g.loop >= 0 && ((g.loop < i && N[g.loop].lane === 's' && SQV_DISP.test(N[g.loop].t)) || (g.loop >= i2 && g.loop < end))) { for (var q = g.loop; q < (g.loop >= i2 ? end : g.loop + 1); q++) step(N[q], s2); }
+        });
+        ev.push({ k: 'sep' }); ev.push({ k: 'guard', g: 'else' });
+        var s3 = { c: st.c }; range(i2, end, s3, i); st.c = s3.c;
+        ev.push({ k: 'close' });
+        i = end - 1; continue;
+      }
+      step(N[i], st);
+    }
+  }
+  range(0, N.length, { c: false }, -1);
+  /* letak lifeline: Aktor, View, Controller, Model … berjarak tetap */
+  var X0 = 40, GAPX = 170;
+  L.forEach(function (o, i) { o.x = Math.round(X0 + i * GAPX + (GAPX - o.w) / 2 - (GAPX - 90) / 2); });
+  /* tinggi: pesan pertama 135, berikutnya +35 (pesan ke diri sendiri +15); fragment memberi ruang tab & kondisi */
+  var y = SQ_FIRST, flows = [], stack = [], frags = [];
+  ev.forEach(function (e) {
+    if (e.k === 'open') { var fr = { y: y - 4, ops: [], cur: { g: '', y: y - 4 }, lo: 1e9, hi: -1e9, kids: [] }; if (stack.length) stack[stack.length - 1].kids.push(fr); stack.push(fr); frags.push(fr); y += 50; return; }
+    if (e.k === 'guard') { stack[stack.length - 1].cur.g = e.g; return; }
+    if (e.k === 'sep') { var f0 = stack[stack.length - 1]; f0.ops.push(f0.cur); f0.cur = { g: '', y: y - 8 }; y += 32; return; }
+    if (e.k === 'close') { var f1 = stack.pop(); f1.ops.push(f1.cur); f1.h = y - 14 - f1.y; delete f1.cur; y += 6; return; }
+    if (e.k === 'back') return;
+    var self = e.a === e.b, f = { id: uid('f'), kind: 'smsg', from: e.a.id, to: e.b.id, name: e.n, y: y, bends: [], style: {} };
+    if (e.ret) f.isRet = true;
+    flows.push(f);
+    stack.forEach(function (fr) { [e.a, e.b].forEach(function (o) { var cx = o.x + o.w / 2; fr.lo = Math.min(fr.lo, cx); fr.hi = Math.max(fr.hi, cx + (self ? 45 : 0)); }); });
+    y += SQ_GAP + (self ? 15 : 0);
+  });
+  /* fragment: melingkupi lifeline yang terlibat; fragment luar sedikit lebih lebar dari yang di dalamnya */
+  function widen(fr) { fr.kids.forEach(function (k) { widen(k); fr.lo = Math.min(fr.lo, k.x + 20); fr.hi = Math.max(fr.hi, k.x + k.w - 20); }); fr.x = Math.round(fr.lo - 40 - (fr.kids.length ? 10 : 0)); fr.w = Math.round(fr.hi + 60 + (fr.kids.length ? 10 : 0) - fr.x); }
+  frags.filter(function (fr) { return !frags.some(function (p) { return p.kids.indexOf(fr) >= 0; }); }).forEach(widen);
+  var fels = frags.map(function (fr) {
+    var ops = fr.ops.map(function (o, i) { var nx = fr.ops[i + 1]; return { g: o.g, h: Math.round((nx ? nx.y : fr.y + fr.h) - o.y) }; });
+    return { id: uid('e'), type: 'fragment', op: 0, ops: ops, name: '', x: fr.x, y: Math.round(fr.y), w: fr.w, h: Math.round(fr.h), style: {} };
+  });
+  D.elements = L.concat(fels); D.flows = flows;
+  sqNormalize(D);
+  D.scen = scSource(u);
+  return D;
+}
+function scGenerateSeq(list) {
+  var made = [], seen = {};
+  mutate(function () {
+    list.forEach(function (u) {
+      var nm = u.name; if (seen[nm]) nm += ' (' + u.actor + ')'; while (seen[nm]) nm += ' 2'; seen[nm] = 1;
+      made.push(scMakeSequence(u, nm));
+    });
+    if (made.length) { active = made[0].id; sel.clear(); made.forEach(function (D) { views[D.id] = { x: 0, y: 0, k: 1, fresh: true }; }); }
+  });
+  if (tbOpenMode() === 'all' || made.length <= 4) { made.forEach(function (D) { tbPin(D.id); }); tabs(); }
+  umlToolbox(); setTool('select');
+  toast(made.length + ' sequence diagram dibuat dari skenario. Cek nama lifeline dan pesannya, lalu sesuaikan dengan rancangan kelasmu.');
+}
 /* sumber skenario disimpan di diagram supaya pemeriksaan bisa mencocokkan jumlah decision dengan jumlah alternative flow */
 function scSource(u) { return { no: u.no || '', name: u.name, actor: u.actor, steps: u.normal.length, alts: u.alts.map(function (a) { return a.title; }) }; }
 function scGenerate(list, withUc) {
@@ -4475,27 +4793,54 @@ function scGenerate(list, withUc) {
   toast(made.length + ' diagram dibuat dari skenario' + (tbOpenMode() !== 'all' && made.length > 4 ? ' dan ada di Project Browser (yang pertama sudah dibuka)' : made.length > 6 ? '. Pilih yang tampil di tab lewat tombol Diagram di kiri atas' : '') + '. Cek lagi nama dan cabangnya, lalu rapikan kalau perlu.');
 }
 function scSummary(u) { return u.normal.length + ' langkah' + (u.alts.length ? ', ' + u.alts.length + ' alternatif' : ', <span class="scnoalt">belum ada alternative flow</span>') + (u.multi ? ', <span class="scnoalt">aktornya lebih dari satu (' + esc(u.multi.join(', ')) + '): sebaiknya tabel dipecah per aktor, diagram ini memakai aktor pertama</span>' : ''); }
-function scenarioModal(pre) {
+/* jenis diagram tujuan menurut kanvas yang sedang dibuka: Activity → Activity Diagram, Sequence → Sequence Diagram; lainnya ditanyakan */
+function scTargetOf() { var k = cur() && cur().kind; return k === 'sequence' ? 'sequence' : k === 'activity' ? 'activity' : null; }
+/* letak decision yang hanya ditebak (tabel tanpa nomor) dan kurang yakin: ditampilkan supaya bisa dibetulkan sebelum diagram dibuat */
+function scFixList(ucs) {
+  var out = [];
+  ucs.forEach(function (u, ui) {
+    var P = scPlan(u);
+    Object.keys(P.groups).forEach(function (k) { P.groups[k].forEach(function (g) { if (g.conf === 'low' || g.conf === 'user') out.push({ ui: ui, ai: u.alts.indexOf(g.alt), k: +k, q: g.q, N: P.N, u: u }); }); });
+  });
+  return out;
+}
+function scFixHtml(ucs) {
+  var L = scFixList(ucs); if (!L.length) return '';
+  return '<div class="scfix"><div class="scfixh">Perlu dicek: letak ' + L.length + ' decision ditebak dari isi kalimat. Ubah kalau kurang tepat.</div>' + L.map(function (x) {
+    return '<label class="scfixr"><span><b>' + esc(x.u.name) + '</b> · ' + esc(x.q) + '</span><select data-fx="' + x.ui + ':' + x.ai + '">' + x.N.map(function (s, i) { return '<option value="' + i + '"' + (i === x.k ? ' selected' : '') + '>sebelum langkah ' + (i + 1) + ' (' + (s.lane === 'a' ? 'aktor' : 'sistem') + '): ' + esc(String(s.t).slice(0, 48)) + (String(s.t).length > 48 ? '…' : '') + '</option>'; }).join('') + '</select></label>';
+  }).join('') + '</div>';
+}
+function scenarioModal(pre, target) {
   if (isDfd()) { dfdScenarioModal(pre); return; }
-  var found = [];
-  var body = '<p class="xp-lead">Tempel tabel <b>skenario use case</b> (kolom Aktor dan Sistem, Normal Flow, Alternative Flow) dari Google Docs atau Word, atau buka berkas <b>.docx</b> laporanmu. Tiap use case dibuatkan Activity Diagram lengkap dengan partition, decision, dan cabang alternatifnya.</p>' +
+  var found = [], tgt = target || scTargetOf() || 'activity', fixed = !!target;
+  var lead = function () { return tgt === 'sequence' ? 'Tiap use case dibuatkan <b>Sequence Diagram</b>: Aktor, View (V_), Controller (C_), dan Model (M_), lengkap dengan fragment <b>alt</b> untuk alur alternatifnya.' : 'Tiap use case dibuatkan <b>Activity Diagram</b> lengkap dengan partition, decision, dan cabang alternatifnya.'; };
+  var body = '<p class="xp-lead">Tempel tabel <b>skenario use case</b> (kolom Aktor dan Sistem, Normal Flow, Alternative Flow) dari Google Docs atau Word, atau buka berkas <b>.docx</b> laporanmu. <span id="sclead">' + lead() + '</span></p>' +
+    (fixed ? '' : '<div class="scto" role="radiogroup" aria-label="Jadikan diagram"><span>Jadikan:</span><label><input type="radio" name="scto" value="activity"' + (tgt === 'activity' ? ' checked' : '') + '> Activity Diagram</label><label><input type="radio" name="scto" value="sequence"' + (tgt === 'sequence' ? ' checked' : '') + '> Sequence Diagram</label></div>') +
     '<div class="scbox" id="scbox" contenteditable="true" role="textbox" aria-label="Tempel tabel skenario di sini" data-ph="Klik di sini lalu tekan Ctrl+V (boleh banyak tabel sekaligus)"></div>' +
     '<div class="row"><button class="btn" id="scdocx">Buka berkas .docx…</button><input type="file" id="scfile" accept=".docx" hidden><span class="scmsg" id="scmsg"></span></div>' +
-    '<div id="sclist"></div>' +
+    '<div id="sclist"></div><div id="scfixw"></div>' +
     '<label class="scchk"><input type="checkbox" id="scuc"> Buat juga Use Case Diagram dari semua skenario ini</label>' +
-    '<p class="st-note">Tips: nomor langkah di Alternative Flow dipakai untuk menentukan letak decision (misalnya alternatif mulai dari langkah 6 → bercabang sebelum langkah 6). Kalau langkah terakhir alternatif sama dengan langkah di Normal Flow (misalnya "Menampilkan Form Login") atau berbunyi "Kembali ke langkah 4", garisnya dikembalikan ke langkah itu. Boleh menyalin satu dokumen penuh: judul bab, paragraf penjelasan, dan tabel lain (misalnya kamus data) tidak ikut dijadikan aktivitas.</p>';
-  modal('Skenario → Activity Diagram', body, '<button class="btn" data-close>Tutup</button><button class="btn pri" data-ok disabled>Buat diagram</button>', function (s, close) {
+    '<p class="st-note">Tips: nomor langkah di Alternative Flow (atau judul seperti "6a. Password salah" / "… (langkah 6)") dipakai untuk menentukan letak decision. Tanpa nomor, letaknya ditebak dari isi kalimat. Kalau langkah terakhir alternatif sama dengan langkah di Normal Flow (misalnya "Menampilkan Form Login") atau berbunyi "Kembali ke langkah 4" / "Kembali ke halaman login", garisnya dikembalikan ke langkah itu. Boleh menyalin satu dokumen penuh: judul bab, paragraf penjelasan, dan tabel lain (misalnya kamus data) tidak ikut dijadikan aktivitas.</p>';
+  var ttl = fixed ? (tgt === 'sequence' ? 'Skenario → Sequence Diagram' : 'Skenario → Activity Diagram') : 'Skenario → Diagram';
+  modal(ttl, body, '<button class="btn" data-close>Tutup</button><button class="btn pri" data-ok disabled>Buat diagram</button>', function (s, close) {
     s.querySelector('.modal').classList.add('mid');
     var box = $('#scbox', s), ok = $('[data-ok]', s), msg = $('#scmsg', s);
+    function okText(n) { ok.textContent = 'Buat ' + n + ' ' + (tgt === 'sequence' ? 'sequence diagram' : 'diagram'); }
     function show(ucs, src) {
       found = ucs;
-      if (!ucs.length) { $('#sclist', s).innerHTML = ''; msg.textContent = 'Tidak ada skenario yang terbaca dari ' + src + '. Pastikan tabelnya punya kolom Aktor dan Sistem.'; ok.disabled = true; return; }
+      if (!ucs.length) { $('#sclist', s).innerHTML = ''; $('#scfixw', s).innerHTML = ''; msg.textContent = 'Tidak ada skenario yang terbaca dari ' + src + '. Pastikan tabelnya punya kolom Aktor dan Sistem.'; ok.disabled = true; return; }
       var noAlt = ucs.filter(function (u) { return !u.alts.length; }).length;
       msg.textContent = ucs.length + ' skenario terbaca dari ' + src + '.' + (noAlt ? ' Catatan: ' + noAlt + ' skenario belum punya alternative flow (misalnya data tidak valid, batal, atau data belum ada). Biasanya skenario punya minimal satu; diagram tetap bisa dibuat.' : '');
       $('#sclist', s).innerHTML = '<div class="sclist">' + ucs.map(function (u, i) { return '<label class="scchk"><input type="checkbox" data-sc="' + i + '" checked> <span><b>' + esc((u.no ? u.no + ' · ' : '') + u.name) + '</b> <span class="mut">— ' + esc(u.actor) + ' · ' + scSummary(u) + '</span></span></label>'; }).join('') + '</div>';
-      ok.disabled = false; ok.textContent = 'Buat ' + ucs.length + ' diagram';
+      $('#scfixw', s).innerHTML = scFixHtml(ucs);
+      ok.disabled = false; okText(ucs.length);
     }
-    s.addEventListener('change', function (e) { if (e.target.dataset.sc != null) { var n = $$('[data-sc]', s).filter(function (c) { return c.checked; }).length; ok.disabled = !n; ok.textContent = 'Buat ' + n + ' diagram'; } });
+    s.addEventListener('change', function (e) {
+      var t = e.target;
+      if (t.dataset.sc != null) { var n = $$('[data-sc]', s).filter(function (c) { return c.checked; }).length; ok.disabled = !n; okText(n); }
+      if (t.name === 'scto') { tgt = t.value; $('#sclead', s).innerHTML = lead(); if (found.length) okText($$('[data-sc]', s).filter(function (c) { return c.checked; }).length); }
+      if (t.dataset.fx) { var p = t.dataset.fx.split(':'), u = found[+p[0]], a = u && u.alts[+p[1]]; if (a) a.fork = +t.value; }
+    });
     box.addEventListener('paste', function (e) {
       e.preventDefault();
       var cd = e.clipboardData, h = cd.getData('text/html'), t = cd.getData('text/plain');
@@ -4511,17 +4856,19 @@ function scenarioModal(pre) {
     });
     ok.addEventListener('click', function () {
       var pick = $$('[data-sc]', s).filter(function (c) { return c.checked; }).map(function (c) { return found[+c.dataset.sc]; });
-      if (!pick.length) return; var uc = $('#scuc', s).checked; close(); scGenerate(pick, uc);
+      if (!pick.length) return; var uc = $('#scuc', s).checked; close();
+      if (tgt === 'sequence') { if (uc) scGenerateUc(pick); scGenerateSeq(pick); } else scGenerate(pick, uc);
     });
     if (pre) show(pre.ucs, pre.src);
   });
 }
+function scGenerateUc(list) { mutate(function () { var D = scMakeUseCase(list); views[D.id] = { x: 0, y: 0, k: 1, fresh: true }; }); }
 /* menempel tabel skenario langsung ke kanvas juga membuka jendela ini */
 function scFromClipboardEvent(e) {
   var cd = e.clipboardData; if (!cd) return false;
   var h = cd.getData('text/html'); if (!h || !/<table/i.test(h) || !/(normal\s*flow|alternat|aktor|actor)/i.test(h)) return false;
   var ucs = scParse(scHtmlRows(h)); if (!ucs.length) return false;
-  if (isDfd()) dfdScenarioModal({ ucs: ucs, src: 'tempelan' }); else scenarioModal({ ucs: ucs, src: 'tempelan' }); return true;
+  if (isDfd()) dfdScenarioModal({ ucs: ucs, src: 'tempelan' }); else scenarioModal({ ucs: ucs, src: 'tempelan' }, scTargetOf()); return true;
 }
 
 /* ---------- v44: aturan khusus Activity Diagram dari skenario (panel Pemeriksaan) ---------- */
@@ -6872,13 +7219,13 @@ function pasteAlirClip(c) {
   if (c.mode !== clipMode()) { toast(c.mode === 'dfd' ? 'Yang disalin objek DFD. Tempel di mode DFD.' : 'Yang disalin objek UML (Activity / Use Case / BPMN). Tempel di mode UML.'); return true; }
   if (c.k === 'diag') { pasteDiagram(isDfd() ? null : (cur() && cur().pkg), c.d); return true; }
   if (!c.els || !c.els.length) return false;
-  if (!clipb || clipb.t !== c.t) { clipb = { t: c.t, els: c.els, flows: c.flows || [], mode: c.mode }; pasteN = 0; }
+  if (!clipb || clipb.t !== c.t) { clipb = { t: c.t, els: c.els, flows: c.flows || [], mode: c.mode, dk: c.dk }; pasteN = 0; }
   pasteClip(); return true;
 }
 /* Ctrl+V tanpa gambar Alir di clipboard / tombol Tempel: salinan terbaru di tab ini atau tab lain (localStorage) */
 function pasteLocal() {
   var L = localClip(), m = clipb;
-  var c = L && (!m || (L.t || 0) > (m.t || 0)) ? L : m ? { a: 'alir-clip', k: 'obj', t: m.t, mode: m.mode || clipMode(), els: m.els, flows: m.flows } : null;
+  var c = L && (!m || (L.t || 0) > (m.t || 0)) ? L : m ? { a: 'alir-clip', k: 'obj', t: m.t, mode: m.mode || clipMode(), dk: m.dk, els: m.els, flows: m.flows } : null;
   return c ? pasteAlirClip(c) : false;
 }
 function pasteSmart() {
@@ -10048,12 +10395,12 @@ function seqRouteAll(D) {
     var r = out.get(f.id); if (!r) return;
     var st = fs(f), t = sqLabel(f); r.text = ''; r.labs = [];
     if (!t) return;
-    var tw = textW(t, fontCss(st.font)), fpx = st.font.size * 4 / 3, P = r.pts, b;
+    var fc = fontCss(st.font), lines = String(t).split(/\r?\n/).map(function (x) { return { t: x, w: textW(x, fc) }; }), tw = Math.max.apply(null, lines.map(function (x) { return x.w; })), fpx = st.font.size * 4 / 3, P = r.pts, b, lh = Math.round(fpx * 1.15), up = (lines.length - 1) * lh / 2;
     /* EA 12: label pesan ke diri sendiri rata kiri 4px dari activation, 7px di atas garis atas lengkungan */
-    if (f.from === f.to) b = { x: P[0].x + 4 + tw / 2, y: P[0].y - 7, ref: { x: P[0].x, y: P[0].y } };
-    else b = { x: (P[0].x + P[1].x) / 2, y: P[0].y - 7, ref: { x: (P[0].x + P[1].x) / 2, y: P[0].y } };
+    if (f.from === f.to) b = { x: P[0].x + 4 + tw / 2, y: P[0].y - 7 - up, ref: { x: P[0].x, y: P[0].y } };
+    else b = { x: (P[0].x + P[1].x) / 2, y: P[0].y - 7 - up, ref: { x: (P[0].x + P[1].x) / 2, y: P[0].y } };
     var o = f.lo && f.lo.mt;
-    r.labs.push({ k: 'mt', t: t, x: b.x + (o ? o.x : 0), y: b.y + (o ? o.y : 0), w: tw + 4, h: fpx * 1.25, ref: b.ref, moved: !!o, base: b });
+    r.labs.push({ k: 'mt', t: t, lines: lines, lh: lh, self: f.from === f.to, x: b.x + (o ? o.x : 0), y: b.y + (o ? o.y : 0), w: tw + 4, h: fpx * 1.25 + (lines.length - 1) * lh, ref: b.ref, moved: !!o, base: b });
     r.lab.tx = r.labs[0].x; r.lab.ty = r.labs[0].y;
   });
   /* garis catatan (Note Link) */
@@ -10083,7 +10430,9 @@ function sqFlowMarkup(f, r, on, markers) {
   if (f.cons) { var ctw = textW(f.cons, fontCss(st.font)), cdir = P[1].x >= P[0].x ? 1 : -1; s += '<text x="' + (cdir > 0 ? P[0].x - 14 - ctw : P[0].x + 14).toFixed(1) + '" y="' + (P[0].y + .5) + '" dominant-baseline="central" ' + fontAttr(st.font, st.text) + '>' + esc(f.cons) + '</text>'; }
   (r.labs || []).forEach(function (lb) {
     var tw = lb.w - 4;
-    s += '<g class="flab" data-lab="' + lb.k + '"><rect class="labhit" x="' + (lb.x - lb.w / 2).toFixed(1) + '" y="' + (lb.y - lb.h / 2).toFixed(1) + '" width="' + lb.w.toFixed(1) + '" height="' + lb.h.toFixed(1) + '" fill="#ffffff" pointer-events="all"/><text x="' + (lb.x - tw / 2).toFixed(1) + '" y="' + lb.y.toFixed(1) + '" dominant-baseline="central" ' + fontAttr(st.font, st.text) + '>' + esc(lb.t) + '</text></g>';
+    var L = lb.lines || [{ t: lb.t, w: tw }], lh = lb.lh || 0, y0 = lb.y - (L.length - 1) * lh / 2;
+    s += '<g class="flab" data-lab="' + lb.k + '"><rect class="labhit" x="' + (lb.x - lb.w / 2).toFixed(1) + '" y="' + (lb.y - lb.h / 2).toFixed(1) + '" width="' + lb.w.toFixed(1) + '" height="' + lb.h.toFixed(1) + '" fill="#ffffff" pointer-events="all"/>' +
+      L.map(function (ln, i) { return '<text x="' + (lb.self ? lb.x - tw / 2 : lb.x - ln.w / 2).toFixed(1) + '" y="' + (y0 + i * lh).toFixed(1) + '" dominant-baseline="central" ' + fontAttr(st.font, st.text) + '>' + esc(ln.t) + '</text>'; }).join('') + '</g>';
   });
   return s + '</g>';
 }
@@ -10353,7 +10702,8 @@ function sqPanelEl(D, e) {
 function sqPanelFlow(D, f) {
   var a = elOf(D, f.from) || {}, b = elOf(D, f.to) || {}, h = '';
   h += '<div class="sec"><h2>' + (f.from === f.to ? 'Self-Message' : f.isRet ? 'Return Message' : 'Message') + '</h2>';
-  h += '<div class="field"><label for="p-name">Nama (tanpa kurung)</label><input class="in" id="p-name" data-f="name" value="' + esc(f.name || '') + '" placeholder="mis. getDataBuku"></div>';
+  var nl = String(f.name || '').split(/\r?\n/).length;
+  h += '<div class="field"><label for="p-name">Nama (tanpa kurung)</label><textarea class="in sqname" id="p-name" data-f="name" rows="' + Math.min(4, nl) + '" placeholder="mis. getDataBuku">' + esc(String(f.name || '').replace(/\r\n/g, '\n')) + '</textarea><span class="hint">Nama panjang? Tekan <b>Enter</b> di kolom ini untuk pindah baris (seperti Enter di EA, tampil dua baris). <button class="lnk" data-act="sqsplit">Pecah otomatis jadi 2 baris</button></span></div>';
   h += '<div class="field"><label for="p-args">Parameter</label><input class="in" id="p-args" data-f="args" value="' + esc(f.args || '') + '" placeholder="mis. nama, jumlah"></div>';
   h += '<div class="field"><label for="p-ret">Nilai kembali (return value)</label><input class="in" id="p-ret" data-f="ret" value="' + esc(f.ret || '') + '" placeholder="mis. Array"></div>';
   h += '<div class="kv"><span>Tampil</span><b class="sqprev">' + esc(sqLabel(f) || '—') + '</b></div>';
@@ -10373,11 +10723,20 @@ function sqPanelFlow(D, f) {
   h += '<div class="row"><button class="btn" data-act="flip">Balik arah</button><button class="btn danger" data-act="del">Hapus pesan</button></div>';
   return h;
 }
+/* pecah nama method panjang jadi 2 baris di batas kata camelCase yang paling dekat ke tengah: tampilPesanUsername / PasswordSalah */
+function sqSplitName(n) {
+  n = String(n || ''); if (/\r?\n/.test(n) || n.length < 16) return n;
+  var cut = [], m, re = /[a-z0-9](?=[A-Z])|[ _](?=\S)/g; while ((m = re.exec(n))) cut.push(m.index + 1);
+  if (!cut.length) return n;
+  var mid = n.length / 2, c = cut.reduce(function (p, q) { return Math.abs(q - mid) < Math.abs(p - mid) ? q : p; });
+  return n.slice(0, c).replace(/[ _]$/, '') + '\r\n' + n.slice(c);
+}
 function sqPanelChange(t, D, o) {
   var f = t.dataset.f, v = t.type === 'checkbox' ? t.checked : t.value;
   if (f === 'sqtype') { mutate(function () { var cx = llCX(o); o.type = v; o.w = TT[v].size[0]; o.x = Math.round(cx - o.w / 2); sqNormalize(D); }); return true; }
   if (f === 'op') { mutate(function () { o.op = Number(v) || 0; }); return true; }
   if (f && f.indexOf('opg:') === 0) { var i = +f.slice(4); mutate(function () { if (o.ops && o.ops[i]) o.ops[i].g = String(v).replace(/^\[|\]$/g, '').trim(); }); return true; }
+  if (f === 'name' && o.kind === 'smsg') { mutate(function () { o.name = String(v).split(/\r?\n/).map(function (x) { return x.trim(); }).filter(Boolean).join('\r\n'); }); return true; }
   if (f === 'args' || f === 'ret') { mutate(function () { v = String(v).trim(); if (f === 'args') v = v.replace(/^\(|\)$/g, '').trim(); if (v) o[f] = v; else delete o[f]; }); return true; }
   if (f === 'cond' || f === 'cons' || f === 'alias' || f === 'life' || f === 'sig') { mutate(function () { v = String(v).trim(); if (f === 'cond') v = v.replace(/^\[|\]$/g, '').trim(); if (v) o[f] = v; else delete o[f]; }); return true; }
   if (f === 'iter') { mutate(function () { if (v) o.iter = true; else delete o.iter; }); return true; }
@@ -10386,6 +10745,7 @@ function sqPanelChange(t, D, o) {
 }
 function sqPanelAct(a, D, o) {
   if (a === 'sqrespace') { sqRespace(); return true; }
+  if (a === 'sqsplit' && o && o.kind === 'smsg') { var sp = sqSplitName(o.name); if (sp !== o.name) mutate(function () { o.name = sp; }); else toast('Nama ini sudah pendek atau sudah dua baris.'); return true; }
   if (a === 'sqprefix' && o && SQ_PREFIX[o.type]) { mutate(function () { o.name = SQ_PREFIX[o.type] + String(o.name || '').replace(/^(V_|C_|M_)/i, ''); }); return true; }
   if (a.indexOf('sqqnew:') === 0) { sqQNew(a.slice(7)); return true; }
   if (a === 'sqopadd' && o) { mutate(function () { o.ops = o.ops || []; var n = o.ops.length; o.ops.push({ g: o.op === 0 ? (n === 0 ? 'Iya' : n === 1 ? 'Tidak' : '') : '', h: 40 }); var need = 16 + o.ops.length * 40; if (o.h < need) o.h = need; }); return true; }
@@ -10444,13 +10804,14 @@ function seqCheck(D, items) {
     var n = String(f.name || '').trim(), ra = R(a), rb = R(b), lab = sqLabel(f) || 'pesan ke-' + (i + 1);
     if (!n && !f.isRet) items.push({ s: 'warn', t: 'Pesan ke-' + (i + 1) + ' (' + a.name + ' → ' + b.name + ') belum diberi nama.', ids: [f.id] });
     if (/[()]/.test(n)) items.push({ s: 'warn', t: 'Pesan "' + n + '" ditulis dengan kurung. Tulis namanya saja (mis. ' + n.replace(/\(.*$/, '') + ') — EA menambahkan "()" sendiri; isi di dalam kurung masuk ke kolom Parameter.', ids: [f.id] });
-    else if (/\s/.test(n)) items.push({ s: 'warn', t: 'Nama pesan "' + n + '" mengandung spasi. Nama method biasanya satu kata, mis. ' + n.replace(/[^\w\s]/g, '').replace(/\s+(\w)/g, function (m, c) { return c.toUpperCase(); }) + '.', ids: [f.id] });
+    else if (/[ \t]/.test(n)) items.push({ s: 'warn', t: 'Nama pesan "' + n + '" mengandung spasi. Nama method biasanya satu kata, mis. ' + n.replace(/[^\w\s]/g, '').replace(/\s+(\w)/g, function (m, c) { return c.toUpperCase(); }) + '.', ids: [f.id] });
     if (ra === 'A' && rb && rb !== 'V') items.push({ s: 'bad', t: 'Aktor "' + a.name + '" langsung ke ' + (rb === 'C' ? 'Controller' : 'Model') + ' "' + b.name + '" (' + lab + '). Aktor hanya berinteraksi dengan View (V_).', ids: [f.id] });
     if (ra === 'V' && rb === 'M') items.push({ s: 'bad', t: 'View "' + a.name + '" langsung ke Model "' + b.name + '" (' + lab + '). View harus lewat Controller (C_).', ids: [f.id] });
     if (ra === 'M' && rb && rb !== 'C' && rb !== 'M') items.push({ s: 'bad', t: 'Model "' + a.name + '" mengirim ke ' + (rb === 'V' ? 'View' : 'Aktor') + ' "' + b.name + '" (' + lab + '). Model hanya membalas ke Controller.', ids: [f.id] });
     if (ra === 'C' && rb === 'A') items.push({ s: 'bad', t: 'Controller "' + a.name + '" langsung ke Aktor "' + b.name + '" (' + lab + '). Tampilkan lewat View (V_).', ids: [f.id] });
     if (f.isRet && !called[f.to + '>' + f.from]) items.push({ s: 'warn', t: 'Pesan balasan "' + lab + '" dari ' + a.name + ' ke ' + b.name + ', padahal sebelumnya ' + b.name + ' belum memanggil ' + a.name + '.', ids: [f.id] });
     if (!f.isRet) called[f.from + '>' + f.to] = 1;
+    if (f.from !== f.to && lab) { var fc = fontCss(fs(f).font), lw = Math.max.apply(null, sqLabel(f).split(/\r?\n/).map(function (x) { return textW(x, fc); })), span = Math.abs(llCX(b) - llCX(a)); if (lw > span + 24) items.push({ s: 'warn', t: 'Label pesan "' + lab.replace(/\r?\n/g, ' ') + '" lebih lebar dari jarak ' + a.name + ' ke ' + b.name + ', jadi menimpa lifeline lain. Persingkat namanya, geser lifeline agar lebih jauh, atau pecah jadi dua baris (panel kanan → Enter di kolom Nama; EA juga menampilkannya dua baris).', ids: [f.id] }); }
     if (i === 0 && ra !== 'A' && L.some(function (e) { return e.type === 'sactor'; })) items.push({ s: 'warn', t: 'Pesan pertama sebaiknya dari Aktor (pemicu use case).', ids: [f.id] });
   });
   D.elements.forEach(function (e) {
@@ -11348,7 +11709,7 @@ function removeDiagram(id) {
 }
 function copySel(noSys) {
   var D = cur(), ids = new Set(sel); if (!ids.size) { if (!noSys) copyImage(null); return; }
-  clipb = { t: Date.now(), mode: isDfd() ? 'dfd' : 'uml', els: D.elements.filter(function (e) { return ids.has(e.id); }).map(clone), flows: [] };
+  clipb = { t: Date.now(), mode: isDfd() ? 'dfd' : 'uml', dk: D.kind || 'dfd', els: D.elements.filter(function (e) { return ids.has(e.id); }).map(clone), flows: [] };
   var have = new Set(clipb.els.map(function (e) { return e.id; }));
   clipb.flows = D.flows.filter(function (f) { return have.has(f.from) && have.has(f.to); }).map(clone);
   pasteN = 0;
@@ -11362,6 +11723,8 @@ function copySel(noSys) {
 function pasteClip() {
   if (!clipb || !clipb.els.length) return;
   if (clipb.mode && clipb.mode !== (isDfd() ? 'dfd' : 'uml')) { toast(clipb.mode === 'dfd' ? 'Yang disalin objek DFD. Tempel di mode DFD.' : 'Yang disalin objek UML. Tempel di mode UML.'); return; }
+  /* objek UML hanya bisa ditempel di jenis diagram yang punya objek itu (Activity ↛ Sequence, Use Case ↛ BPMN, dst.) */
+  if (!isDfd() && !pasteFits(cur(), clipb)) { var kk = clipb.dk && KINDS[clipb.dk] ? KINDS[clipb.dk].name : 'diagram lain'; toast('Yang disalin objek ' + kk + '. Tempel di ' + kk + ', bukan di ' + ((KINDS[cur().kind] || {}).name || 'diagram ini') + '.'); return; }
   pasteN++;
   mutate(function () {
     var D = cur(), map = {}, gmap = {}, ns = new Set(), off = 20 * pasteN;
@@ -11380,6 +11743,12 @@ function pasteClip() {
     });
     sel = ns;
   });
+}
+function pasteFits(D, c) {
+  var tb = TOOLBOX[D.kind]; if (!tb) return true;
+  var ok = {}; tb.forEach(function (g) { g[1].forEach(function (t) { ok[t.replace(/^c:/, '')] = 1; }); }); ok.note = 1; ok.ptext = 1;
+  if (D.kind === 'sequence') { ok.smsg = 1; }
+  return (c.els || []).every(function (e) { return ok[e.type]; }) && (c.flows || []).every(function (f) { return !f.kind || ok[f.kind] || f.kind === 'notelink'; });
 }
 function tidy(list) {
   var D = cur();
@@ -11790,17 +12159,19 @@ function startRename(id, suggestions) {
   else { cx = o.x + o.w / 2; cy = o.y + o.h / 2; w = Math.max(150, Math.min(o.w * v.k, 260)); }
   $('#dl').innerHTML = (suggestions || (isF ? flowSuggest(D, o) : [])).map(function (n) { return '<option value="' + esc(n) + '">'; }).join('');
   inl.style.left = (cx * v.k + v.x) + 'px'; inl.style.top = (cy * v.k + v.y) + 'px'; inl.style.width = w + 'px';
-  inl.value = o.name || ''; inl.dataset.id = id; inl.hidden = false; editing = true;
+  /* nama pesan sequence boleh dua baris (Enter di EA): di kotak satu baris ditampilkan sebagai ⏎, Shift+Enter menambah baris baru */
+  inl.value = String(o.name || '').replace(/\s*\r?\n\s*/g, ' ⏎ '); inl.dataset.id = id; inl.dataset.ml = isF && o.kind === 'smsg' ? '1' : ''; inl.title = inl.dataset.ml ? 'Shift+Enter = baris baru (tampil dua baris, seperti Enter di EA)' : ''; inl.hidden = false; editing = true;
   setTimeout(function () { inl.focus(); if (!isF && isSeq(D) && isLL(o) && /^[VCM]_\d*$/.test(o.name || '')) inl.setSelectionRange(2, inl.value.length); else inl.select(); }, 0);
 }
 function endRename(commit) {
   if (inl.hidden) return;
   var id = inl.dataset.id, val = inl.value.trim(); inl.hidden = true; editing = false;
+  val = inl.dataset.ml ? val.split(/\s*⏎\s*/).filter(Boolean).join('\r\n') : val.replace(/\s*⏎\s*/g, ' ');
   var D = cur(), o = id[0] === 'f' ? flOf(D, id) : elOf(D, id);
   if (commit && o && val !== o.name && (val || id[0] === 'f')) rename(o, val);
   cv.focus({ preventScroll: true });
 }
-inl.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); endRename(true); } else if (e.key === 'Escape') { e.preventDefault(); endRename(false); } e.stopPropagation(); });
+inl.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.shiftKey && inl.dataset.ml) { e.preventDefault(); var a = inl.selectionStart, b = inl.selectionEnd, head = inl.value.slice(0, a).replace(/\s+$/, '') + ' ⏎ ', rest = inl.value.slice(b).replace(/^\s+/, ''); inl.value = head + rest; inl.selectionStart = inl.selectionEnd = head.length; } else if (e.key === 'Enter') { e.preventDefault(); endRename(true); } else if (e.key === 'Escape') { e.preventDefault(); endRename(false); } e.stopPropagation(); });
 inl.addEventListener('blur', function () { endRename(true); });
 
 /* ---------- format ---------- */
