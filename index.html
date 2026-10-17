@@ -1181,6 +1181,8 @@ function blankDoc(name) {
     diagrams: [{ id: 'd1', name: 'Level 0', parent: null, elements: [], flows: [] }] };
 }
 function normDoc(d) {
+  /* proyek UML selalu memakai warna bawaan EA (garis hitam), juga bila datang tanpa "defaults" (link, berkas lama) */
+  if (d && d.kind === 'ea' && typeof normEa === 'function') return normEa(d);
   d.method = d.method || 0;
   d.prefs = Object.assign({ shadow: false, showFlowName: true, showPrcsNumber: true, showDecomp: true, showMigrated: true }, d.prefs || {});
   d.defaults = d.defaults || clone(PRESETS.classic);
@@ -4088,9 +4090,11 @@ function scParse(rows) {
     var out = [], cur = null;
     cell.forEach(function (p) {
       var t = p.t;
-      if (p.k === 'b' || /^[-–—]\s*$/.test(t) || (SC_BUL.test(t) && !/^-?\d/.test(t))) return;
+      /* rincian atribut di bawah langkah ("● username : varchar(30)") bukan langkah, tapi namanya disimpan (parameter pesan sequence) */
+      function attr() { if (!cur) return; var nm = scClean(t.replace(SC_BUL, '').replace(/^[oØü§vqŸ]\s+/, '')).split(/\s*[:(]/)[0].trim(); if (/^[A-Za-z_][\w ]{0,30}$/.test(nm) && nm.split(' ').length <= 3) { cur.det = cur.det || []; var k = nm.replace(/\s+/g, '_'); if (cur.det.indexOf(k) < 0 && cur.det.length < 12) cur.det.push(k); } }
+      if (p.k === 'b' || /^[-–—]\s*$/.test(t) || (SC_BUL.test(t) && !/^-?\d/.test(t))) { if (p.k === 'b' || SC_BUL.test(t)) attr(); return; }
       if (p.k === 'x' && cur) return;
-      if (cur && (SC_ATTR.test(t) || SC_DETAIL.test(t))) return;
+      if (cur && (SC_ATTR.test(t) || SC_DETAIL.test(t))) { attr(); return; }
       var m = scNum(t);
       if (!m && (/^\d{1,3}[.)]?$/.test(t) || SC_ATTR.test(t) || (SC_DETAIL.test(t) && !scVerb(t)))) return;
       if (m) { var tt = m.rest, ln = guess ? laneOf(tt, lane) : lane; if (guess) tt = tt.replace(/^(sistem|system|aktor|actor)\s*[:\-–—]\s*/i, ''); cur = { num: m.num, sub: m.sub, t: tt, lane: ln, typed: 1 }; out.push(cur); return; }
@@ -4671,85 +4675,163 @@ var SQV_MSGW = /\b(pesan|notifikasi|peringatan|alert|message|error|keterangan|tu
 var SQV_OPV = /^(menyimpan|simpan|mencatat|mengambil|mencari|cari|menghapus|hapus|mengubah|ubah|memperbarui|update|memeriksa|periksa|mengecek|cek|memvalidasi|validasi|menambahkan|tambah|save|delete|check|validate|verify|memverifikasi)\b/i;
 var SQV_CHECK = /^(memeriksa|periksa|mengecek|cek|memvalidasi|validasi|memverifikasi|verifikasi|mendeteksi|menghitung|mencocokkan|memastikan|check|validate|verify)\b/i;
 var SQV_LOCAL = /\b(kelengkapan|lengkap|format|ukuran|isian|input|tipe\s+file)\b/i;
+/* v53: pola sequence diagram mengikuti contoh laporan OOD (satu View per halaman, Controller per use case, Model "M_Data<Entitas>"):
+   aksi aktor → View yang sedang tampil (klikX(), inputX(atribut…)); View → Controller (x()); Controller → Model (getDataX(): array, insertDataX($data),
+   updateDataX($data), deleteDataX(id), countDataX(): int) + balasan returnDataX(); Controller → View (showHalX(), showFormX(), showMessage("…"), showPopUp("…")).
+   Alternatif → fragment alt bernama kondisinya, operand [Ya] (alur alternatif) dan [Tidak] (lanjut); beberapa alternatif di titik yang sama bersarang di [Tidak],
+   masing-masing didahului pemeriksaan (cekDataLengkap(), cekDataValid(), countData…()). */
+var SQV_VSTOP = /^(yang|berisi|sesuai|dengan|dan|untuk|ke|di|dari|pada|lama|baru|terbaru|sudah|diperbarui|tersebut|ini|itu|dalam|bentuk|format|semua|the|a|an|of|to|page)$/i;
+function sqvViewKey(t) {
+  var r = scClean(String(t).replace(/["“”].*$/, '')).replace(/^(menampilkan|tampilkan|memunculkan|munculkan|mengarahkan|arahkan|redirect|displays?|shows?|membuka|kembali)\s+(kembali\s+)?((ke|kepada|menuju|to)\s+)?(the\s+)?/i, '');
+  if (/landing\s*page/i.test(r)) return 'LandingPage';
+  var m, pre = 'Hal', ws;
+  if ((m = r.match(/^(halaman|page|laman)\s+(.*)$/i))) { r = m[2]; if (/^(beranda|dashboard|utama|home|awal)\b/i.test(r)) pre = ''; }
+  else if ((m = r.match(/^(form|formulir)\s+(.*)$/i))) { pre = 'Form'; r = m[2]; }
+  else if (/^(beranda|dashboard|home)\b/i.test(r)) pre = '';
+  ws = r.replace(/[^A-Za-z0-9\s]/g, ' ').split(/\s+/).filter(function (w) { return w && !SQV_VSTOP.test(w); });
+  if (pre === 'Form' && !ws.length) ws = ['Data'];
+  return pre + ws.slice(0, 3).map(sqvCap).join('') || 'Halaman';
+}
+var SQV_POP = /\b(pop\s*-?\s*up|popup|konfirmasi|confirmation|dialog)\b/i;
+var SQV_MSG2 = /\b(pesan|notifikasi|peringatan|alert|message|error|keterangan|tulisan|informasi\s+bahwa)\b/i;
+var SQV_PAGE = /\b(halaman|page|form|formulir|landing|beranda|dashboard|detail|daftar|riwayat|tabel|katalog|laporan|hasil|profil|jadwal|rincian|ringkasan|isi|data|list|menu\s+utama|bukti|kode)\b/i;
+var SQV_DATAV = /\b(daftar|riwayat|detail|rincian|tabel|hasil|laporan|jadwal|katalog|list|profil|rekap|bukti|kode|data|isi|status|ringkasan)\b/i;
+function sqvQuote(t) { var q = String(t).match(/["“”]([^"“”]{1,120})["“”]/); return q ? q[1].trim() : ''; }
 function scMakeSequence(u, name, P) {
   P = P || scPlan(u);
   var N = P.N, D = newDiagram('sequence'); D.name = name;
   var base = sqvBase(u), ents = [];
-  function entOf(s) { var e = sqvEntity(s.t); if (!e) e = ents[0] || sqvCamel((typeof dgParse === 'function' ? dgParse(u.name).obj : '') || base); if (ents.indexOf(e) < 0) ents.push(e); return e; }
-  /* model utama: entitas yang disimpan, kalau tidak ada dari nama use case */
   N.concat([].concat.apply([], u.alts.map(function (a) { return a.steps; }))).forEach(function (s) { if (s.lane === 's' && /^(menyimpan|simpan|mencatat|save)\b/i.test(s.t)) { var e = sqvEntity(s.t); if (e && ents.indexOf(e) < 0) ents.unshift(e); } });
+  function entOf(t) { var e = sqvEntity(t); if (!e) e = ents[0] || sqvCamel((typeof dgParse === 'function' ? dgParse(u.name).obj : '') || base); if (ents.indexOf(e) < 0) ents.push(e); return e; }
   var L = [], byKey = {};
   function ll(key, type, nm) {
     if (byKey[key]) return byKey[key];
     var t = TT[type], o = { id: uid('e'), type: type, name: nm, x: 0, y: SQ_TOP, w: t.size[0], h: SQ_LEN0, style: {} };
     L.push(o); byKey[key] = o; return o;
   }
-  var A = ll('A', 'sactor', u.colHead && !SC_COL_A.test(u.colHead) ? u.colHead : u.actor || 'Aktor'), V = ll('V', 'sboundary', 'V_' + base), C = ll('C', 'scontrol', 'C_' + base);
-  function M(s) { var e = entOf(s); return ll('M:' + e, 'sentity', 'M_' + e); }
-  /* urutan kejadian: pesan {a,b,n,ret}, buka/tutup fragment, ganti operand */
+  var A = ll('A', 'sactor', u.colHead && !SC_COL_A.test(u.colHead) ? u.colHead : u.actor || 'Aktor');
+  function C() { return ll('C', 'scontrol', 'C_' + base); }
+  function V(key) { return ll('V:' + key, 'sboundary', 'V_' + key); }
+  function M(t) { var e = entOf(t); return { o: ll('M:' + e, 'sentity', 'M_' + (/^data/i.test(e) ? e : 'Data' + e)), e: e }; }
   var ev = [];
-  function msg(a, b, n, ret) { ev.push({ k: 'm', a: a, b: b, n: n || '', ret: !!ret }); }
+  function msg(a, b, n, o) { ev.push(Object.assign({ k: 'm', a: a, b: b, n: n || '' }, o || {})); }
+  /* nama pesan aksi aktor: klikMenuKatalog(), inputFormLogin(username, password), pilihProduk() */
+  function actName(t) {
+    var w = scClean(t), v = (w.split(' ')[0] || '').toLowerCase();
+    if (/^(mengisi|isi|memasukkan|masukkan|menginput|input|mengetik|ketik|mengetikkan|melengkapi|fill|enter|type)$/.test(v)) return 'input' + sqvCamel(w.split(' ').slice(1).filter(function (x) { return !SQV_SKIP.test(x) && !/^(form|formulir|data|kolom|pada|ke|di|baru)$/i.test(x); }).slice(0, 2).join(' ') || 'Data');
+    return sqvMethod(t.replace(/\s+(yang|which|that)\s+.*$/i, ''), /^(klik|mengklik|menekan|tekan|click|press)$/.test(v) ? 3 : 2);
+  }
+  /* View → Controller: nama dari aksi aktor: klikMenuKatalog → katalog(), klikSimpan → simpan(), pilihProduk → produkDipilih() */
+  function ctlName(an, t) {
+    var m = String(an).match(/^(klik|tekan|pilih|buka|tap)(Menu|Icon|Ikon|Tombol|Button|Link|Tautan)?(.*)$/);
+    if (m && m[3]) { var r = m[3].charAt(0).toLowerCase() + m[3].slice(1); return m[1] === 'pilih' ? r + 'Dipilih' : r; }
+    return t ? sqvMethod(t) : 'proses';
+  }
+  function call(st, t) { if (!st.c) { msg(st.v, C(), st.last ? ctlName(st.last, t) : sqvMethod(t)); st.c = true; } }
+  function retM(mm) { msg(mm.o, C(), 'returnData' + mm.e.replace(/^Data/i, ''), { ret: 1 }); }
+  function show(st, key) { var vv = V(key); msg(C(), vv, 'show' + key); st.v = vv; }
   function step(s, st) {
     var t = scClean(s.t);
-    if (s.lane === 'a') { st.c = false; msg(A, V, sqvMethod(t)); return; }
-    var disp = SQV_DISP.test(t), data = disp && SQV_DATA.test(t) && !SQV_MSGW.test(t) && !/\b(form|halaman\s+(login|masuk|utama|beranda|dashboard))\b/i.test(t);
-    var call = function (nm) { if (!st.c) { msg(V, C, nm); st.c = true; } };
-    if (disp && !data) { var tn = sqvMethod(t); if (st.c) { msg(C, V, tn, true); st.c = false; } else msg(V, V, tn); return; }
-    if (data) { var en = M(s), gn = 'get' + en.name.replace(/^M_/, ''); call(sqvMethod(t)); msg(C, en, gn); msg(en, C, '', true); msg(C, V, sqvMethod(t), true); st.c = false; return; }
-    var nm = sqvMethod(t);
-    call(nm);
-    if (SQV_OPV.test(t) && !(SQV_LOCAL.test(t) && !/\b(email|username|password|akun|terdaftar|database)\b/i.test(t))) { var mm = M(s); msg(C, mm, nm); msg(mm, C, '', true); }
-    else msg(C, C, nm);
+    if (s.lane === 'a') {
+      var an = actName(t), args = s.det && /^input/.test(an) ? s.det.join(', ') : '';
+      st.c = false; st.op = 0; if (!st.v) st.v = V('Beranda');
+      msg(A, st.v, an, args ? { args: args } : null); if (!/^input/.test(an)) st.last = an; return;
+    }
+    if (!st.v) st.v = V('Beranda');
+    var disp = SQV_DISP.test(t), q = sqvQuote(t);
+    if (disp && (SQV_POP.test(t) || SQV_MSG2.test(t) || (q && !SQV_PAGE.test(t.replace(/["“”].*$/, ''))))) {
+      call(st, t);
+      var okm = !SQV_POP.test(t) && /\bberhasil\b/i.test(t) && !st.op && (t.match(/\b(dihapus|disimpan|ditambah(kan)?|dibuat|diubah|diperbarui|diupdate|terhapus|tersimpan|dikirim|diajukan)\b/i) || [])[1];
+      if (okm) { var mo = M(u.name), op = /hapus/i.test(okm) ? ['deleteData', 'id'] : /(ubah|perbarui|update)/i.test(okm) ? ['updateData', '$data'] : ['insertData', '$data']; msg(C(), mo.o, op[0] + mo.e.replace(/^Data/i, ''), { args: op[1] }); st.op = 1; }
+      msg(C(), st.v, SQV_POP.test(t) ? 'showPopUp' : 'showMessage', { args: q ? '"' + q + '"' : '' }); return;
+    }
+    if (disp) {
+      if (/\b(sebelumnya|semula)\b/i.test(t)) { call(st, t); msg(C(), st.v, 'show' + st.v.name.replace(/^V_/, '')); return; }
+      var key = sqvViewKey(t); call(st, t);
+      if (SQV_DATAV.test(t.replace(/^(\S+\s+)/, '')) && !/^form/i.test(key) && !/^(LandingPage|Beranda|Dashboard|Home)/.test(key)) { var mm = M(t); msg(C(), mm.o, 'getData' + mm.e.replace(/^Data/i, ''), { r: 'array' }); retM(mm); }
+      show(st, key); return;
+    }
+    call(st, t);
+    var v0 = (t.split(' ')[0] || '').toLowerCase(), m2;
+    if (/^(menyimpan|simpan|mencatat|menambahkan|tambahkan|save|insert)$/.test(v0)) { m2 = M(t); msg(C(), m2.o, 'insertData' + m2.e.replace(/^Data/i, ''), { args: '$data' }); st.op = 1; return; }
+    if (/^(mengubah|ubah|memperbarui|perbarui|update|mengupdate)$/.test(v0)) { m2 = M(t); msg(C(), m2.o, 'updateData' + m2.e.replace(/^Data/i, ''), { args: '$data' }); st.op = 1; return; }
+    if (/^(menghapus|hapus|delete)$/.test(v0)) { m2 = M(t); msg(C(), m2.o, 'deleteData' + m2.e.replace(/^Data/i, ''), { args: 'id' }); st.op = 1; return; }
+    if (/^(mengambil|ambil|mencari|cari|get|search)$/.test(v0)) { m2 = M(t); msg(C(), m2.o, 'getData' + m2.e.replace(/^Data/i, ''), { r: 'array' }); retM(m2); return; }
+    if (SQV_CHECK.test(t) && /\b(terdaftar|database|stok|ketersediaan|tersedia|kuota|saldo|jadwal|username|password|email|akun|login|pin|nim|sudah\s+ada|duplikat)\b/i.test(t)) { m2 = M(t); msg(C(), m2.o, sqvMethod(t)); retM(m2); return; }
+    msg(C(), C(), sqvMethod(t));
+  }
+  /* pemeriksaan sebelum percabangan, ditebak dari kondisi alternatif bila skenario tidak menuliskannya */
+  function synthCheck(g, st) {
+    var q = scClean((g.q || g.title || '') + ' ' + g.body.map(function (s) { return s.t; }).join(' ')), m3;
+    if (g.lane === 'a') return;
+    if (/\b(terdaftar|sudah\s+ada|sudah\s+digunakan|digunakan|duplikat|ditemukan|dikenal)\b/i.test(q)) { m3 = M(N.find(function (s) { return SQV_CHECK.test(s.t) || /^(menyimpan|simpan)/i.test(s.t); }) ? (N.find(function (s) { return SQV_CHECK.test(s.t); }) || N.find(function (s) { return /^(menyimpan|simpan)/i.test(s.t); })).t : u.name); msg(C(), m3.o, 'countData' + m3.e.replace(/^Data/i, ''), { r: 'int' }); retM(m3); return; }
+    if (/\b(stok|kuota|penuh|habis|tersedia|saldo|jadwal|slot)\b/i.test(q)) { m3 = M(N.find(function (s) { return SQV_CHECK.test(s.t); }) ? N.find(function (s) { return SQV_CHECK.test(s.t); }).t : u.name); var w = (q.match(/\b(stok|kuota|saldo|jadwal|slot)\b/i) || ['', 'ketersediaan'])[1]; msg(C(), m3.o, 'cek' + sqvCap(w) + m3.e.replace(/^Data/i, '')); retM(m3); return; }
+    if (/\b(lengkap|kosong|null|wajib|diisi|isi\s+data)\b/i.test(q)) { msg(C(), C(), 'cekDataLengkap'); return; }
+    if (/\b(valid|format|sesuai|benar|salah|ukuran|melebihi|rentang)\b/i.test(q)) { msg(C(), C(), 'cekDataValid'); }
   }
   function runEnd(i) { var j = i; if (N[i].lane === 'a') { while (j < N.length && N[j].lane === 'a') j++; } while (j < N.length && N[j].lane === 's') j++; return j; }
+  function cp(st) { return { c: st.c, v: st.v, last: st.last, op: st.op }; }
   function range(i0, i1, st, skipAt) {
     for (var i = i0; i < i1; i++) {
       var G = P.groups[i];
       if (G && i !== skipAt) {
         var end = Math.min(runEnd(i), i1);
-        if (N[i].lane === 's' && !st.c) { msg(V, C, sqvMethod(N[i].t)); st.c = true; }
-        /* pemeriksaan (cek/validasi/verifikasi) terjadi sebelum percabangan: keputusan diambil dari hasilnya */
-        var i2 = i; if (N[i].lane === 's') while (i2 < end - 1 && SQV_CHECK.test(N[i2].t)) { step(N[i2], st); i2++; }
-        ev.push({ k: 'open' });
-        G.forEach(function (g, gi) {
-          if (gi) ev.push({ k: 'sep' });
-          ev.push({ k: 'guard', g: scClean(String(g.q || g.title || '').replace(/\?+\s*$/, '')) });
-          var s2 = { c: st.c }; g.body.forEach(function (s) { step(s, s2); });
-          /* kembali ke langkah tampilan sebelumnya (mis. form login) atau bergabung lagi ke langkah di dalam percabangan: langkah itu ikut digambar di operand ini */
-          if (g.loop >= 0 && ((g.loop < i && N[g.loop].lane === 's' && SQV_DISP.test(N[g.loop].t)) || (g.loop >= i2 && g.loop < end))) { for (var q = g.loop; q < (g.loop >= i2 ? end : g.loop + 1); q++) step(N[q], s2); }
-        });
-        ev.push({ k: 'sep' }); ev.push({ k: 'guard', g: 'else' });
-        var s3 = { c: st.c }; range(i2, end, s3, i); st.c = s3.c;
-        ev.push({ k: 'close' });
+        if (N[i].lane === 's') call(st, N[i].t);
+        /* pemeriksaan yang ditulis di skenario terjadi sebelum percabangan: keputusan diambil dari hasilnya */
+        var i2 = i, had = false; if (N[i].lane === 's') while (i2 < end - 1 && SQV_CHECK.test(N[i2].t)) { step(N[i2], st); i2++; had = true; }
+        var chain = function (k, stc) {
+          if (k >= G.length) { range(i2, end, stc, i); return stc; }
+          var g = G[k];
+          if (!(k === 0 && had)) synthCheck(g, stc);
+          ev.push({ k: 'open', name: scClean(String(g.q || g.title || '')) });
+          ev.push({ k: 'guard', g: 'Ya' });
+          var s2 = cp(stc); g.body.forEach(function (s) { step(s, s2); });
+          /* kembali ke tampilan sebelumnya (mis. form) atau bergabung lagi di dalam percabangan: langkah itu ikut digambar */
+          if (g.loop >= 0 && ((g.loop < i && N[g.loop].lane === 's' && SQV_DISP.test(N[g.loop].t)) || (g.loop >= i2 && g.loop < end))) { for (var q2 = g.loop; q2 < (g.loop >= i2 ? end : g.loop + 1); q2++) step(N[q2], s2); }
+          ev.push({ k: 'sep' }); ev.push({ k: 'guard', g: 'Tidak' });
+          var s3 = chain(k + 1, cp(stc));
+          ev.push({ k: 'close' });
+          return s3;
+        };
+        var sf = chain(0, cp(st)); st.c = sf.c; st.v = sf.v; st.last = sf.last;
         i = end - 1; continue;
       }
       step(N[i], st);
     }
   }
-  range(0, N.length, { c: false }, -1);
-  /* letak lifeline: Aktor, View, Controller, Model … berjarak tetap */
-  var X0 = 40, GAPX = 170;
-  L.forEach(function (o, i) { o.x = Math.round(X0 + i * GAPX + (GAPX - o.w) / 2 - (GAPX - 90) / 2); });
-  /* tinggi: pesan pertama 135, berikutnya +35 (pesan ke diri sendiri +15); fragment memberi ruang tab & kondisi */
+  /* langkah pertama "Membuka website/aplikasi" + tampilan pertamanya = titik awal (View pertama), tanpa pesan */
+  var st0 = { c: false, v: null, last: '' }, i0 = 0;
+  if (N[0] && N[0].lane === 'a' && /^(membuka|buka|masuk|mengakses|akses|open|access|login\s+ke)\b.*\b(web|website|aplikasi|app|webapp|sistem|situs|system)\b/i.test(N[0].t) && !P.groups[0] && !P.groups[1]) {
+    if (N[1] && N[1].lane === 's' && SQV_DISP.test(N[1].t) && !SQV_MSG2.test(N[1].t)) { st0.v = V(sqvViewKey(N[1].t)); i0 = 2; } else { st0.v = V('Beranda'); i0 = 1; }
+  }
+  range(i0, N.length, st0, -1);
+  /* urutan lifeline: Aktor, lalu sesuai urutan pertama dipakai */
+  var first = {}; ev.forEach(function (e, k) { if (e.k !== 'm') return; [e.a, e.b].forEach(function (o) { if (first[o.id] == null) first[o.id] = k; }); });
+  L = L.filter(function (o) { return o === A || first[o.id] != null; }).sort(function (p, q) { return p === A ? -1 : q === A ? 1 : first[p.id] - first[q.id]; });
+  var X0 = 40, GAPX = 150, cx = L.map(function (o, i) { return X0 + 45 + i * GAPX; }), ix = {}; L.forEach(function (o, i) { ix[o.id] = i; });
+  /* jarak lifeline dilebarkan seperlunya supaya label pesan yang panjang tidak menimpa lifeline lain */
+  var fc = fontCss(fs({ kind: 'smsg', style: {} }).font);
+  ev.filter(function (e) { return e.k === 'm'; }).map(function (e) { var i = ix[e.a.id], j = ix[e.b.id], w = textW(sqLabel({ name: e.n, args: e.args, ret: e.r }), fc); if (i === j) { j = i + 1; w += 50; } return { lo: Math.min(i, j), hi: Math.max(i, j), w: w + 30 }; })
+    .filter(function (r) { return r.hi < cx.length; }).sort(function (p, q) { return (p.hi - p.lo) - (q.hi - q.lo); })
+    .forEach(function (r) { var need = r.w - (cx[r.hi] - cx[r.lo]); if (need > 0) for (var k = r.hi; k < cx.length; k++) cx[k] += Math.ceil(need); });
+  L.forEach(function (o, i) { o.x = Math.round(cx[i] - o.w / 2); });
   var y = SQ_FIRST, flows = [], stack = [], frags = [];
   ev.forEach(function (e) {
-    if (e.k === 'open') { var fr = { y: y - 4, ops: [], cur: { g: '', y: y - 4 }, lo: 1e9, hi: -1e9, kids: [] }; if (stack.length) stack[stack.length - 1].kids.push(fr); stack.push(fr); frags.push(fr); y += 50; return; }
+    if (e.k === 'open') { var fr = { y: y - 4, name: e.name, ops: [], cur: { g: '', y: y - 4 }, lo: 1e9, hi: -1e9, kids: [] }; if (stack.length) stack[stack.length - 1].kids.push(fr); stack.push(fr); frags.push(fr); y += 50; return; }
     if (e.k === 'guard') { stack[stack.length - 1].cur.g = e.g; return; }
     if (e.k === 'sep') { var f0 = stack[stack.length - 1]; f0.ops.push(f0.cur); f0.cur = { g: '', y: y - 8 }; y += 32; return; }
     if (e.k === 'close') { var f1 = stack.pop(); f1.ops.push(f1.cur); f1.h = y - 14 - f1.y; delete f1.cur; y += 6; return; }
-    if (e.k === 'back') return;
     var self = e.a === e.b, f = { id: uid('f'), kind: 'smsg', from: e.a.id, to: e.b.id, name: e.n, y: y, bends: [], style: {} };
-    if (e.ret) f.isRet = true;
+    if (e.ret) f.isRet = true; if (e.args) f.args = e.args; if (e.r) f.ret = e.r;
     flows.push(f);
     stack.forEach(function (fr) { [e.a, e.b].forEach(function (o) { var cx = o.x + o.w / 2; fr.lo = Math.min(fr.lo, cx); fr.hi = Math.max(fr.hi, cx + (self ? 45 : 0)); }); });
     y += SQ_GAP + (self ? 15 : 0);
   });
-  /* fragment: melingkupi lifeline yang terlibat; fragment luar sedikit lebih lebar dari yang di dalamnya */
   function widen(fr) { fr.kids.forEach(function (k) { widen(k); fr.lo = Math.min(fr.lo, k.x + 20); fr.hi = Math.max(fr.hi, k.x + k.w - 20); }); fr.x = Math.round(fr.lo - 40 - (fr.kids.length ? 10 : 0)); fr.w = Math.round(fr.hi + 60 + (fr.kids.length ? 10 : 0) - fr.x); }
   frags.filter(function (fr) { return !frags.some(function (p) { return p.kids.indexOf(fr) >= 0; }); }).forEach(widen);
   var fels = frags.map(function (fr) {
     var ops = fr.ops.map(function (o, i) { var nx = fr.ops[i + 1]; return { g: o.g, h: Math.round((nx ? nx.y : fr.y + fr.h) - o.y) }; });
-    return { id: uid('e'), type: 'fragment', op: 0, ops: ops, name: '', x: fr.x, y: Math.round(fr.y), w: fr.w, h: Math.round(fr.h), style: {} };
+    return { id: uid('e'), type: 'fragment', op: 0, ops: ops, name: fr.name || '', x: fr.x, y: Math.round(fr.y), w: fr.w, h: Math.round(fr.h), style: {} };
   });
   D.elements = L.concat(fels); D.flows = flows;
   sqNormalize(D);
@@ -10222,7 +10304,7 @@ function sqBars(e, st) {
   var M = SQ_LAST && SQ_LAST.bars[e.id]; if (!M || !M.length) return '';
   var fill = sqFill(e, st), sk = sqStroke(e, st), s = '';
   M.slice().sort(function (a, b) { return a.lvl - b.lvl || a.y0 - b.y0; }).forEach(function (b) {
-    s += '<rect class="sqbar" x="' + b.x0 + '" y="' + b.y0 + '" width="9" height="' + Math.max(9, b.y1 - b.y0) + '" rx="2.5" fill="' + fill + '" stroke="' + sk + '"/>';
+    s += '<rect class="sqbar" x="' + b.x0 + '" y="' + b.y0 + '" width="9" height="' + Math.max(9, b.y1 - b.y0) + '" fill="' + fill + '" stroke="' + sk + '"/>';
   });
   return '<g class="sqbars">' + s + '</g>';
 }
