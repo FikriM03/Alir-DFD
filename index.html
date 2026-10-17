@@ -4685,7 +4685,7 @@ function sqvViewKey(t) {
   var r = scClean(String(t).replace(/["“”].*$/, '')).replace(/^(menampilkan|tampilkan|memunculkan|munculkan|mengarahkan|arahkan|redirect|displays?|shows?|membuka|kembali)\s+(kembali\s+)?((ke|kepada|menuju|to)\s+)?(the\s+)?/i, '');
   if (/landing\s*page/i.test(r)) return 'LandingPage';
   var m, pre = 'Hal', ws;
-  if ((m = r.match(/^(halaman|page|laman)\s+(.*)$/i))) { r = m[2]; if (/^(beranda|dashboard|utama|home|awal)\b/i.test(r)) pre = ''; }
+  if ((m = r.match(/^(halaman|page|laman)\s+(.*)$/i))) { r = m[2]; if (/^(beranda|dashboard|utama|home|awal)\b/i.test(r)) pre = ''; else if (/^(form|formulir)\s+\S/i.test(r)) { pre = 'Form'; r = r.replace(/^(form|formulir)\s+/i, ''); } }
   else if ((m = r.match(/^(form|formulir)\s+(.*)$/i))) { pre = 'Form'; r = m[2]; }
   else if (/^(beranda|dashboard|home)\b/i.test(r)) pre = '';
   ws = r.replace(/[^A-Za-z0-9\s]/g, ' ').split(/\s+/).filter(function (w) { return w && !SQV_VSTOP.test(w); });
@@ -4716,24 +4716,26 @@ function scMakeSequence(u, name, P) {
   var ev = [];
   function msg(a, b, n, o) { ev.push(Object.assign({ k: 'm', a: a, b: b, n: n || '' }, o || {})); }
   /* nama pesan aksi aktor: klikMenuKatalog(), inputFormLogin(username, password), pilihProduk() */
-  function actName(t) {
+  function actName(t, st) {
     var w = scClean(t), v = (w.split(' ')[0] || '').toLowerCase();
-    if (/^(mengisi|isi|memasukkan|masukkan|menginput|input|mengetik|ketik|mengetikkan|melengkapi|fill|enter|type)$/.test(v)) return 'input' + sqvCamel(w.split(' ').slice(1).filter(function (x) { return !SQV_SKIP.test(x) && !/^(form|formulir|data|kolom|pada|ke|di|baru)$/i.test(x); }).slice(0, 2).join(' ') || 'Data');
-    return sqvMethod(t.replace(/\s+(yang|which|that)\s+.*$/i, ''), /^(klik|mengklik|menekan|tekan|click|press)$/.test(v) ? 3 : 2);
+    if (/^(mengisi|isi|memasukkan|masukkan|menginput|input|mengetik|ketik|mengetikkan|melengkapi|fill|enter|type)$/.test(v) || (st && st.v && /^V_Form/.test(st.v.name) && /^(mengubah|ubah|mengedit|edit|memperbarui|perbarui|memperbaiki)$/.test(v))) return 'input' + sqvCamel(w.split(' ').slice(1).filter(function (x) { return !SQV_SKIP.test(x) && !/^(form|formulir|kolom|pada|ke|di|baru)$/i.test(x); }).slice(0, 2).join(' ') || 'Data');
+    var pick = /\s(yang\s+(ingin|akan|mau|hendak)|salah\s+satu)\b/i.test(w) && /^(menekan|tekan|klik|mengklik|memilih|pilih|click|select)$/.test(v) && !/\b(tombol|button|menu|ikon|icon)\b/i.test(w);
+    var nm = sqvMethod(w.replace(/\s+(yang|which|that)\s+.*$/i, '').replace(/\bsalah\s+satu\s+/i, ''), /^(klik|mengklik|menekan|tekan|click|press)$/.test(v) ? 3 : 2);
+    return pick ? nm.replace(/^pilih/, 'klik') + 'Dipilih' : nm;
   }
   /* View → Controller: nama dari aksi aktor: klikMenuKatalog → katalog(), klikSimpan → simpan(), pilihProduk → produkDipilih() */
   function ctlName(an, t) {
     var m = String(an).match(/^(klik|tekan|pilih|buka|tap)(Menu|Icon|Ikon|Tombol|Button|Link|Tautan)?(.*)$/);
-    if (m && m[3]) { var r = m[3].charAt(0).toLowerCase() + m[3].slice(1); return m[1] === 'pilih' ? r + 'Dipilih' : r; }
+    if (m && m[3]) { var r = m[3].charAt(0).toLowerCase() + m[3].slice(1); return m[1] === 'pilih' && !/Dipilih$/.test(r) ? r + 'Dipilih' : r; }
     return t ? sqvMethod(t) : 'proses';
   }
   function call(st, t) { if (!st.c) { msg(st.v, C(), st.last ? ctlName(st.last, t) : sqvMethod(t)); st.c = true; } }
   function retM(mm) { msg(mm.o, C(), 'returnData' + mm.e.replace(/^Data/i, ''), { ret: 1 }); }
-  function show(st, key) { var vv = V(key); msg(C(), vv, 'show' + key); st.v = vv; }
+  function show(st, key, det) { var vv = V(key); msg(C(), vv, 'show' + key); st.v = vv; if (det && det.length && !vv._det) vv._det = det; }
   function step(s, st) {
     var t = scClean(s.t);
     if (s.lane === 'a') {
-      var an = actName(t), args = s.det && /^input/.test(an) ? s.det.join(', ') : '';
+      var an = actName(t, st), dt = s.det || (st.v && st.v._det), args = dt && /^input/.test(an) ? dt.join(', ') : '';
       st.c = false; st.op = 0; if (!st.v) st.v = V('Beranda');
       msg(A, st.v, an, args ? { args: args } : null); if (!/^input/.test(an)) st.last = an; return;
     }
@@ -4749,7 +4751,7 @@ function scMakeSequence(u, name, P) {
       if (/\b(sebelumnya|semula)\b/i.test(t)) { call(st, t); msg(C(), st.v, 'show' + st.v.name.replace(/^V_/, '')); return; }
       var key = sqvViewKey(t); call(st, t);
       if (SQV_DATAV.test(t.replace(/^(\S+\s+)/, '')) && !/^form/i.test(key) && !/^(LandingPage|Beranda|Dashboard|Home)/.test(key)) { var mm = M(t); msg(C(), mm.o, 'getData' + mm.e.replace(/^Data/i, ''), { r: 'array' }); retM(mm); }
-      show(st, key); return;
+      show(st, key, s.det); return;
     }
     call(st, t);
     var v0 = (t.split(' ')[0] || '').toLowerCase(), m2;
