@@ -704,9 +704,10 @@ html.notrans *, html.notrans *::before { transition: none !important; }
 .st-card i { display: inline-flex; align-items: center; gap: 6px; margin-top: auto; padding-top: 6px; font-style: normal; font: 600 14px var(--f-body); color: var(--fg); }
 .st-card i svg { width: 16px; height: 16px; fill: none; stroke: var(--acc); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .st-foot { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px 32px; flex-wrap: wrap; margin: 0; padding-top: 20px; border-top: 1px solid var(--bd); }
-.st-note { display: flex; gap: 10px; align-items: flex-start; flex: 1 1 420px; margin: 0; padding: 0; border: 0; background: none; border-radius: 0; font-size: 13.5px; line-height: 1.55; color: var(--mut); }
-.st-note svg { flex: none; width: 18px; height: 18px; margin-top: 1px; fill: none; stroke: var(--acc); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.st-note b { color: var(--fg); font-weight: 600; }
+#start .st-note { display: flex; gap: 10px; align-items: flex-start; flex: 1 1 420px; margin: 0; padding: 0; border: 0; background: none; border-radius: 0; font-size: 13.5px; line-height: 1.55; color: var(--mut); }
+#start .st-note svg { flex: none; width: 18px; height: 18px; margin-top: 1px; fill: none; stroke: var(--acc); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.modal .st-note { background: var(--card); }
+#start .st-note b { color: var(--fg); font-weight: 600; }
 .st-save { flex: 0 1 380px; margin: 0; font: 400 12px/1.55 var(--f-mono); color: var(--mut); }
 @media (max-width: 900px) {
   #start .st-top { padding: 12px 16px; }
@@ -4961,7 +4962,7 @@ var SQV_POP = /\b(pop\s*-?\s*up|popup|konfirmasi|confirmation|dialog)\b/i;
 var SQV_MSG2 = /\b(pesan|notifikasi|peringatan|alert|message|error|keterangan|tulisan|informasi\s+bahwa)\b/i;
 var SQV_PAGE = /\b(halaman|page|form|formulir|landing|beranda|dashboard|detail|daftar|riwayat|tabel|katalog|laporan|hasil|profil|jadwal|rincian|ringkasan|isi|data|list|menu\s+utama|bukti|kode)\b/i;
 var SQV_DATAV = /\b(daftar|riwayat|detail|rincian|tabel|hasil|laporan|jadwal|katalog|list|profil|rekap|bukti|kode|data|isi|status|ringkasan)\b/i;
-/* v55: pilihan generator sequence (disimpan per browser): verb 'scen' = kata kerja pesan aktor mengikuti skenario (Menekan → tekan…, Klik → klik…),
+/* v55: pilihan generator sequence (disimpan per browser): verb 'scen' = kata kerja pesan aktor PERSIS seperti skenario (Menekan → menekan…, Klik → klik…),
    'klik' = selalu klik…; reget = ambil ulang data setelah Batal (bawaan mati, mengikuti contoh materi: batal() lalu langsung show…()) */
 function sqOpt() { var o = { verb: 'scen', reget: false }; try { var j = JSON.parse(localStorage.getItem('alir-sqopt') || 'null'); if (j) { if (j.verb === 'klik') o.verb = 'klik'; o.reget = !!j.reget; } } catch (e) { /* bawaan */ } return o; }
 function sqOptSave(o) { try { localStorage.setItem('alir-sqopt', JSON.stringify(o)); } catch (e) { /* tidak tersimpan */ } }
@@ -5009,14 +5010,21 @@ function scMakeSequence(u, name, P, OPT) {
     }
     var pick = !!VERB[v] && /\s(yang\s+(ingin|akan|mau|hendak)|salah\s+satu)\b/i.test(w) && !/\b(tombol|button|menu|ikon|icon)\b/i.test(w);
     var nm = sqvMethod(w.replace(/\s+(yang|which|that)\s+.*$/i, '').replace(/\bsalah\s+satu\s+/i, ''), VERB[v] && VERB[v] !== 'pilih' ? 3 : 2);
-    if (VERB[v]) nm = nm.replace(/^(klik|pilih)/, verbOf(v));
+    /* v58: bawaan = kata kerja PERSIS seperti di skenario (Menekan → menekanSimpan(), Klik → klikSimpan(), Memilih → memilihProduk());
+       pilihan "selalu klik" = kata kerja tekan/klik/ketuk menjadi klik… */
+    var v0 = (w.replace(/["“”'‘’]/g, ' ').replace(/[^A-Za-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean)[0] || '').toLowerCase(), root = SQV_ROOT[v0] || v0;
+    if (nm.indexOf(root) === 0) {
+      var base = nm.slice(root.length), vb = OPT.verb === 'klik' ? (VERB[v0] ? verbOf(v0) : root) : v0;
+      if (st) { st.lastBase = base; st.lastRoot = root; }
+      nm = vb + base;
+    } else if (st) { st.lastBase = ''; st.lastRoot = ''; }
     if (pick && st) st.pick = sqvCamel(w.replace(/^\S+\s+/, '').replace(/\bsalah\s+satu\s+/i, '').replace(/\s+(yang|which|that)\s+.*$/i, '').split(/\s+/).filter(function (x) { return x && !SQV_SKIP.test(x); }).slice(0, 2).join(' ')) || 'Data';
     return nm;
   }
   /* View → Controller tanpa kata kerja klik/tekan: tekanMenuArtikel → artikel(), tekanSimpan → simpan(), pilihProduk → produkDipilih() */
-  function ctlName(an, t) {
-    var m = String(an).match(/^(klik|tekan|ketuk|tap|pilih|buka)(Menu|Icon|Ikon|Tombol|Button|Link|Tautan)?(.*)$/);
-    if (m && m[3]) { var r = m[3].charAt(0).toLowerCase() + m[3].slice(1); return m[1] === 'pilih' && !/Dipilih$/.test(r) ? r + 'Dipilih' : r; }
+  function ctlName(st, t) {
+    var m = /^(klik|pilih|buka)$/.test(st.lastRoot || '') && String(st.lastBase || '').match(/^(Menu|Icon|Ikon|Tombol|Button|Link|Tautan)?(.+)$/);
+    if (m && m[2]) { var r = m[2].charAt(0).toLowerCase() + m[2].slice(1); return st.lastRoot === 'pilih' && !/Dipilih$/.test(r) ? r + 'Dipilih' : r; }
     return t ? sqvMethod(t) : 'proses';
   }
   /* satu nama pesan View → Controller hanya untuk satu aksi; bila bentrok, nama dibuat lebih jelas dari kalimat aksinya */
@@ -5025,10 +5033,10 @@ function scMakeSequence(u, name, P, OPT) {
     if (st.c) return; st.c = true;
     var nm, o = null;
     if (st.pick) { var key = SQV_DISP.test(t) ? sqvViewKey(t) : ''; nm = (/Detail/.test(key) ? 'detail' : 'pilih') + st.pick; o = { args: idOf(st.pick) }; }
-    else nm = st.last ? ctlName(st.last, t) : sqvMethod(t);
+    else nm = st.last ? ctlName(st, t) : sqvMethod(t);
     var act = st.last || t;
     if (ctlUsed[nm] && ctlUsed[nm] !== act) {
-      var alt = sqvMethod(st.lastT || t, 4).replace(/^(klik|tekan|ketuk|tap|pilih|buka)/, ''); alt = alt.charAt(0).toLowerCase() + alt.slice(1);
+      var alt = sqvMethod(st.lastT || t, 4).replace(/^(klik|tekan|ketuk|tap|pilih|buka|menekan|mengklik|memilih|membuka)/, ''); alt = alt.charAt(0).toLowerCase() + alt.slice(1);
       var nm2 = alt && !ctlUsed[alt] ? alt : nm, k = 2; while (ctlUsed[nm2] && ctlUsed[nm2] !== act) nm2 = nm + (k++); nm = nm2;
     }
     ctlUsed[nm] = act;
@@ -5111,7 +5119,7 @@ function scMakeSequence(u, name, P, OPT) {
     if (/\b(valid|format|sesuai|benar|salah|ukuran|melebihi|rentang)\b/i.test(q)) { msg(C(), C(), (/\b(valid|format)\b/i.test(qq) && chkName(qq)) || 'cekDataValid'); }
   }
   function runEnd(i) { var j = i; if (N[i].lane === 'a') { while (j < N.length && N[j].lane === 'a') j++; } while (j < N.length && N[j].lane === 's') j++; return j; }
-  function cp(st) { return { c: st.c, v: st.v, last: st.last, lastT: st.lastT, op: st.op, msg: st.msg, pick: st.pick, inAlt: st.inAlt }; }
+  function cp(st) { return { c: st.c, v: st.v, last: st.last, lastT: st.lastT, lastBase: st.lastBase, lastRoot: st.lastRoot, op: st.op, msg: st.msg, pick: st.pick, inAlt: st.inAlt }; }
   function range(i0, i1, st, skipAt) {
     for (var i = i0; i < i1; i++) {
       var G = P.groups[i];
@@ -5246,7 +5254,7 @@ function scenarioModal(pre, target) {
     '<div class="row"><button class="btn" id="scdocx">Buka berkas .docx…</button><input type="file" id="scfile" accept=".docx" hidden><span class="scmsg" id="scmsg"></span></div>' +
     '<div id="sclist"></div><div id="scfixw"></div>' +
     '<label class="scchk"><input type="checkbox" id="scuc"> Buat juga Use Case Diagram dari semua skenario ini</label>' +
-    '<div class="scsq" id="scsq"' + (tgt === 'sequence' ? '' : ' hidden') + '><span>Sequence:</span><label>Pesan aktor <select id="scverb"><option value="scen">ikuti kata kerja skenario (Menekan → tekan…)</option><option value="klik">selalu klik…</option></select></label>' +
+    '<div class="scsq" id="scsq"' + (tgt === 'sequence' ? '' : ' hidden') + '><span>Sequence:</span><label>Pesan aktor <select id="scverb"><option value="scen">kata kerja persis seperti skenario (Menekan → menekan…)</option><option value="klik">selalu klik…</option></select></label>' +
     '<label class="scchk"><input type="checkbox" id="screget"> Ambil ulang data (getData) setelah Batal</label></div>' +
     '<p class="st-note">Tips: nomor langkah di Alternative Flow (atau judul seperti "6a. Password salah" / "… (langkah 6)") dipakai untuk menentukan letak decision. Tanpa nomor, letaknya ditebak dari isi kalimat. Kalau langkah terakhir alternatif sama dengan langkah di Normal Flow (misalnya "Menampilkan Form Login") atau berbunyi "Kembali ke langkah 4" / "Kembali ke halaman login", garisnya dikembalikan ke langkah itu. Boleh menyalin satu dokumen penuh: judul bab, paragraf penjelasan, dan tabel lain (misalnya kamus data) tidak ikut dijadikan aktivitas.</p>';
   var ttl = fixed ? (tgt === 'sequence' ? 'Skenario → Sequence Diagram' : 'Skenario → Activity Diagram') : 'Skenario → Diagram';
