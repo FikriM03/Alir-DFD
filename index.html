@@ -295,6 +295,10 @@ circle.mid { fill: #e03e2d; opacity: .35; } circle.mid:hover { opacity: .9; }
 textarea.in.sqname { resize: vertical; min-height: 32px; font-family: inherit; line-height: 1.35; }
 .scto { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 13px; margin: 2px 0 8px; }
 .scto label { display: flex; gap: 5px; align-items: center; cursor: pointer; }
+.scsq { display: flex; gap: 6px 14px; align-items: center; flex-wrap: wrap; font-size: 13px; margin: 6px 0 2px; }
+.scsq[hidden] { display: none; }
+.scsq label { display: flex; gap: 5px; align-items: center; }
+.scsq select { font: inherit; max-width: 100%; }
 .scfix { border: 1px solid #f0c27a; background: #fff8ec; border-radius: 8px; padding: 8px 10px; margin-top: 8px; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; }
 .scfixh { color: #92400e; font-weight: 600; }
 .scfixr { display: flex; flex-direction: column; gap: 3px; }
@@ -4169,7 +4173,7 @@ function scParse(rows) {
       if (SC_KEY_NAME.test(key)) { setName(val); return true; }
       if (SC_KEY_ACTOR.test(key)) { if (/^(sistem|system)$/i.test(scClean(val))) { if (!u) start(true); colA = 0; colS = 1; if (!sec) sec = u.normal; return true; } if (!u) start(true); var al = scClean(val).split(/\s*[,;/]\s*|\s+dan\s+|\s+and\s+/).filter(Boolean); if (!u.actor) u.actor = al[0]; if (al.length > 1 && !u.sub) u.multi = al; return true; }
       /* catatan/keterangan di tengah alur yang sedang berjalan tidak memutus alur */
-      if (SC_KEY_SKIP.test(key)) { if (!u) start(true); if (state === 'flow' && sec && sec.length) return true; sec = null; state = 'meta'; return true; }
+      if (SC_KEY_SKIP.test(key)) { if (!u) start(true); if (/^(post[\s-]*conditions?|kondisi\s*akhir|syarat\s*akhir|success\s*guarantee)/i.test(key) && val) u.post = scClean(val); if (state === 'flow' && sec && sec.length) return true; sec = null; state = 'meta'; return true; }
     }
     if (kvKey == null && (m = t.match(/^([A-Za-z].{2,80}?\S)\s*[(\[]\s*(u\.?\s*c|use\s*case)\s*[-_.#]?\s*(\d{1,3}[a-z]?)\s*[)\]]\s*$/i)) && m[1].split(' ').length <= 10) {
       if (!u || busy() || u.no) start(); u.no = 'UC' + m[3]; u.name = cleanName(m[1]); return true;
@@ -4696,9 +4700,13 @@ var SQV_POP = /\b(pop\s*-?\s*up|popup|konfirmasi|confirmation|dialog)\b/i;
 var SQV_MSG2 = /\b(pesan|notifikasi|peringatan|alert|message|error|keterangan|tulisan|informasi\s+bahwa)\b/i;
 var SQV_PAGE = /\b(halaman|page|form|formulir|landing|beranda|dashboard|detail|daftar|riwayat|tabel|katalog|laporan|hasil|profil|jadwal|rincian|ringkasan|isi|data|list|menu\s+utama|bukti|kode)\b/i;
 var SQV_DATAV = /\b(daftar|riwayat|detail|rincian|tabel|hasil|laporan|jadwal|katalog|list|profil|rekap|bukti|kode|data|isi|status|ringkasan)\b/i;
+/* v55: pilihan generator sequence (disimpan per browser): verb 'scen' = kata kerja pesan aktor mengikuti skenario (Menekan → tekan…, Klik → klik…),
+   'klik' = selalu klik…; reget = ambil ulang data setelah Batal (bawaan mati, mengikuti contoh materi: batal() lalu langsung show…()) */
+function sqOpt() { var o = { verb: 'scen', reget: false }; try { var j = JSON.parse(localStorage.getItem('alir-sqopt') || 'null'); if (j) { if (j.verb === 'klik') o.verb = 'klik'; o.reget = !!j.reget; } } catch (e) { /* bawaan */ } return o; }
+function sqOptSave(o) { try { localStorage.setItem('alir-sqopt', JSON.stringify(o)); } catch (e) { /* tidak tersimpan */ } }
 function sqvQuote(t) { var q = String(t).match(/["“”]([^"“”]{1,120})["“”]/); return q ? q[1].trim() : ''; }
-function scMakeSequence(u, name, P) {
-  P = P || scPlan(u);
+function scMakeSequence(u, name, P, OPT) {
+  P = P || scPlan(u); OPT = OPT || sqOpt();
   var N = P.N, D = newDiagram('sequence'); D.name = name;
   var base = sqvBase(u), ents = [];
   N.concat([].concat.apply([], u.alts.map(function (a) { return a.steps; }))).forEach(function (s) { if (s.lane === 's' && /^(menyimpan|simpan|mencatat|save)\b/i.test(s.t)) { var e = sqvEntity(s.t); if (e && ents.indexOf(e) < 0) ents.unshift(e); } });
@@ -4711,68 +4719,138 @@ function scMakeSequence(u, name, P) {
   }
   var A = ll('A', 'sactor', u.colHead && !SC_COL_A.test(u.colHead) ? u.colHead : u.actor || 'Aktor');
   function C() { return ll('C', 'scontrol', 'C_' + base); }
-  function V(key) { return ll('V:' + key, 'sboundary', 'V_' + key); }
+  var actC = sqvCamel(A.name) || 'Aktor';
+  /* v55: beranda per aktor (V_BerandaAdmin, V_BerandaPelanggan) */
+  function V(key) { if (key === 'Beranda') key = 'Beranda' + actC; return ll('V:' + key, 'sboundary', 'V_' + key); }
+  function core(k) { return String(k).replace(/^V_/, '').replace(/(Hal|Halaman|Form|Detail|Daftar|Ubah|Tambah|Edit|Buat|Perbarui)/g, ''); }
+  /* nama id: atribut berawalan id_ di daftar atribut bila ada; akun/profil = milik aktor yang login (id_admin); selain itu id_<entitas> */
+  function idOf(e) {
+    var lo = String(e || '').replace(/^Data/, '').replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase(), found = '';
+    L.forEach(function (o) { (o._det || []).forEach(function (a) { if (!found && /^id_/i.test(a) && (!lo || a.toLowerCase().indexOf(lo) >= 0)) found = a; }); });
+    if (found) return found;
+    if (/^(akun|profil|user|pengguna|account)$/i.test(lo)) return 'id_' + actC.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase();
+    return 'id_' + (lo || 'data');
+  }
   function M(t) { var e = entOf(t); return { o: ll('M:' + e, 'sentity', 'M_' + (/^data/i.test(e) ? e : 'Data' + e)), e: e }; }
   var ev = [];
   function msg(a, b, n, o) { ev.push(Object.assign({ k: 'm', a: a, b: b, n: n || '' }, o || {})); }
-  /* nama pesan aksi aktor: klikMenuKatalog(), inputFormLogin(username, password), pilihProduk() */
+  /* nama pesan aksi aktor. v55: kata kerja mengikuti skenario (Menekan → tekan…, Klik → klik…, Memilih → pilih…) kecuali pilihan "selalu klik";
+     mengisi/mengubah isi form → input<NamaForm>(atribut…); memilih satu item di daftar → <kata kerja><Entitas>() lalu View → Controller detail<Entitas>(id_…) */
+  var VERB = { menekan: 'tekan', tekan: 'tekan', press: 'tekan', mengklik: 'klik', klik: 'klik', click: 'klik', mengetuk: 'ketuk', ketuk: 'ketuk', tap: 'tap', memilih: 'pilih', pilih: 'pilih', select: 'pilih', choose: 'pilih' };
+  function verbOf(v) { return OPT.verb === 'klik' && /^(tekan|ketuk|tap|klik)$/.test(VERB[v] || '') ? 'klik' : VERB[v]; }
+  function isInputV(v, st) { return /^(mengisi|isi|memasukkan|masukkan|menginput|input|mengetik|ketik|mengetikkan|melengkapi|fill|enter|type)$/.test(v) || !!(st && st.v && /^V_Form/.test(st.v.name) && /^(mengubah|ubah|mengedit|edit|memperbarui|perbarui|memperbaiki)$/.test(v)); }
   function actName(t, st) {
     var w = scClean(t), v = (w.split(' ')[0] || '').toLowerCase();
-    if (/^(mengisi|isi|memasukkan|masukkan|menginput|input|mengetik|ketik|mengetikkan|melengkapi|fill|enter|type)$/.test(v) || (st && st.v && /^V_Form/.test(st.v.name) && /^(mengubah|ubah|mengedit|edit|memperbarui|perbarui|memperbaiki)$/.test(v))) return 'input' + sqvCamel(w.split(' ').slice(1).filter(function (x) { return !SQV_SKIP.test(x) && !/^(form|formulir|kolom|pada|ke|di|baru)$/i.test(x); }).slice(0, 2).join(' ') || 'Data');
-    var pick = /\s(yang\s+(ingin|akan|mau|hendak)|salah\s+satu)\b/i.test(w) && /^(menekan|tekan|klik|mengklik|memilih|pilih|click|select)$/.test(v) && !/\b(tombol|button|menu|ikon|icon)\b/i.test(w);
-    var nm = sqvMethod(w.replace(/\s+(yang|which|that)\s+.*$/i, '').replace(/\bsalah\s+satu\s+/i, ''), /^(klik|mengklik|menekan|tekan|click|press)$/.test(v) ? 3 : 2);
-    return pick ? nm.replace(/^pilih/, 'klik') + 'Dipilih' : nm;
+    if (isInputV(v, st)) {
+      /* nama input = nama form (inputTambahArtikel, inputUbahDataAkun), jadi tidak bentrok dengan pesan View → Controller */
+      if (st && st.v && /^V_Form./.test(st.v.name)) return 'input' + st.v.name.replace(/^V_Form/, '');
+      return 'input' + (sqvCamel(w.split(' ').slice(1).filter(function (x) { return !SQV_SKIP.test(x) && !/^(form|formulir|kolom|pada|ke|di|baru)$/i.test(x); }).slice(0, 2).join(' ')) || 'Data');
+    }
+    var pick = !!VERB[v] && /\s(yang\s+(ingin|akan|mau|hendak)|salah\s+satu)\b/i.test(w) && !/\b(tombol|button|menu|ikon|icon)\b/i.test(w);
+    var nm = sqvMethod(w.replace(/\s+(yang|which|that)\s+.*$/i, '').replace(/\bsalah\s+satu\s+/i, ''), VERB[v] && VERB[v] !== 'pilih' ? 3 : 2);
+    if (VERB[v]) nm = nm.replace(/^(klik|pilih)/, verbOf(v));
+    if (pick && st) st.pick = sqvCamel(w.replace(/^\S+\s+/, '').replace(/\bsalah\s+satu\s+/i, '').replace(/\s+(yang|which|that)\s+.*$/i, '').split(/\s+/).filter(function (x) { return x && !SQV_SKIP.test(x); }).slice(0, 2).join(' ')) || 'Data';
+    return nm;
   }
-  /* View → Controller: nama dari aksi aktor: klikMenuKatalog → katalog(), klikSimpan → simpan(), pilihProduk → produkDipilih() */
+  /* View → Controller tanpa kata kerja klik/tekan: tekanMenuArtikel → artikel(), tekanSimpan → simpan(), pilihProduk → produkDipilih() */
   function ctlName(an, t) {
-    var m = String(an).match(/^(klik|tekan|pilih|buka|tap)(Menu|Icon|Ikon|Tombol|Button|Link|Tautan)?(.*)$/);
+    var m = String(an).match(/^(klik|tekan|ketuk|tap|pilih|buka)(Menu|Icon|Ikon|Tombol|Button|Link|Tautan)?(.*)$/);
     if (m && m[3]) { var r = m[3].charAt(0).toLowerCase() + m[3].slice(1); return m[1] === 'pilih' && !/Dipilih$/.test(r) ? r + 'Dipilih' : r; }
     return t ? sqvMethod(t) : 'proses';
   }
-  function call(st, t) { if (!st.c) { msg(st.v, C(), st.last ? ctlName(st.last, t) : sqvMethod(t)); st.c = true; } }
+  /* satu nama pesan View → Controller hanya untuk satu aksi; bila bentrok, nama dibuat lebih jelas dari kalimat aksinya */
+  var ctlUsed = {};
+  function call(st, t) {
+    if (st.c) return; st.c = true;
+    var nm, o = null;
+    if (st.pick) { var key = SQV_DISP.test(t) ? sqvViewKey(t) : ''; nm = (/Detail/.test(key) ? 'detail' : 'pilih') + st.pick; o = { args: idOf(st.pick) }; }
+    else nm = st.last ? ctlName(st.last, t) : sqvMethod(t);
+    var act = st.last || t;
+    if (ctlUsed[nm] && ctlUsed[nm] !== act) {
+      var alt = sqvMethod(st.lastT || t, 4).replace(/^(klik|tekan|ketuk|tap|pilih|buka)/, ''); alt = alt.charAt(0).toLowerCase() + alt.slice(1);
+      var nm2 = alt && !ctlUsed[alt] ? alt : nm, k = 2; while (ctlUsed[nm2] && ctlUsed[nm2] !== act) nm2 = nm + (k++); nm = nm2;
+    }
+    ctlUsed[nm] = act;
+    msg(st.v, C(), nm, o);
+  }
+  /* return (putus-putus) hanya untuk getData…() dan countData…() */
   function retM(mm) { msg(mm.o, C(), 'returnData' + mm.e.replace(/^Data/i, ''), { ret: 1 }); }
-  function show(st, key, det) { var vv = V(key); msg(C(), vv, 'show' + key); st.v = vv; if (det && det.length && !vv._det) vv._det = det; }
+  function show(st, key, det) {
+    var vv = V(key); if (det && det.length && !vv._det) vv._det = det;
+    /* form tanpa daftar atribut: ambil dari halaman bernama sama yang muncul lebih dulu */
+    if (!vv._det) { var cK = core(vv.name); L.forEach(function (o) { if (!vv._det && o !== vv && o._det && cK && core(o.name) === cK) vv._det = o._det; }); }
+    msg(C(), vv, 'show' + vv.name.replace(/^V_/, '')); st.v = vv; st.msg = false;
+  }
+  function dataPage(t) { var key = sqvViewKey(t); return SQV_DISP.test(t) && !(SQV_POP.test(t) || SQV_MSG2.test(t)) && SQV_DATAV.test(t.replace(/^(\S+\s+)/, '')) && !/^form/i.test(key) && !/^(LandingPage|Beranda|Dashboard|Home)/.test(key) ? key : ''; }
+  /* v55: perubahan data yang hanya tertulis di Post-Condition ("… Jumlah Pengunjung Artikel Bertambah") → update…(id) tepat sebelum getData halaman terakhir */
+  var postAt = null, postNm = '', postDone = 0;
+  (function () {
+    if (!u.post || N.some(function (s) { return s.lane === 's' && /\b(berhasil|menyimpan|memperbarui|mengubah|menghapus|menambah(kan)?|mencatat)\b/i.test(s.t); })) return;
+    var RX = /\b(bertambah|berkurang|berubah|tercatat|meningkat|menurun)\b/i;
+    var cl = String(u.post).split(/\s*[,;]\s*|\s+dan\s+|\s+serta\s+|\s+and\s+/i).map(scClean).filter(function (c) { return RX.test(c); })[0];
+    var m = cl && cl.match(/^(.*?)\s+(bertambah|berkurang|berubah|tercatat|meningkat|menurun)\b\s*(.*)$/i); if (!m) return;
+    var ws = m[1].split(/\s+/).filter(function (w) { return w && !/^(aktor|pengguna|user|sistem|yang|akan|dapat|juga|sudah)$/i.test(w); });
+    if (!ws.length || ws.length > 5) return;
+    if (/^berubah$/i.test(m[2]) && /^status\b/i.test(m[3]) && !/^status$/i.test(ws[0])) ws.unshift('Status');
+    for (var i = N.length - 1; i >= 0; i--) if (N[i].lane === 's' && dataPage(scClean(N[i].t))) { postAt = N[i]; break; }
+    if (postAt) postNm = 'update' + sqvCamel(ws.join(' '));
+  })();
   function step(s, st) {
     var t = scClean(s.t);
     if (s.lane === 'a') {
+      st.pick = null;
       var an = actName(t, st), dt = s.det || (st.v && st.v._det), args = dt && /^input/.test(an) ? dt.join(', ') : '';
-      st.c = false; st.op = 0; if (!st.v) st.v = V('Beranda');
-      msg(A, st.v, an, args ? { args: args } : null); if (!/^input/.test(an)) st.last = an; return;
+      st.c = false; st.op = 0; st.msg = false; if (!st.v) st.v = V('Beranda');
+      msg(A, st.v, an, args ? { args: args } : null); if (!/^input/.test(an)) { st.last = an; st.lastT = t; } return;
     }
     if (!st.v) st.v = V('Beranda');
     var disp = SQV_DISP.test(t), q = sqvQuote(t);
     if (disp && (SQV_POP.test(t) || SQV_MSG2.test(t) || (q && !SQV_PAGE.test(t.replace(/["“”].*$/, ''))))) {
       call(st, t);
       var okm = !SQV_POP.test(t) && /\bberhasil\b/i.test(t) && !st.op && (t.match(/\b(dihapus|disimpan|ditambah(kan)?|dibuat|diubah|diperbarui|diupdate|terhapus|tersimpan|dikirim|diajukan)\b/i) || [])[1];
-      if (okm) { var mo = M(u.name), op = /hapus/i.test(okm) ? ['deleteData', 'id'] : /(ubah|perbarui|update)/i.test(okm) ? ['updateData', '$data'] : ['insertData', '$data']; msg(C(), mo.o, op[0] + mo.e.replace(/^Data/i, ''), { args: op[1] }); st.op = 1; }
-      msg(C(), st.v, SQV_POP.test(t) ? 'showPopUp' : 'showMessage', { args: q ? '"' + q + '"' : '' }); return;
+      if (okm) { var mo = M(u.name), idm = idOf(mo.e), op = /hapus/i.test(okm) ? ['deleteData', idm] : /(ubah|perbarui|update)/i.test(okm) ? ['updateData', idm + ', $data'] : ['insertData', '$data']; msg(C(), mo.o, op[0] + mo.e.replace(/^Data/i, ''), { args: op[1] }); st.op = 1; }
+      msg(C(), st.v, SQV_POP.test(t) ? 'showPopUp' : 'showMessage', { args: q ? '"' + q + '"' : '' }); st.msg = true; return;
     }
     if (disp) {
-      if (/\b(sebelumnya|semula)\b/i.test(t)) { call(st, t); msg(C(), st.v, 'show' + st.v.name.replace(/^V_/, '')); return; }
-      var key = sqvViewKey(t); call(st, t);
-      if (SQV_DATAV.test(t.replace(/^(\S+\s+)/, '')) && !/^form/i.test(key) && !/^(LandingPage|Beranda|Dashboard|Home)/.test(key)) { var mm = M(t); msg(C(), mm.o, 'getData' + mm.e.replace(/^Data/i, ''), { r: 'array' }); retM(mm); }
+      /* aturan asisten: di dalam cabang alt, setelah showMessage ke View yang sedang aktif, tampil ulang View yang SAMA tidak digambar */
+      if (/\b(sebelumnya|semula)\b/i.test(t)) { if (st.inAlt && st.msg) return; call(st, t); msg(C(), st.v, 'show' + st.v.name.replace(/^V_/, '')); st.msg = false; return; }
+      var key = sqvViewKey(t), tgt = byKey['V:' + (key === 'Beranda' ? 'Beranda' + actC : key)];
+      if (st.inAlt && st.msg && tgt && tgt === st.v) return;
+      call(st, t);
+      if (dataPage(t)) {
+        var mm = M(t), en = mm.e.replace(/^Data/i, ''), single = /^(HalDetail|Detail)/.test(key) || (/^(Akun|Profil|User|Pengguna)$/i.test(en) && !/Daftar/.test(key));
+        if (s === postAt && !postDone) { postDone = 1; msg(C(), mm.o, postNm + (postNm.indexOf(en) < 0 ? en : ''), { args: idOf(mm.e) }); }
+        /* setelah Batal (tanpa perubahan data) langsung show…(), kecuali pilihan "ambil ulang data setelah Batal" */
+        if (!(st.batal && !st.op && !OPT.reget)) { msg(C(), mm.o, 'getData' + en, { r: 'array', args: single ? idOf(mm.e) : '' }); retM(mm); }
+      }
       show(st, key, s.det); return;
     }
     call(st, t);
     var v0 = (t.split(' ')[0] || '').toLowerCase(), m2;
     if (/^(menyimpan|simpan|mencatat|menambahkan|tambahkan|save|insert)$/.test(v0)) { m2 = M(t); msg(C(), m2.o, 'insertData' + m2.e.replace(/^Data/i, ''), { args: '$data' }); st.op = 1; return; }
-    if (/^(mengubah|ubah|memperbarui|perbarui|update|mengupdate)$/.test(v0)) { m2 = M(t); msg(C(), m2.o, 'updateData' + m2.e.replace(/^Data/i, ''), { args: '$data' }); st.op = 1; return; }
-    if (/^(menghapus|hapus|delete)$/.test(v0)) { m2 = M(t); msg(C(), m2.o, 'deleteData' + m2.e.replace(/^Data/i, ''), { args: 'id' }); st.op = 1; return; }
+    if (/^(mengubah|ubah|memperbarui|perbarui|update|mengupdate)$/.test(v0)) { m2 = M(t); msg(C(), m2.o, 'updateData' + m2.e.replace(/^Data/i, ''), { args: idOf(m2.e) + ', $data' }); st.op = 1; return; }
+    if (/^(menghapus|hapus|delete)$/.test(v0)) { m2 = M(t); msg(C(), m2.o, 'deleteData' + m2.e.replace(/^Data/i, ''), { args: idOf(m2.e) }); st.op = 1; return; }
     if (/^(mengambil|ambil|mencari|cari|get|search)$/.test(v0)) { m2 = M(t); msg(C(), m2.o, 'getData' + m2.e.replace(/^Data/i, ''), { r: 'array' }); retM(m2); return; }
-    if (SQV_CHECK.test(t) && /\b(terdaftar|database|stok|ketersediaan|tersedia|kuota|saldo|jadwal|username|password|email|akun|login|pin|nim|sudah\s+ada|duplikat)\b/i.test(t)) { m2 = M(t); msg(C(), m2.o, sqvMethod(t)); retM(m2); return; }
+    /* pemeriksaan yang butuh data Model = getData…(): array / countData…(): int + return (bukan cekX() ke Model) */
+    if (SQV_CHECK.test(t) && /\b(terdaftar|database|stok|ketersediaan|tersedia|kuota|saldo|jadwal|username|password|email|akun|login|pin|nim|sudah\s+ada|duplikat)\b/i.test(t)) {
+      m2 = M(t); if (/\b(terdaftar|sudah\s+ada|duplikat|digunakan)\b/i.test(t)) msg(C(), m2.o, 'countData' + m2.e.replace(/^Data/i, ''), { r: 'int' }); else msg(C(), m2.o, 'getData' + m2.e.replace(/^Data/i, ''), { r: 'array' }); retM(m2); return;
+    }
     msg(C(), C(), sqvMethod(t));
   }
-  /* pemeriksaan sebelum percabangan, ditebak dari kondisi alternatif bila skenario tidak menuliskannya */
+  /* nama pemeriksaan sejajar dengan nama alt: "Data kosong?" → cekDataKosong(), "Data tidak valid?" → cekDataValid() */
+  function chkName(q) { var w = scClean(String(q || '')).replace(/[?!.,"“”]/g, ' ').split(/\s+/).filter(function (x) { return x && !/^(apakah|tidak|belum|bukan|tak|ada|yang|jika|bila|kalau|sudah|semua|harus|di|ke|atau)$/i.test(x); }).slice(0, 3); return w.length ? 'cek' + w.map(sqvCap).join('') : ''; }
+  /* pemeriksaan sebelum percabangan, ditebak dari kondisi alternatif bila skenario tidak menuliskannya (hanya alt kondisi data di lajur Sistem) */
   function synthCheck(g, st) {
-    var q = scClean((g.q || g.title || '') + ' ' + g.body.map(function (s) { return s.t; }).join(' ')), m3;
+    var qq = scClean(g.q || g.title || ''), q = scClean(qq + ' ' + g.body.map(function (s) { return s.t; }).join(' ')), m3;
     if (g.lane === 'a') return;
-    if (/\b(terdaftar|sudah\s+ada|sudah\s+digunakan|digunakan|duplikat|ditemukan|dikenal)\b/i.test(q)) { m3 = M(N.find(function (s) { return SQV_CHECK.test(s.t) || /^(menyimpan|simpan)/i.test(s.t); }) ? (N.find(function (s) { return SQV_CHECK.test(s.t); }) || N.find(function (s) { return /^(menyimpan|simpan)/i.test(s.t); })).t : u.name); msg(C(), m3.o, 'countData' + m3.e.replace(/^Data/i, ''), { r: 'int' }); retM(m3); return; }
-    if (/\b(stok|kuota|penuh|habis|tersedia|saldo|jadwal|slot)\b/i.test(q)) { m3 = M(N.find(function (s) { return SQV_CHECK.test(s.t); }) ? N.find(function (s) { return SQV_CHECK.test(s.t); }).t : u.name); var w = (q.match(/\b(stok|kuota|saldo|jadwal|slot)\b/i) || ['', 'ketersediaan'])[1]; msg(C(), m3.o, 'cek' + sqvCap(w) + m3.e.replace(/^Data/i, '')); retM(m3); return; }
-    if (/\b(lengkap|kosong|null|wajib|diisi|isi\s+data)\b/i.test(q)) { msg(C(), C(), 'cekDataLengkap'); return; }
-    if (/\b(valid|format|sesuai|benar|salah|ukuran|melebihi|rentang)\b/i.test(q)) { msg(C(), C(), 'cekDataValid'); }
+    function src() { var c = N.find(function (s) { return SQV_CHECK.test(s.t); }) || N.find(function (s) { return /^(menyimpan|simpan)/i.test(s.t); }); return c ? c.t : u.name; }
+    if (/\b(terdaftar|sudah\s+ada|sudah\s+digunakan|digunakan|duplikat|ditemukan|dikenal)\b/i.test(q)) { m3 = M(src()); msg(C(), m3.o, 'countData' + m3.e.replace(/^Data/i, ''), { r: 'int' }); retM(m3); return; }
+    if (/\b(stok|kuota|penuh|habis|tersedia|saldo|jadwal|slot)\b/i.test(q)) { m3 = M(src()); msg(C(), m3.o, 'getData' + m3.e.replace(/^Data/i, ''), { r: 'array' }); retM(m3); return; }
+    if (/\b(lengkap|kosong|null|wajib|diisi|isi\s+data)\b/i.test(q)) { msg(C(), C(), (/\b(lengkap|kosong)\b/i.test(qq) && chkName(qq)) || 'cekDataLengkap'); return; }
+    if (/\b(valid|format|sesuai|benar|salah|ukuran|melebihi|rentang)\b/i.test(q)) { msg(C(), C(), (/\b(valid|format)\b/i.test(qq) && chkName(qq)) || 'cekDataValid'); }
   }
   function runEnd(i) { var j = i; if (N[i].lane === 'a') { while (j < N.length && N[j].lane === 'a') j++; } while (j < N.length && N[j].lane === 's') j++; return j; }
-  function cp(st) { return { c: st.c, v: st.v, last: st.last, op: st.op }; }
+  function cp(st) { return { c: st.c, v: st.v, last: st.last, lastT: st.lastT, op: st.op, msg: st.msg, pick: st.pick, inAlt: st.inAlt }; }
   function range(i0, i1, st, skipAt) {
     for (var i = i0; i < i1; i++) {
       var G = P.groups[i];
@@ -4787,11 +4865,11 @@ function scMakeSequence(u, name, P) {
           if (!(k === 0 && had)) synthCheck(g, stc);
           ev.push({ k: 'open', name: scClean(String(g.q || g.title || '')) });
           ev.push({ k: 'guard', g: 'Ya' });
-          var s2 = cp(stc); g.body.forEach(function (s) { step(s, s2); });
+          var s2 = cp(stc); s2.inAlt = true; s2.batal = g.lane === 'a' && /\b(batal|cancel|tidak\s+jadi)\b/i.test(scClean((g.q || g.title || '') + ' ' + ((g.body[0] || {}).t || ''))); g.body.forEach(function (s) { step(s, s2); });
           /* kembali ke tampilan sebelumnya (mis. form) atau bergabung lagi di dalam percabangan: langkah itu ikut digambar */
           if (g.loop >= 0 && ((g.loop < i && N[g.loop].lane === 's' && SQV_DISP.test(N[g.loop].t)) || (g.loop >= i2 && g.loop < end))) { for (var q2 = g.loop; q2 < (g.loop >= i2 ? end : g.loop + 1); q2++) step(N[q2], s2); }
           ev.push({ k: 'sep' }); ev.push({ k: 'guard', g: 'Tidak' });
-          var s3 = chain(k + 1, cp(stc));
+          var s3 = cp(stc); s3.inAlt = true; s3 = chain(k + 1, s3);
           ev.push({ k: 'close' });
           return s3;
         };
@@ -4843,9 +4921,12 @@ function scMakeSequence(u, name, P) {
 function scGenerateSeq(list) {
   var made = [], seen = {};
   mutate(function () {
+    var cnt = {}, opt = sqOpt(); list.forEach(function (u) { var k = String(u.name).toLowerCase(); cnt[k] = (cnt[k] || 0) + 1; });
     list.forEach(function (u) {
-      var nm = u.name; if (seen[nm]) nm += ' (' + u.actor + ')'; while (seen[nm]) nm += ' 2'; seen[nm] = 1;
-      made.push(scMakeSequence(u, nm));
+      /* use case yang dipecah per aktor: SEMUA versi diberi akhiran aktor, "Nama (Admin)" dan "Nama (Pelanggan)" */
+      var nm = u.name; if (u.actor && (u.sub || cnt[String(u.name).toLowerCase()] > 1)) nm += ' (' + u.actor + ')';
+      if (seen[nm]) nm += ' (' + u.actor + ')'; while (seen[nm]) nm += ' 2'; seen[nm] = 1;
+      made.push(scMakeSequence(u, nm, null, opt));
     });
     if (made.length) { active = made[0].id; sel.clear(); made.forEach(function (D) { views[D.id] = { x: 0, y: 0, k: 1, fresh: true }; }); }
   });
@@ -4904,11 +4985,14 @@ function scenarioModal(pre, target) {
     '<div class="row"><button class="btn" id="scdocx">Buka berkas .docx…</button><input type="file" id="scfile" accept=".docx" hidden><span class="scmsg" id="scmsg"></span></div>' +
     '<div id="sclist"></div><div id="scfixw"></div>' +
     '<label class="scchk"><input type="checkbox" id="scuc"> Buat juga Use Case Diagram dari semua skenario ini</label>' +
+    '<div class="scsq" id="scsq"' + (tgt === 'sequence' ? '' : ' hidden') + '><span>Sequence:</span><label>Pesan aktor <select id="scverb"><option value="scen">ikuti kata kerja skenario (Menekan → tekan…)</option><option value="klik">selalu klik…</option></select></label>' +
+    '<label class="scchk"><input type="checkbox" id="screget"> Ambil ulang data (getData) setelah Batal</label></div>' +
     '<p class="st-note">Tips: nomor langkah di Alternative Flow (atau judul seperti "6a. Password salah" / "… (langkah 6)") dipakai untuk menentukan letak decision. Tanpa nomor, letaknya ditebak dari isi kalimat. Kalau langkah terakhir alternatif sama dengan langkah di Normal Flow (misalnya "Menampilkan Form Login") atau berbunyi "Kembali ke langkah 4" / "Kembali ke halaman login", garisnya dikembalikan ke langkah itu. Boleh menyalin satu dokumen penuh: judul bab, paragraf penjelasan, dan tabel lain (misalnya kamus data) tidak ikut dijadikan aktivitas.</p>';
   var ttl = fixed ? (tgt === 'sequence' ? 'Skenario → Sequence Diagram' : 'Skenario → Activity Diagram') : 'Skenario → Diagram';
   modal(ttl, body, '<button class="btn" data-close>Tutup</button><button class="btn pri" data-ok disabled>Buat diagram</button>', function (s, close) {
     s.querySelector('.modal').classList.add('mid');
     var box = $('#scbox', s), ok = $('[data-ok]', s), msg = $('#scmsg', s);
+    var so = sqOpt(); $('#scverb', s).value = so.verb; $('#screget', s).checked = so.reget;
     function okText(n) { ok.textContent = 'Buat ' + n + ' ' + (tgt === 'sequence' ? 'sequence diagram' : 'diagram'); }
     function show(ucs, src) {
       found = ucs;
@@ -4922,7 +5006,8 @@ function scenarioModal(pre, target) {
     s.addEventListener('change', function (e) {
       var t = e.target;
       if (t.dataset.sc != null) { var n = $$('[data-sc]', s).filter(function (c) { return c.checked; }).length; ok.disabled = !n; okText(n); }
-      if (t.name === 'scto') { tgt = t.value; $('#sclead', s).innerHTML = lead(); if (found.length) okText($$('[data-sc]', s).filter(function (c) { return c.checked; }).length); }
+      if (t.id === 'scverb' || t.id === 'screget') sqOptSave({ verb: $('#scverb', s).value, reget: $('#screget', s).checked });
+      if (t.name === 'scto') { tgt = t.value; $('#scsq', s).hidden = tgt !== 'sequence'; $('#sclead', s).innerHTML = lead(); if (found.length) okText($$('[data-sc]', s).filter(function (c) { return c.checked; }).length); }
       if (t.dataset.fx) { var p = t.dataset.fx.split(':'), u = found[+p[0]], a = u && u.alts[+p[1]]; if (a) a.fork = +t.value; }
     });
     box.addEventListener('paste', function (e) {
@@ -10889,6 +10974,7 @@ function seqCheck(D, items) {
     if (!n && !f.isRet) items.push({ s: 'warn', t: 'Pesan ke-' + (i + 1) + ' (' + a.name + ' → ' + b.name + ') belum diberi nama.', ids: [f.id] });
     if (/[()]/.test(n)) items.push({ s: 'warn', t: 'Pesan "' + n + '" ditulis dengan kurung. Tulis namanya saja (mis. ' + n.replace(/\(.*$/, '') + ') — EA menambahkan "()" sendiri; isi di dalam kurung masuk ke kolom Parameter.', ids: [f.id] });
     else if (/[ \t]/.test(n)) items.push({ s: 'warn', t: 'Nama pesan "' + n + '" mengandung spasi. Nama method biasanya satu kata, mis. ' + n.replace(/[^\w\s]/g, '').replace(/\s+(\w)/g, function (m, c) { return c.toUpperCase(); }) + '.', ids: [f.id] });
+    if (ra === 'A' && rb === 'V' && /^input[A-Z]/.test(n) && !String(f.args || '').trim()) items.push({ s: 'warn', t: 'Pesan "' + n + '()" belum membawa atribut. Isi Argumen dengan atribut form (mis. ' + n + '(nama, email)) di panel kanan; atribut biasanya diambil dari daftar atribut pada langkah "Menampilkan Form …" di skenario.', ids: [f.id] });
     if (ra === 'A' && rb && rb !== 'V') items.push({ s: 'bad', t: 'Aktor "' + a.name + '" langsung ke ' + (rb === 'C' ? 'Controller' : 'Model') + ' "' + b.name + '" (' + lab + '). Aktor hanya berinteraksi dengan View (V_).', ids: [f.id] });
     if (ra === 'V' && rb === 'M') items.push({ s: 'bad', t: 'View "' + a.name + '" langsung ke Model "' + b.name + '" (' + lab + '). View harus lewat Controller (C_).', ids: [f.id] });
     if (ra === 'M' && rb && rb !== 'C' && rb !== 'M') items.push({ s: 'bad', t: 'Model "' + a.name + '" mengirim ke ' + (rb === 'V' ? 'View' : 'Aktor') + ' "' + b.name + '" (' + lab + '). Model hanya membalas ke Controller.', ids: [f.id] });
