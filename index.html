@@ -627,6 +627,8 @@ html.notrans *, html.notrans *::before { transition: none !important; }
 #zoombar { padding: 4px; background: var(--card); border-radius: 12px; box-shadow: 0 4px 14px rgba(0, 0, 0, .12); }
 #zoombar .tb { height: 30px; border-radius: 8px; }
 #crumbs { background: var(--card); border-radius: 10px; }
+#crumbs { transition: opacity 220ms ease, transform 220ms ease; }
+#crumbs.cr-hide { opacity: 0; transform: translateY(-6px); pointer-events: none; }
 #crumbs button { color: var(--acc); }
 #toast { border-radius: 10px; }
 #mpbar { background: var(--card); border: 1.5px solid var(--acc); color: var(--fg); border-radius: 12px; }
@@ -11801,17 +11803,34 @@ function setScale(k) { var s = stageBox(), v = view(); remember(); zoomAt(s.l + 
 function pt(e) { var s = stageBox(), v = view(); return { x: (e.clientX - s.l - v.x) / v.k, y: (e.clientY - s.t - v.y) / v.k }; }
 function switchTo(id) { if (id === active) return; if (sim) simStop(); cancelAnimationFrame(ANIM.raf); active = id; sel.clear(); flowFrom = null; endRename(false); afterChange(); animSwap(); }
 function procLabel(d) { var P = diag(d.parent.d), e = P && elOf(P, d.parent.e); return e ? e.num + ' ' + e.name : d.name; }
+/* v59: jejak level DFD (Level 0 / 1 … / 1.2 …) hanya muncul sebentar saat pindah diagram, lalu menghilang sendiri setelah 4 detik.
+   Muncul lagi bila kursor didekatkan ke tepi atas kanvas; selama kursor di atasnya tidak hilang. Tidak menghalangi klik saat tersembunyi. */
+var CR = { key: null, t: 0 };
+function crumbShow() {
+  var c = $('#crumbs'); if (!c || c.hidden) return;
+  c.classList.remove('cr-hide'); clearTimeout(CR.t);
+  CR.t = setTimeout(function () { if (!c.matches(':hover')) c.classList.add('cr-hide'); }, 4000);
+}
 function crumbs() {
   var D = cur(), c = $('#crumbs'), chain = [], x = D;
   while (x) { chain.unshift(x); x = x.parent ? diag(x.parent.d) : null; }
-  if (chain.length < 2) { c.hidden = true; return; }
+  if (chain.length < 2) { c.hidden = true; CR.key = null; return; }
   c.hidden = false;
+  var key = chain.map(function (d) { return d.id + ':' + (d.parent ? procLabel(d) : d.name); }).join('|');
+  if (key === CR.key) return;
+  var changed = !CR.key || CR.key.split('|').pop().split(':')[0] !== D.id; CR.key = key;
+  if (changed) setTimeout(crumbShow, 0);
   c.innerHTML = chain.map(function (d, i) {
     var label = i === 0 ? d.name : procLabel(d);
     return i === chain.length - 1 ? '<span class="cur">' + esc(label) + '</span>' : '<button data-go="' + d.id + '">' + esc(label) + '</button><i>/</i>';
   }).join('');
 }
 $('#crumbs').addEventListener('click', function (e) { var b = e.target.closest('[data-go]'); if (b) switchTo(b.dataset.go); });
+$('#crumbs').addEventListener('pointerleave', crumbShow);
+$('#stage').addEventListener('pointermove', function (e) {
+  var c = $('#crumbs'); if (c.hidden || !c.classList.contains('cr-hide') || e.buttons) return;
+  var r = $('#stage').getBoundingClientRect(); if (e.clientY - r.top < 52 && e.clientX - r.left < r.width * .7) crumbShow();
+});
 
 /* ---------- pemeriksaan ---------- */
 function lbl(e) { return '"' + ((e.type === 'offpage' ? offName(e) : e.name) || (e.loose ? 'ujung lepas' : '?')) + '"'; }
