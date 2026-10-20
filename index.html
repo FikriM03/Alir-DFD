@@ -528,23 +528,31 @@ ol.steps code, ol.steps kbd { font: 600 12px var(--f-mono); padding: 1px 5px; bo
 .btn.sm.pbfold i { font: 600 10px var(--f-mono); font-style: normal; color: var(--acc); }
 .btn.sm.pbfold:disabled { opacity: .5; }
 
-/* v39: animasi ringan (hanya opacity/transform; aktif bila html.anim) */
-@keyframes al-pop { from { opacity: 0; transform: translateY(-4px) scale(.985); } to { opacity: 1; transform: none; } }
+/* v57: animasi antarmuka (hanya opacity/transform; aktif bila html.anim). Kanvas, #panel, dan pergantian tema tidak dianimasikan. */
+:root { --ease-out: cubic-bezier(.2, .8, .2, 1); --ease-spring: cubic-bezier(.3, 1.25, .5, 1); --d-fast: 120ms; --d-med: 180ms; --d-slow: 240ms; }
+@keyframes al-pop { from { opacity: 0; transform: translateY(-4px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes al-modal { from { opacity: 0; transform: translateY(8px) scale(.96); } to { opacity: 1; transform: none; } }
 @keyframes al-fade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes al-rise { from { opacity: 0; transform: translate(-50%, 6px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes al-rise { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @keyframes al-down { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
-@keyframes al-bar { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes al-tab { from { opacity: .6; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+@keyframes al-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .tab { position: relative; }
-.tab[aria-selected="true"]::before { content: ""; position: absolute; left: 8px; right: 8px; top: 0; height: 2px; border-radius: 0 0 2px 2px; background: var(--acc); transform-origin: center; }
-html.anim .menu, html.anim #tabpop, html.anim .modal, html.anim #colorpop { animation: al-pop .14s cubic-bezier(.2,.8,.2,1); transform-origin: top left; }
-html.anim .scrim { animation: al-fade .14s ease-out; }
-html.anim #toast:not([hidden]) { animation: al-rise .18s cubic-bezier(.2,.8,.2,1); }
-html.anim .tab[aria-selected="true"]::before { animation: al-bar .18s cubic-bezier(.2,.8,.2,1); }
-html.anim .tab, html.anim .tbmgr, html.anim .tree button, html.anim .btn, html.anim .tool, html.anim #tabpop .ti, html.anim .tm-a button, html.anim .tm-k button { transition: background-color .12s ease, color .12s ease, border-color .12s ease, opacity .12s ease; }
-html.anim .tab .x { transition: opacity .12s ease, background-color .12s ease; }
-html.anim .tree.pb ul.justopen { animation: al-down .16s ease-out; }
-html.anim .modal { transform-origin: center top; }
-@media (prefers-reduced-motion: reduce) { html.anim *, html.anim *::before { animation-duration: 1ms !important; transition-duration: 1ms !important; } }
+html.anim .menu, html.anim .pop, html.anim #tabpop, html.anim #colorpop { animation: al-pop var(--d-med) var(--ease-spring); transform-origin: top left; }
+html.anim .scrim { animation: al-fade 160ms var(--ease-out); }
+html.anim .modal { animation: al-modal 200ms var(--ease-spring); transform-origin: center top; }
+html.anim #toast:not([hidden]) { animation: al-rise 200ms var(--ease-spring); }
+html.anim .tab.justsel { animation: al-tab 200ms var(--ease-spring); }
+html.anim .tree.pb ul.justopen { animation: al-down 160ms var(--ease-out); }
+html.anim .tab, html.anim .tbmgr, html.anim .tree button, html.anim .btn, html.anim .tb, html.anim .tool, html.anim .mbtn, html.anim .menu button, html.anim #tabpop .ti, html.anim .tm-a button, html.anim .tm-k button, html.anim .modesw button, html.anim .chip { transition: background-color var(--d-fast) ease, color var(--d-fast) ease, border-color var(--d-fast) ease, transform 80ms var(--ease-out); }
+html.anim .tab .x { transition: opacity var(--d-fast) ease, background-color var(--d-fast) ease; }
+html.anim .tb:active:not(:disabled), html.anim .btn:active:not(:disabled), html.anim .tool:active:not(:disabled), html.anim .tbmgr:active, html.anim .st-card:active, html.anim .st-cont:active { transform: scale(.97); }
+html.anim .tb.pri:active:not(:disabled), html.anim .btn.pri:active:not(:disabled) { transform: translate(2px, 2px) scale(.97); }
+html.anim .st-card, html.anim .st-cont { animation: al-up var(--d-slow) var(--ease-out) both; animation-delay: calc(var(--i, 0) * 40ms); transition: transform 150ms var(--ease-out), border-color var(--d-fast) ease; }
+html.anim .st-card:hover, html.anim .st-cont:hover { transform: translateY(-2px); }
+html.anim .st-card:active, html.anim .st-cont:active { transform: scale(.97); }
+@media (prefers-reduced-motion: reduce) { html.anim *, html.anim *::before { animation-duration: 1ms !important; animation-delay: 0ms !important; transition-duration: 1ms !important; } }
+html.notrans *, html.notrans *::before { transition: none !important; }
 
 /* ===================== v56: redesain antarmuka (arah A) =====================
    Hanya bingkai aplikasi. Isi kanvas (#cv) dan pratinjau kertas TIDAK berubah: font kanvas dikunci ke font lama. */
@@ -555,7 +563,6 @@ html.anim .modal { transform-origin: center top; }
 .tb.pri:hover:not(:disabled), .btn.pri:hover:not(:disabled), #mpbar .btn.pri:hover { background: var(--acc-fill); opacity: 1; transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--pri-bd); }
 .tb.pri:active:not(:disabled), .btn.pri:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--pri-bd); }
 .btn.pri:disabled, .tb.pri:disabled { opacity: .45; box-shadow: none; }
-html.anim .tb.pri, html.anim .btn.pri { transition: transform .1s ease, opacity .12s ease; }
 
 /* bilah menu */
 #menubar { height: 44px; gap: 4px; padding: 0 14px; }
@@ -597,10 +604,11 @@ html.anim .tb.pri, html.anim .btn.pri { transition: transform .1s ease, opacity 
 .tbmgr:hover, .tbmgr[aria-expanded="true"] { background: var(--panel2); }
 .tbs:hover { background: var(--panel2); }
 #tabs { gap: 3px; padding: 6px 8px 0; }
-.tab { height: 34px; border-radius: 9px 9px 0 0; }
+.tab { height: 34px; padding: 0 10px 0 12px; font-size: 14px; border-radius: 9px 9px 0 0; }
 .tab:hover:not([aria-selected="true"]) { background: color-mix(in srgb, var(--panel2) 60%, transparent); }
-.tab[aria-selected="true"] { height: 35px; background: var(--card); border-color: var(--bd); color: var(--fg); font-weight: 600; }
-.tab[aria-selected="true"]::before { left: 0; right: 0; height: 3px; border-radius: 9px 9px 0 0; background: var(--acc-fill); }
+.tab[aria-selected="true"] { height: 35px; background: var(--card); color: var(--fg); font-weight: 600; border: 1px solid var(--bd); border-top: 3px solid var(--acc-fill); border-bottom: 0; margin-bottom: -1px; }
+.tab[aria-selected="true"]::before { content: none; }
+.tab .kb { border-radius: 4px; padding: 1px 5px; font: 600 10px var(--f-mono); }
 .tab .x { border-radius: 5px; }
 
 /* palet kiri */
@@ -688,8 +696,6 @@ html.anim .tb.pri, html.anim .btn.pri { transition: transform .1s ease, opacity 
 .st-card { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 18px; background: var(--card); border: 1px solid var(--bd); border-radius: var(--r-lg); text-align: left; min-width: 0; color: var(--fg); }
 .st-card:hover, .st-card:focus-visible { border-color: var(--acc); box-shadow: none; outline: none; }
 .st-card:focus-visible { box-shadow: 0 0 0 2px color-mix(in srgb, var(--acc) 35%, transparent); }
-html.anim .st-card { transition: transform .15s ease, border-color .15s ease; }
-html.anim .st-card:hover { transform: translateY(-2px); }
 .st-ic { display: grid; place-items: center; width: 56px; height: 48px; margin-bottom: 4px; background: var(--panel2); border-radius: var(--r-md); }
 .st-card .st-ic svg { width: 36px; height: 36px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
 .st-chip { position: absolute; top: 16px; right: 16px; padding: 2px 7px; border-radius: 6px; background: var(--panel2); color: var(--mut); font: 500 11px var(--f-mono); font-style: normal; }
@@ -708,10 +714,70 @@ html.anim .st-card:hover { transform: translateY(-2px); }
   #start h1 { font-size: 34px; }
   .st-brand span { display: none; }
 }
+
+/* v57: logo */
+.logo { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 34px; height: 34px; border-radius: 9px; background: var(--on); }
+.logo svg { width: 20px; height: 20px; stroke: var(--acc-fill); }
+#menubar .logo { width: 26px; height: 26px; border-radius: 7px; margin-right: 8px; }
+#menubar .logo svg { width: 16px; height: 16px; }
+#menubar .brand { gap: 0; } #menubar .brand .modesw { margin-left: 10px; }
+.st-brand { align-items: center; } .st-brand .logo { margin-right: 0; }
+/* v57: daftar nilai panel kanan jadi satu kartu */
+#panel .kv { padding: 8px 10px; background: var(--card); border: 1px solid var(--bd); border-top: 0; font-size: 13.5px; }
+#panel :not(.kv) + .kv, #panel .kv:first-child { border-top: 1px solid var(--bd); border-radius: 10px 10px 0 0; }
+#panel .kv:not(:has(+ .kv)) { border-radius: 0 0 10px 10px; }
+#panel :not(.kv) + .kv:not(:has(+ .kv)), #panel .kv:first-child:not(:has(+ .kv)) { border-radius: 10px; }
+#panel .kv span { color: var(--mut); }
+#panel .kv b { font: 500 13.5px var(--f-body); }
+#panel .kv + .kv { margin-top: -7px; }
+/* v57: pemeriksaan lolos = kotak hijau dengan ikon centang */
+.chk li.ok:only-child { display: flex; align-items: center; gap: 9px; padding: 10px 12px; border-radius: 10px; background: var(--ok-bg); color: var(--ok); font-weight: 500; }
+.chk li.ok:only-child::before { display: block; content: ""; flex: none; width: 16px; height: 16px; border-radius: 0; background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='8' cy='8' r='6.6'/%3E%3Cpath d='M5.2 8.2l1.9 1.9 3.8-4'/%3E%3C/svg%3E") center / 16px 16px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='8' cy='8' r='6.6'/%3E%3Cpath d='M5.2 8.2l1.9 1.9 3.8-4'/%3E%3C/svg%3E") center / 16px 16px no-repeat; }
+/* v57: palet DFD dua kolom (layar lebar saja; seluler tetap baris mendatar) */
+@media (min-width: 901px) {
+  #app:not(.ea) #main { grid-template-columns: 148px minmax(0, 1fr) 290px; }
+  #app:not(.ea) #rail { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 6px; padding: 10px 8px; }
+  #app:not(.ea) #rail .tool { position: relative; height: 56px; padding: 7px 2px 5px; gap: 3px; justify-content: center; border-radius: 10px; font-size: 11px; line-height: 1.1; color: var(--fg); background: var(--card); border: 1px solid var(--bd); }
+  #app:not(.ea) #rail .tool svg { width: 22px; height: 22px; }
+  #app:not(.ea) #rail .tool span { white-space: nowrap; }
+  #app:not(.ea) #rail .tool kbd { position: absolute; top: 4px; right: 6px; font-size: 9.5px; opacity: .55; }
+  #app:not(.ea) #rail .tool:hover { background: var(--panel2); }
+  #app:not(.ea) #rail .tool[aria-pressed="true"] { background: var(--on); color: var(--on-fg); border-color: var(--on); }
+  #app:not(.ea) #rail .tool.gtop { margin-top: 12px; }
+}
+/* v57: saklar DFD/UML & Pilih/Geser dengan pil penanda yang meluncur */
+.modesw { position: relative; display: inline-grid; grid-template-columns: 1fr 1fr; gap: 0; }
+.modesw::before { content: ""; position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc(50% - 3px); border-radius: 999px; background: var(--on); }
+.modesw:has([data-mode="uml"][aria-pressed="true"])::before { transform: translateX(100%); }
+.modesw button { position: relative; z-index: 1; }
+.modesw button[aria-pressed="true"] { background: transparent; }
+html.anim .modesw::before { transition: transform 220ms var(--ease-spring); }
+@media (min-width: 901px) {
+  .tbx-top { position: relative; }
+  .tbx-top::before { content: ""; position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc(50% - 4.5px); border-radius: var(--r-sm); background: var(--on); }
+  .tbx-top:has(> :nth-child(2)[aria-pressed="true"])::before { transform: translateX(calc(100% + 3px)); }
+  .tbx-top:not(:has([aria-pressed="true"]))::before { opacity: 0; }
+  .tbx-top .tool.w { position: relative; z-index: 1; }
+  .tbx-top .tool.w[aria-pressed="true"], .tbx-top .tool.w[aria-pressed="true"]:hover { background: transparent; }
+  html.anim .tbx-top::before { transition: transform 220ms var(--ease-spring), opacity var(--d-fast) ease; }
+}
+/* v57: layar pembuka — Lanjutkan pekerjaan */
+.st-conts { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+.st-cont { display: flex; align-items: center; gap: 16px; padding: 16px 18px; background: var(--card); border: 1px solid var(--bd); border-radius: var(--r-lg); text-align: left; color: var(--fg); min-width: 0; }
+.st-cont:hover, .st-cont:focus-visible { border-color: var(--acc); outline: none; }
+.st-cont:focus-visible { box-shadow: 0 0 0 2px color-mix(in srgb, var(--acc) 35%, transparent); }
+.st-cont .st-kb { flex: none; padding: 6px 9px; border-radius: 8px; background: var(--on); color: var(--on-fg); font: 600 12px/1 var(--f-mono); }
+.st-cont .st-ct { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.st-cont .st-ct b { font: 700 16px var(--f-display); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-cont .st-ct span { font-size: 13px; color: var(--mut); }
+.st-cont > svg { flex: none; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+@media (max-width: 900px) { .st-conts { grid-template-columns: minmax(0, 1fr); } }
 </style>
 <div id="app">
   <nav id="menubar" aria-label="Menu utama">
-    <div class="brand"><b>Alir</b><span class="modesw" role="group" aria-label="Jenis proyek"><button type="button" data-mode="dfd" aria-pressed="true" title="DFD gaya PowerDesigner. Membuka proyek DFD terakhirmu.">DFD</button><button type="button" data-mode="uml" aria-pressed="false" title="Activity, Use Case, BPMN gaya Enterprise Architect. Membuka proyek UML terakhirmu.">UML</button></span></div>
+    <div class="brand"><span class="logo" aria-hidden="true"><svg viewBox="0 0 22 22" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2.5"/><rect x="12" y="13" width="7" height="6" rx="1.5"/><path d="M7.5 6H13a2.5 2.5 0 0 1 2.5 2.5V13"/></svg></span><b>Alir</b><span class="modesw" role="group" aria-label="Jenis proyek"><button type="button" data-mode="dfd" aria-pressed="true" title="DFD gaya PowerDesigner. Membuka proyek DFD terakhirmu.">DFD</button><button type="button" data-mode="uml" aria-pressed="false" title="Activity, Use Case, BPMN gaya Enterprise Architect. Membuka proyek UML terakhirmu.">UML</button></span></div>
     <button class="mbtn" data-menu="file" aria-haspopup="true" aria-expanded="false">Berkas</button>
     <button class="mbtn" data-menu="edit" aria-haspopup="true" aria-expanded="false">Edit</button>
     <button class="mbtn" data-menu="dict" aria-haspopup="true" aria-expanded="false">Kamus</button>
@@ -3474,10 +3540,18 @@ function startPage() {
   var el = document.createElement('div'); el.id = 'start'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Halaman mulai');
   /* v56: tata letak baru (header, hero + tombol, kartu dengan ubin ikon & chip format, footer) — data & data-st sama seperti sebelumnya */
   var arrow = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg>';
-  el.innerHTML = '<header class="st-top"><div class="st-brand"><b>Alir</b><span>DFD · Activity · Use Case · BPMN · Sequence</span></div><div class="st-acts"><button type="button" class="tb st-theme" data-st="theme"></button>' + (doc ? '<button class="btn" data-st="close">Tutup</button>' : '') + '</div></header>' +
+  el.innerHTML = '<header class="st-top"><div class="st-brand"><span class="logo" aria-hidden="true"><svg viewBox="0 0 22 22" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2.5"/><rect x="12" y="13" width="7" height="6" rx="1.5"/><path d="M7.5 6H13a2.5 2.5 0 0 1 2.5 2.5V13"/></svg></span><b>Alir</b><span>DFD · Activity · Use Case · BPMN · Sequence</span></div><div class="st-acts"><button type="button" class="tb st-theme" data-st="theme"></button>' + (doc ? '<button class="btn" data-st="close">Tutup</button>' : '') + '</div></header>' +
     '<div class="st-in"><div class="st-hero"><div><h1>Mau menggambar apa hari ini?</h1><p class="st-lead">Simpan sebagai .pam untuk PowerDesigner 6 atau ekspor ke Enterprise Architect. Tanpa login.</p></div>' +
     '<div class="st-row"><button class="btn pri st-open" data-st="open"><span>Buka berkas</span><small>.pam .eap .xml .json</small></button>' + (dfd ? '<button class="btn" data-st="newdfd">DFD baru (kosong)</button>' : '') + (ea ? '<button class="btn" data-st="neweap">Proyek UML baru (kosong)</button>' : '') + '</div></div>' +
-    '<p class="st-sec">Mulai diagram baru</p><div class="st-cards">' + cards.map(function (c) { return '<button class="st-card" data-st="' + c[0] + '"><span class="st-ic"><svg viewBox="0 0 48 48" aria-hidden="true">' + c[4] + '</svg></span><em class="st-chip">' + (c[0] === 'dfd' ? '.pam' : 'EA') + '</em><b>' + c[1] + '</b><span class="st-d">' + c[2] + '</span><i>' + esc(c[3]) + ' ' + arrow + '</i></button>'; }).join('') + '</div>' +
+    '<p class="st-sec">Mulai diagram baru</p><div class="st-cards">' + cards.map(function (c, i) { return '<button class="st-card" style="--i:' + i + '" data-st="' + c[0] + '"><span class="st-ic"><svg viewBox="0 0 48 48" aria-hidden="true">' + c[4] + '</svg></span><em class="st-chip">' + (c[0] === 'dfd' ? '.pam' : 'EA') + '</em><b>' + c[1] + '</b><span class="st-d">' + c[2] + '</span><i>' + esc(c[3]) + ' ' + arrow + '</i></button>'; }).join('') + '</div>' +
+    (function () {
+      /* v57: Lanjutkan pekerjaan — kartu lebar untuk proyek DFD & UML terakhir (aksi sama dengan kartu DFD "Lanjutkan" dan saklar mode UML) */
+      var arr = '<svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9h11M10 4.5L14.5 9 10 13.5"/></svg>', L = [], n = cards.length;
+      function nd(x) { return x.doc.diagrams.length; }
+      if (dfd) L.push('<button class="st-cont" style="--i:' + (n + L.length) + '" data-st="contdfd"><span class="st-kb">DFD</span><span class="st-ct"><b>' + esc(dfd.doc.name || 'Model') + '</b><span>Proyek DFD terakhir · ' + nd(dfd) + ' diagram</span></span>' + arr + '</button>');
+      if (ea) L.push('<button class="st-cont" style="--i:' + (n + L.length) + '" data-st="contuml"><span class="st-kb">UML</span><span class="st-ct"><b>' + esc(ea.doc.name || 'Proyek UML') + '</b><span>Proyek UML terakhir · ' + nd(ea) + ' diagram</span></span>' + arr + '</button>');
+      return L.length ? '<p class="st-sec">Lanjutkan pekerjaan</p><div class="st-conts">' + L.join('') + '</div>' : '';
+    })() +
     '<footer class="st-foot"><p class="st-note"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M10 9v5M10 6.2v.1"/></svg><span><b>Penting:</b> Alir alat bantu menggambar, bukan pengganti resmi PowerDesigner atau Enterprise Architect. Sebelum dikumpulkan, buka hasil akhirnya di aplikasi asli (PowerDesigner / EA) untuk memastikan semuanya benar.</span></p>' +
     '<p class="st-save">Pekerjaan tersimpan otomatis di browser ini saja. DFD dan proyek UML disimpan terpisah.</p></footer></div>';
   document.body.appendChild(el); themeUI();
@@ -3485,6 +3559,8 @@ function startPage() {
     var b = e.target.closest('[data-st]'); if (!b) return;
     var k = b.dataset.st;
     if (k === 'close') closeStart();
+    else if (k === 'contdfd') openKind('dfd');
+    else if (k === 'contuml') { if (isDfd()) modeSwitch('uml'); else closeStart(); }
     else if (k === 'theme') setTheme(themeNow() === 'dark' ? 'light' : 'dark');
     else if (k === 'open') { closeStart(); fileIn.click(); }
     else if (k === 'neweap') { closeStart(); newBlank('uml'); }
@@ -7421,31 +7497,39 @@ function tbBarMenu(x, y) {
   renderMenu([{ hd: 'Tab' }, item('Daftar diagram…', 'tb:list', 'Ctrl+Shift+E'), item('Tampilkan semua diagram di tab', 'tb:all', '', { dis: vis.length === doc.diagrams.length }), item('Sembunyikan tab lainnya', 'tb:only', '', { dis: vis.length < 2 })], x, y);
 }
 
-/* ===================== v39: animasi halus yang ringan =====================
-   Hanya opacity/transform (dikerjakan GPU) + kamera lewat drawView (satu atribut per frame).
-   Otomatis MATI bila: sistem minta gerak dikurangi, Mode ringan aktif, atau perangkat lemah (≤2 inti / RAM ≤2 GB).
-   Bisa dipaksa nyala/mati di Preferensi tampilan (localStorage 'alir-anim' = auto|on|off). */
-var ANIM = { on: false, raf: 0 };
-function animPref() { try { var v = localStorage.getItem('alir-anim'); return v === 'on' || v === 'off' ? v : 'auto'; } catch (x) { return 'auto'; } }
+/* ===================== v57: animasi dipisah: antarmuka vs kanvas =====================
+   Animasi antarmuka (html.anim; hanya opacity/transform): bawaan NYALA di semua perangkat, mati hanya bila sistem minta gerak dikurangi
+   atau dimatikan di Preferensi (localStorage 'alir-anim-ui' = on|off).
+   Animasi kanvas (zoom/Fit halus, pudar saat ganti diagram): bawaan MATI (localStorage 'alir-anim-canvas' = on|off). ANIM.on hanya untuk kanvas.
+   Migrasi: 'alir-anim' lama = on → animasi kanvas on. */
+var ANIM = { on: false, ui: false, raf: 0, fast: false };
+function animLS(k, d) { try { var v = localStorage.getItem(k); return v === 'on' || v === 'off' ? v : d; } catch (x) { return d; } }
+(function () { try { if (localStorage.getItem('alir-anim') === 'on' && localStorage.getItem('alir-anim-canvas') == null) localStorage.setItem('alir-anim-canvas', 'on'); } catch (x) { /* abaikan */ } })();
+function animPref() { return animLS('alir-anim-ui', 'on'); }
+function animCanvasPref() { return animLS('alir-anim-canvas', 'off'); }
 function animLowEnd() { var c = navigator.hardwareConcurrency || 4, m = navigator.deviceMemory || 8; return c <= 2 || m <= 2; }
 function animUpdate() {
-  var p = animPref(), rm = false; try { rm = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (x) { rm = false; }
-  ANIM.on = p === 'on' ? true : p === 'off' ? false : !rm && !animLowEnd() && !(doc && doc.prefs && doc.prefs.light);
-  document.documentElement.classList.toggle('anim', ANIM.on);
+  var rm = false; try { rm = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (x) { rm = false; }
+  ANIM.ui = !rm && animPref() === 'on';
+  ANIM.on = !rm && animCanvasPref() === 'on';
+  document.documentElement.classList.toggle('anim', ANIM.ui);
 }
 try { window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', animUpdate); } catch (x) { /* abaikan */ }
+/* selama kamera bergerak: gambar sekali tanpa bayangan/gradasi (fastDraw), lalu kualitas penuh di akhir — hasil akhir sama dengan tanpa animasi */
+function animFastEnd() { if (ANIM.fast) { ANIM.fast = false; fastDraw = false; } }
 /* gerakkan kamera ke {x,y,k} dengan mulus (zoom geometris, pusat layar bergerak lurus) */
 function animView(to, ms) {
-  var v = view(); cancelAnimationFrame(ANIM.raf);
+  var v = view(); cancelAnimationFrame(ANIM.raf); animFastEnd();
   if (!ANIM.on || !isFinite(to.k) || !isFinite(to.x) || !isFinite(to.y)) { v.x = to.x; v.y = to.y; v.k = to.k; v.fresh = false; draw(); return; }
   var s = stageBox(), f = { x: v.x, y: v.y, k: v.k }, d = ms || 240, t0 = performance.now();
   var cF = { x: (s.w / 2 - f.x) / f.k, y: (s.h / 2 - f.y) / f.k }, cT = { x: (s.w / 2 - to.x) / to.k, y: (s.h / 2 - to.y) / to.k };
   if (Math.abs(f.k - to.k) < 1e-4 && Math.hypot(f.x - to.x, f.y - to.y) < 1) { v.fresh = false; draw(); return; }
   v.fresh = false;
+  if (!fastDraw) { ANIM.fast = true; fastDraw = true; draw(); }
   (function step(now) {
     var p = Math.min(1, (now - t0) / d), e = 1 - Math.pow(1 - p, 3), k = f.k * Math.pow(to.k / f.k, e);
     v.k = k; v.x = s.w / 2 - (cF.x + (cT.x - cF.x) * e) * k; v.y = s.h / 2 - (cF.y + (cT.y - cF.y) * e) * k;
-    if (p < 1) { drawView(); ANIM.raf = requestAnimationFrame(step); } else { v.x = to.x; v.y = to.y; v.k = to.k; draw(); }
+    if (p < 1) { drawView(); ANIM.raf = requestAnimationFrame(step); } else { v.x = to.x; v.y = to.y; v.k = to.k; animFastEnd(); draw(); }
   })(t0);
 }
 /* posisi Fit tanpa langsung menggambar */
@@ -7461,8 +7545,8 @@ function zoomSmooth(f) {
 }
 /* pudar singkat saat berganti diagram (kanvas saja) */
 function animSwap() { if (!ANIM.on || !cv.animate) return; try { cv.animate([{ opacity: .3 }, { opacity: 1 }], { duration: 180, easing: 'ease-out' }); } catch (x) { /* abaikan */ } }
-function ANIM_PREF_HTML() { var p = animPref(); return '<div class="sec"><h3>Animasi</h3><div class="field"><label for="an-m">Animasi halus (zoom, pindah diagram, menu)</label><select class="in" id="an-m"><option value="auto"' + (p === 'auto' ? ' selected' : '') + '>Otomatis (mati di perangkat lemah / Mode ringan)</option><option value="on"' + (p === 'on' ? ' selected' : '') + '>Selalu nyala</option><option value="off"' + (p === 'off' ? ' selected' : '') + '>Mati</option></select></div><p class="hint">Saat ini ' + (ANIM.on ? 'nyala' : 'mati') + (animLowEnd() ? ' (perangkat terdeteksi ringan)' : '') + '.</p></div>'; }
-function animPrefApply(s) { var m = s.querySelector('#an-m'); if (!m) return; try { localStorage.setItem('alir-anim', m.value); } catch (x) { } animUpdate(); }
+function ANIM_PREF_HTML() { var u = animPref(), c = animCanvasPref(); return '<div class="sec"><h3>Animasi</h3><label class="cbx"><input type="checkbox" id="an-ui"' + (u === 'on' ? ' checked' : '') + '> Animasi antarmuka (menu, dialog, tab, tombol). Ringan, nyala di semua perangkat.</label><label class="cbx"><input type="checkbox" id="an-cv"' + (c === 'on' ? ' checked' : '') + '> Animasi kanvas (zoom dan tampilan global halus, pudar saat ganti diagram). Lebih berat; nyalakan bila laptop kuat.</label></div>'; }
+function animPrefApply(s) { var u = s.querySelector('#an-ui'), c = s.querySelector('#an-cv'); if (!u || !c) return; try { localStorage.setItem('alir-anim-ui', u.checked ? 'on' : 'off'); localStorage.setItem('alir-anim-canvas', c.checked ? 'on' : 'off'); } catch (x) { } animUpdate(); }
 
 /* ---------- v40: salin-tempel antar tab & antar browser (Chrome ↔ Firefox) ----------
    Clipboard sistem TETAP hanya berisi GAMBAR PNG (seperti "Salin gambar HD"), jadi di Google Docs / Word yang tertempel gambar, bukan teks.
@@ -11901,11 +11985,13 @@ function orderedDiagrams() {
   (function walk(list) { list.forEach(function (d) { if (seen[d.id]) return; seen[d.id] = 1; order.push(d); walk(doc.diagrams.filter(function (c) { return c.parent && c.parent.d === d.id; })); }); })(doc.diagrams.filter(function (d) { return !d.parent; }));
   return order;
 }
+/* v57: animasi tab hanya saat tab aktif benar-benar berganti (bukan setiap bilah tab dirender ulang) */
+var tabSelPrev = null;
 function tabs() {
-  var vis = tbVisible();
+  var vis = tbVisible(), justSel = tabSelPrev !== null && tabSelPrev !== active; tabSelPrev = active;
   tabsEl.innerHTML = vis.map(function (d) {
     var label = d.parent ? procLabel(d) : d.name, pv = TB.preview === d.id;
-    return '<div class="tab' + (pv ? ' pv' : '') + '" role="tab" data-tab="' + d.id + '" aria-selected="' + (d.id === active) + '" tabindex="0" draggable="true" title="' + esc(label) + (pv ? '\nTab pratinjau (miring): diganti saat membuka diagram lain. Klik dua kali supaya tetap terbuka.' : '\nKlik dua kali: ganti nama · klik kanan: menu · klik tengah: tutup · seret: pindah urutan') + '">' + (isDfd() ? '<span class="lv">L' + depth(d) + '</span>' : kindBadge(d.kind)) + '<span class="tl">' + esc(label) + '</span>' +
+    return '<div class="tab' + (pv ? ' pv' : '') + (justSel && d.id === active ? ' justsel' : '') + '" role="tab" data-tab="' + d.id + '" aria-selected="' + (d.id === active) + '" tabindex="0" draggable="true" title="' + esc(label) + (pv ? '\nTab pratinjau (miring): diganti saat membuka diagram lain. Klik dua kali supaya tetap terbuka.' : '\nKlik dua kali: ganti nama · klik kanan: menu · klik tengah: tutup · seret: pindah urutan') + '">' + (isDfd() ? '<span class="lv">L' + depth(d) + '</span>' : kindBadge(d.kind)) + '<span class="tl">' + esc(label) + '</span>' +
       (vis.length > 1 ? '<button class="x" data-xtab="' + d.id + '" aria-label="Tutup tab ' + esc(label) + '" title="Tutup tab (diagramnya tidak dihapus, tetap ada di ' + (isDfd() ? 'Pohon proses' : 'Project Browser') + ')">×</button>' : '') + '</div>';
   }).join('') + (isDfd() ? '<button class="tab add" data-act="addd" title="Diagram utama baru. Saat disimpan ke .pam, tiap diagram utama jadi berkas .pam sendiri (dalam satu ZIP).">+ Diagram</button>' : '<button class="tab add" data-act="newdiag" title="Diagram baru">+ Diagram</button>');
   $('#fname').value = doc.name;
@@ -12994,7 +13080,7 @@ function checkModal() {
 }
 
 /* ---------- interaksi kanvas ---------- */
-var TOOLS = [['select', 'Pilih', 'V'], ['hand', 'Geser', 'H'], ['process', 'Proses', 'P'], ['store', 'Store', 'D'], ['entity', 'Entitas', 'E'], ['flow', 'Alur', 'F'], ['spmg', 'Split/ Merge', 'M'], ['offpage', 'Off-page', 'O'], ['ptext', 'Teks', 'T'], ['pgfx:rect', 'Kotak', ''], ['pgfx:ellipse', 'Elips', ''], ['pgfx:line', 'Garis', '']];
+var TOOLS = [['select', 'Pilih', 'V'], ['hand', 'Geser', 'H'], ['process', 'Proses', 'P'], ['store', 'Store', 'D'], ['entity', 'Entitas', 'E'], ['flow', 'Alur', 'F'], ['spmg', 'Split/Merge', 'M'], ['offpage', 'Off-page', 'O'], ['ptext', 'Teks', 'T'], ['pgfx:rect', 'Kotak', ''], ['pgfx:ellipse', 'Elips', ''], ['pgfx:line', 'Garis', '']];
 var HINT = {
   select: 'Klik untuk memilih, seret untuk memindah. Klik kanan untuk menu. Scroll untuk menggeser, Ctrl + scroll atau cubit touchpad untuk zoom.',
   hand: 'Seret untuk menggeser kanvas.', process: 'Klik di kanvas untuk menaruh proses. Tahan Shift untuk menaruh beberapa.',
@@ -13017,7 +13103,8 @@ function railIcon(t) {
 }
 function buildRail() {
   if (!isDfd()) { umlToolbox(); return; }
-  $('#rail').innerHTML = TOOLS.map(function (t) { return '<button class="tool" data-tool="' + t[0] + '" aria-pressed="' + (tool === t[0]) + '" title="' + t[1] + ' (' + t[2] + ')">' + railIcon(t[0]) + '<span>' + t[1] + '</span><kbd>' + t[2] + '</kbd></button>'; }).join('');
+  /* v57: gtop = awal kelompok (simbol DFD, anotasi) untuk jarak pemisah di palet dua kolom */
+  $('#rail').innerHTML = TOOLS.map(function (t, i) { return '<button class="tool' + (i === 2 || i === 3 || i === 8 || i === 9 ? ' gtop' : '') + '" data-tool="' + t[0] + '" aria-pressed="' + (tool === t[0]) + '" title="' + t[1] + ' (' + t[2] + ')">' + railIcon(t[0]) + '<span>' + t[1] + '</span><kbd>' + t[2] + '</kbd></button>'; }).join('');
 }
 function setTool(t) { tool = t; flowFrom = null; $$('.tool').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.tool === t); }); status(); draw(); }
 $('#rail').addEventListener('click', function (e) {
@@ -13645,6 +13732,8 @@ function themeUI() {
 }
 function setTheme(t) {
   var r = document.documentElement;
+  /* pergantian tema instan: transisi warna dimatikan sebentar */
+  r.classList.add('notrans'); requestAnimationFrame(function () { requestAnimationFrame(function () { r.classList.remove('notrans'); }); });
   if (t === 'auto') { r.removeAttribute('data-theme'); try { localStorage.removeItem('alir-theme'); } catch (x) { /* abaikan */ } }
   else { r.setAttribute('data-theme', t); try { localStorage.setItem('alir-theme', t); } catch (x) { /* abaikan */ } }
   themeUI();
