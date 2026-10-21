@@ -777,6 +777,25 @@ html.anim .modesw::before { transition: transform 220ms var(--ease-spring); }
 .st-cont .st-ct span { font-size: 13px; color: var(--mut); }
 .st-cont > svg { flex: none; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 @media (max-width: 900px) { .st-conts { grid-template-columns: minmax(0, 1fr); } }
+
+/* v60: jendela Periksa & tinjau proyek */
+.chk li.info { --c: var(--mut); }
+.rvtop { display: flex; justify-content: space-between; align-items: center; gap: 8px 14px; flex-wrap: wrap; }
+.rvchips { display: flex; gap: 6px; flex-wrap: wrap; }
+.rvchips .chip { border: 1px solid var(--bd); background: var(--card); color: var(--fg); border-radius: 999px; padding: 4px 11px; font: 500 12.5px var(--f-body); cursor: pointer; }
+.rvchips .chip b { font: 600 11px var(--f-mono); color: var(--mut); margin-left: 2px; }
+.rvchips .chip[aria-pressed="true"] { background: var(--on); color: var(--on-fg); border-color: var(--on); } .rvchips .chip[aria-pressed="true"] b { color: inherit; }
+.rvlv { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--mut); } .rvlv .in { height: 30px; width: auto; }
+.rvh { margin: 6px 0 -6px !important; } .rvh span { font: 600 11px var(--f-mono); color: var(--mut); margin-left: 4px; }
+.chk.rv li { padding: 8px 6px 8px 0; }
+.chk.rv .rvb { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.chk.rv .rvt { font-size: 13px; line-height: 1.45; }
+.chk.rv .rvwhy { font-size: 12px; color: var(--mut); line-height: 1.45; }
+.chk.rv .rvev { font: 400 11.5px var(--f-mono); color: var(--mut); }
+.chk.rv .rvact { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 3px; }
+.chk.rv .rvfix { margin-top: 6px; padding: 8px 10px; border: 1px solid var(--bd); border-radius: var(--r-sm); background: var(--card); display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; }
+.chk.rv .rvfix table { border-collapse: collapse; } .chk.rv .rvfix td { padding: 2px 8px 2px 0; vertical-align: top; } .chk.rv .rvfix td:first-child { color: var(--mut); } .chk.rv .rvfix s { color: var(--bad); }
+.revline { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; padding: 7px 10px; border: 1px dashed var(--bd); border-radius: var(--r-sm); font-size: 12.5px; color: var(--mut); }
 </style>
 <div id="app">
   <nav id="menubar" aria-label="Menu utama">
@@ -1489,7 +1508,8 @@ function fixActive() {
 function undo() { if (!undoS.length) return; redoS.push(snapshot()); doc = JSON.parse(undoS.pop()); fixActive(); afterChange(); }
 function redo() { if (!redoS.length) return; undoS.push(snapshot()); doc = JSON.parse(redoS.pop()); fixActive(); afterChange(); }
 function syncOffpage() { if (!isDfd()) return; doc.diagrams.forEach(function (D) { D.elements.forEach(function (e) { if (e.type === 'offpage' && !e.loose) { var p = offRef(e); if (p) e.name = p.name; } }); }); }
-function afterChange() { if (doc && !isDfd()) { ucAspectAll(cur()); sqNormalize(cur()); if (typeof railKind !== 'undefined' && railKind !== cur().kind) { if (tool !== 'select' && tool !== 'hand') tool = 'select'; flowFrom = null; umlToolbox(); } } tbAfterChange(); syncOffpage(); if (view().fresh) fit(); scheduleAutoTidy(); persist(); draw(); panel(); tabs(); status(); syncBar(); }
+var REV_GEN = 0;
+function afterChange() { REV_GEN++; if (doc && !isDfd()) { ucAspectAll(cur()); sqNormalize(cur()); if (typeof railKind !== 'undefined' && railKind !== cur().kind) { if (tool !== 'select' && tool !== 'hand') tool = 'select'; flowFrom = null; umlToolbox(); } } tbAfterChange(); syncOffpage(); if (view().fresh) fit(); scheduleAutoTidy(); persist(); draw(); panel(); tabs(); status(); syncBar(); }
 var atT = 0, atSig = {};
 function geoSig(D) { return D.elements.map(function (e) { return e.id + ':' + Math.round(e.x) + ',' + Math.round(e.y) + ',' + Math.round(e.w) + ',' + Math.round(e.h); }).join('|') + '#' + D.flows.map(function (f) { return f.id + f.from + f.to + (f.manual ? 'm' : '') + (f.kind || ''); }).join('|'); }
 function autoTidyOn() { return doc.prefs.autoTidy != null ? doc.prefs.autoTidy : !isDfd(); }
@@ -2952,7 +2972,7 @@ function umlPanel() {
     h += '<div class="kv"><span>Jenis</span><b>' + KINDS[D.kind].name + '</b></div><div class="kv"><span>Elemen</span><b>' + D.elements.length + '</b></div><div class="kv"><span>Garis</span><b>' + D.flows.length + '</b></div>';
     h += (D.kind === 'sequence' ? '<button class="btn block" data-act="sqrespace">Rapikan jarak pesan (35 px seperti EA)</button><p class="hint">Tarik dari garis putus-putus lifeline ke lifeline lain untuk membuat pesan. Lepas di lifeline yang sama untuk pesan ke diri sendiri.</p>' : '<button class="btn block" data-act="tidyall">Rapikan semua garis…</button>') + '</div>';
     var items = umlCheck(D); if (!items.length) items.push({ s: 'ok', t: D.elements.length ? 'Tidak ada masalah di diagram ini.' : 'Diagram masih kosong. Pilih elemen di Toolbox lalu klik di kanvas.' });
-    h += '<div class="sec"><h2>Pemeriksaan</h2><ul class="chk">' + items.map(function (c) { return '<li class="' + c.s + '"' + (c.ids ? ' data-go="' + active + '" data-ids="' + c.ids.join(',') + '"' : '') + '><span>' + esc(c.t) + '</span></li>'; }).join('') + '</ul></div>';
+    h += '<div class="sec"><h2>Pemeriksaan</h2><ul class="chk">' + items.map(function (c) { return '<li class="' + c.s + '"' + (c.ids ? ' data-go="' + active + '" data-ids="' + c.ids.join(',') + '"' : '') + '><span>' + esc(c.t) + '</span></li>'; }).join('') + '</ul>' + (typeof revPanelHtml === 'function' ? revPanelHtml(D) : '') + '</div>';
   }
   panelEl.innerHTML = h; pbRestore(keep);
 }
@@ -7747,6 +7767,404 @@ function modeSwitch(m) {
 function modeSwUI() { $$('.modesw [data-mode]').forEach(function (b) { b.setAttribute('aria-pressed', String((b.dataset.mode === 'dfd') === isDfd())); }); }
 document.addEventListener('click', function (e) { var b = e.target.closest && e.target.closest('.modesw [data-mode]'); if (b) { e.preventDefault(); modeSwitch(b.dataset.mode); } });
 
+/* ===================== v60: Tinjauan proyek (pengecekan lanjutan, tanpa AI) =====================
+   Prinsip: patokan = proyek itu sendiri (bentuk yang paling sering dipakai), temuan hanya ditampilkan bila buktinya cukup,
+   setiap temuan membawa bukti + dasar aturannya, bisa "Perbaiki" (pratinjau dulu, Ctrl+Z bisa) atau "Abaikan" (diingat di proyek: doc.review.ign).
+   Kategori: nama (konsistensi penamaan), silang (antar diagram), materi (aturan dari materi kuliah APSOOD W5–W7 & asisten).
+   Tingkat: 1 longgar (pasti), 2 normal, 3 ketat. Item: { key, cat, s:'bad'|'warn'|'info', lv, t, why, ev:[...], D, ids, fix:{ label, ch:[{w, a, b}], apply } } */
+var REV_LV = { longgar: 1, normal: 2, ketat: 3 };
+function revLevel() { try { var v = localStorage.getItem('alir-rev-level'); return REV_LV[v] ? v : 'normal'; } catch (x) { return 'normal'; } }
+function revSetLevel(v) { try { localStorage.setItem('alir-rev-level', v); } catch (x) { /* abaikan */ } }
+function revIgn() { if (!doc.review) doc.review = {}; if (!doc.review.ign) doc.review.ign = {}; return doc.review.ign; }
+var REV_CAT = { nama: 'Konsistensi nama', silang: 'Cek silang antar diagram', materi: 'Aturan materi' };
+
+/* ---------- alat bahasa ---------- */
+function revClean(s) { return String(s || '').replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+function revKey(s) { return revClean(s).toLowerCase(); }
+function revLev(a, b) {
+  if (a === b) return 0; var m = a.length, n = b.length; if (Math.abs(m - n) > 2) return 9;
+  var p = [], c = []; for (var j = 0; j <= n; j++) p[j] = j;
+  for (var i = 1; i <= m; i++) { c = [i]; for (j = 1; j <= n; j++) c[j] = Math.min(p[j] + 1, c[j - 1] + 1, p[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); p = c; }
+  return p[n];
+}
+/* kata benda yang kebetulan berawalan me-/di-/ber-/ter- */
+var REV_NOUN = /^(member|menu|media|metode|merk|merek|meja|merchant|meter|message|memo|mekanisme|meeting|metadata|method|mentor|mesin|menit|mekanik|meteran|dinas|direktur|direksi|diagram|diskon|digital|dimensi|direktori|dokumen|distributor|divisi|dijital|berita|berkas|beranda|beras|bersih|terminal|tertib)$/i;
+/* kata dasar/perintah dan kata kerja Inggris yang lazim menjadi awal nama aksi */
+var REV_BASEV = /^(proses|kelola|cetak|kirim|simpan|buat|hapus|ubah|lihat|cari|hitung|catat|input|validasi|verifikasi|login|logout|log|daftar|registrasi|register|checkout|bayar|pesan|tambah|edit|update|unduh|unggah|upload|download|tampilkan|isi|pilih|klik|tekan|masuk|keluar|kembali|konfirmasi|setujui|tolak|periksa|cek|filter|sortir|ekspor|impor|export|import|print|create|read|delete|view|add|manage|search|submit|send|check|verify|validate|approve|reject|generate|reset|beli|jual|pinjam|kembalikan|ambil|terima|tukar|ajukan|batalkan|batal|rekap|analisis|monitoring|scan|sinkronisasi|booking|transfer|topup|open|enter|click|press|select|choose|fill|type|go|return|display|show|save|log|redirect|update|remove|register|confirm|cancel|pay|buy|order|book|close|logout|login|access|change|make|choose|set|start|finish|review|rate|share|follow|reply|track|pick|place|apply|request)$/i;
+function revVerb(name) {
+  var w = (revClean(name).split(' ')[0] || '').replace(/[^A-Za-z]/g, '').toLowerCase(); if (!w) return true;
+  if (REV_NOUN.test(w)) return false;
+  return /^(me[a-z]{3,}|ber[a-z]{3,}|di[a-z]{3,}|ter[a-z]{3,}|mem[a-z]{2,}|men[a-z]{2,})$/.test(w) || REV_BASEV.test(w);
+}
+function revPeAn(name) { var w = (revClean(name).split(' ')[0] || '').toLowerCase(); return /^pe[a-z]{3,}an$/.test(w); }
+/* padanan kata yang sering bercampur (Indonesia–Inggris / sinonim). Bukti ini sendiri tidak cukup: harus juga di peran yang sama dan sisa namanya sama. */
+var REV_SYN = [['pesanan', 'order'], ['pelanggan', 'customer'], ['produk', 'product'], ['pengguna', 'user'], ['akun', 'account'], ['laporan', 'report'], ['transaksi', 'transaction'],
+  ['pembayaran', 'payment'], ['kategori', 'category'], ['pengiriman', 'delivery', 'shipping'], ['karyawan', 'pegawai', 'employee'], ['barang', 'item'], ['keranjang', 'cart'],
+  ['profil', 'profile'], ['jadwal', 'schedule'], ['ulasan', 'review'], ['mengubah', 'mengedit', 'memperbarui'], ['menghapus', 'delete'], ['melihat', 'menampilkan'], ['membuat', 'menambah', 'menambahkan']];
+function revSyn(a, b) { a = a.toLowerCase(); b = b.toLowerCase(); return a !== b && REV_SYN.some(function (g) { return g.indexOf(a) >= 0 && g.indexOf(b) >= 0; }); }
+/* kata kerja CRUD untuk nama use case / diagram */
+var REV_CRUD = { membuat: 'c', menambah: 'c', menambahkan: 'c', menginput: 'c', melihat: 'r', menampilkan: 'r', mengubah: 'u', mengedit: 'u', memperbarui: 'u', mengupdate: 'u', menghapus: 'd' };
+var REV_CRUDN = { c: 'membuat', r: 'melihat', u: 'mengubah', d: 'menghapus' };
+function revCap(w) { return w.charAt(0).toUpperCase() + w.slice(1); }
+/* nama dasar diagram/use case: tanpa "UC01 -", tanpa "(Aktor)", tanpa "Melakukan" di depan */
+function revBase(s) { return revKey(s).replace(/^uc\s*-?\s*\d+[a-z]?\s*[-:.]?\s*/, '').replace(/\s*\([^)]*\)\s*$/, '').replace(/^melakukan\s+/, '').trim(); }
+function revSuffix(s) { var m = /\(([^)]*)\)\s*$/.exec(revClean(s)); return m ? m[1] : ''; }
+
+/* ---------- pengumpulan nama per peran ---------- */
+function revRefs() {
+  var R = {};
+  function add(role, raw, ref) { raw = revClean(raw); if (!raw) return; (R[role] = R[role] || []).push({ raw: raw, k: revKey(raw), ref: ref }); }
+  doc.diagrams.forEach(function (D) {
+    D.elements.forEach(function (e) {
+      var r = { D: D, id: e.id, el: e };
+      if (isDfd()) {
+        if (e.type === 'entity') add('pelaku', e.name, r);
+        else if (e.type === 'store') add('store', e.name, r);
+        else if (e.type === 'process' && D.parent) add('proses', e.name, r);
+      } else {
+        if (e.type === 'actor' || e.type === 'sactor') add('pelaku', e.name, r);
+        else if ((e.type === 'partition' || e.type === 'lane') && !/^(sistem|system)$/i.test(revClean(e.name))) add('pelaku', e.name, r);
+        else if (e.type === 'usecase') add('usecase', e.name, r);
+        else if (e.type === 'sboundary' || e.type === 'scontrol' || e.type === 'sentity' || e.type === 'lifeline') add('lifeline', e.name, r);
+        else if (e.type === 'action' || e.type === 'task') add('aksi', e.name, r);
+      }
+    });
+    D.flows.forEach(function (f) {
+      var r = { D: D, id: f.id, fl: f };
+      if (isDfd()) add('alur', f.name, r);
+      else if (f.kind === 'smsg' && !f.isRet) add('pesan', f.name, r);
+    });
+  });
+  return R;
+}
+function revRename(refs, from, to) {
+  refs.forEach(function (x) { var o = x.ref.el || x.ref.fl; if (o && revClean(o.name) === from) o.name = to; });
+}
+function revDiagLabel(D) { return D.parent && typeof procLabel === 'function' ? 'Level ' + depth(D) + ' · ' + procLabel(D) : D.name; }
+
+/* ---------- aturan ---------- */
+function revRules() {
+  var out = [], R = revRefs();
+  function push(it) { out.push(it); }
+  var ROLE_NM = { pelaku: isDfd() ? 'entitas' : 'aktor/lajur', store: 'data store', proses: 'proses', alur: 'alur data', usecase: 'use case', lifeline: 'lifeline', aksi: 'aktivitas', pesan: 'pesan' };
+
+  /* A1/A2/A4: varian nama dalam satu peran */
+  Object.keys(R).forEach(function (role) {
+    var L = R[role], byRaw = {}, byKey = {};
+    L.forEach(function (x) { (byRaw[x.raw] = byRaw[x.raw] || []).push(x); (byKey[x.k] = byKey[x.k] || []).push(x); });
+    /* A2: huruf besar/kecil berbeda (nama sama) */
+    Object.keys(byKey).forEach(function (k) {
+      var forms = {}; byKey[k].forEach(function (x) { forms[x.raw] = (forms[x.raw] || 0) + 1; });
+      var fs = Object.keys(forms); if (fs.length < 2) return;
+      fs.sort(function (a, b) { return forms[b] - forms[a]; }); var best = fs[0];
+      if (forms[fs[0]] === forms[fs[1]]) return;
+      fs.slice(1).forEach(function (f) {
+        var refs = byRaw[f];
+        push({ key: 'case|' + role + '|' + f, cat: 'nama', s: 'warn', lv: 2, D: refs[0].ref.D, ids: [refs[0].ref.id],
+          t: 'Nama ' + ROLE_NM[role] + ' "' + f + '" ditulis beda huruf besar/kecilnya dengan "' + best + '".',
+          why: 'Proyekmu paling sering menulis "' + best + '", jadi bentuk itu yang dipakai sebagai patokan.',
+          ev: ['"' + best + '" dipakai ' + forms[best] + ' kali', '"' + f + '" dipakai ' + forms[f] + ' kali'],
+          fix: { label: 'Samakan menjadi "' + best + '"', ch: refs.map(function (x) { return { w: revDiagLabel(x.ref.D), a: f, b: best }; }), apply: function () { revRename(refs, f, best); } } });
+      });
+    });
+    /* A1 salah ketik & A4 padanan kata: satu kata berbeda, sisanya sama */
+    var keys = Object.keys(byKey);
+    if (keys.length > 400) keys = keys.slice(0, 400);
+    for (var i = 0; i < keys.length; i++) for (var j = i + 1; j < keys.length; j++) {
+      var a = keys[i].split(' '), b = keys[j].split(' '); if (a.length !== b.length) continue;
+      var dif = []; for (var t = 0; t < a.length; t++) if (a[t] !== b[t]) dif.push(t);
+      if (dif.length !== 1) continue;
+      var wa = a[dif[0]], wb = b[dif[0]], typo = false, syn = false;
+      if (/\d/.test(wa + wb)) continue;
+      if (wa.length >= 4 && wb.length >= 4 && wa.indexOf(wb) !== 0 && wb.indexOf(wa) !== 0) { var d = revLev(wa, wb); typo = d === 1 || (d === 2 && Math.min(wa.length, wb.length) >= 8); }
+      /* padanan hanya untuk peran benda (aktor, data store, alur, lifeline, use case); langkah/pesan yang beda kata kerja memang aksi berbeda */
+      if (!typo && !/^(aksi|pesan|proses)$/.test(role)) syn = revSyn(wa, wb);
+      if (!typo && !syn) continue;
+      var na = byKey[keys[i]].length, nb = byKey[keys[j]].length, ka = keys[i], kb = keys[j];
+      /* patokan: lebih sering dipakai; bila seri, yang muncul di lebih banyak diagram, lalu yang dipakai di Use Case Diagram (sumber nama aktor/use case) */
+      function rank(k) { var L2 = byKey[k], ds = {}, uc = 0; L2.forEach(function (x) { ds[x.ref.D.id] = 1; if (x.ref.D.kind === 'usecase') uc = 1; }); return L2.length * 100 + Object.keys(ds).length * 10 + uc; }
+      var ra = rank(ka), rb = rank(kb);
+      if (rb > ra) { var tk = ka; ka = kb; kb = tk; var tn = na; na = nb; nb = tn; var tr = ra; ra = rb; rb = tr; }
+      var best = byKey[ka][0].raw, rare = byKey[kb], rareRaw = rare[0].raw, tie = ra === rb;
+      var it = { key: (typo ? 'typo|' : 'syn|') + role + '|' + [ka, kb].sort().join('~'), cat: 'nama', s: 'warn', lv: typo ? 1 : 2, D: rare[0].ref.D, ids: [rare[0].ref.id],
+        t: typo ? 'Nama ' + ROLE_NM[role] + ' "' + rareRaw + '" mirip "' + best + '" (beda satu-dua huruf). Salah ketik?'
+          : 'Apakah ' + ROLE_NM[role] + ' "' + rareRaw + '" sama dengan "' + best + '"? Keduanya hanya beda kata "' + rareRaw.split(' ')[dif[0]] + '" dan "' + best.split(' ')[dif[0]] + '".',
+        why: typo ? 'Nama yang beda satu-dua huruf pada peran yang sama hampir selalu salah ketik.' : 'Kata "' + rareRaw.split(' ')[dif[0]] + '" dan "' + best.split(' ')[dif[0]] + '" sepadan, dan sisa namanya sama persis. Kalau memang dua hal berbeda, pilih Abaikan.',
+        ev: ['"' + best + '" dipakai ' + na + ' kali', '"' + rareRaw + '" dipakai ' + nb + ' kali'] };
+      if (!tie) it.fix = { label: 'Samakan menjadi "' + best + '"', ch: rare.map(function (x) { return { w: revDiagLabel(x.ref.D), a: x.raw, b: best }; }), apply: (function (rr, bb) { return function () { rr.forEach(function (x) { var o = x.ref.el || x.ref.fl; if (o) o.name = bb; }); }; })(rare, best) };
+      push(it);
+    }
+  });
+
+  /* A3: label cabang decision/gateway (Ya/Iya/Yes, Tidak/No) */
+  if (!isDfd()) {
+    var YES = /^(ya|iya|yes|y)$/i, NO = /^(tidak|tdk|no|enggak|gak|tidak\s*ya)$/i, lab = { y: {}, n: {} }, fl = { y: {}, n: {} };
+    doc.diagrams.forEach(function (D) {
+      if (D.kind !== 'activity' && D.kind !== 'bpmn') return;
+      var dec = {}; D.elements.forEach(function (e) { if (e.type === 'decision' || e.type === 'gateway') dec[e.id] = 1; });
+      D.flows.forEach(function (f) { if (!dec[f.from]) return; var n = revClean(f.name); var g = YES.test(n) ? 'y' : NO.test(n) ? 'n' : ''; if (!g) return; lab[g][n] = (lab[g][n] || 0) + 1; (fl[g][n] = fl[g][n] || []).push({ D: D, f: f }); });
+    });
+    ['y', 'n'].forEach(function (g) {
+      var fs = Object.keys(lab[g]); if (fs.length < 2) return; fs.sort(function (a, b) { return lab[g][b] - lab[g][a]; });
+      if (lab[g][fs[0]] === lab[g][fs[1]]) return;
+      var best = fs[0];
+      fs.slice(1).forEach(function (f) {
+        var L = fl[g][f];
+        push({ key: 'guard|' + g + '|' + f, cat: 'nama', s: 'warn', lv: 1, D: L[0].D, ids: [L[0].f.id],
+          t: 'Label cabang "' + f + '" dipakai ' + L.length + ' kali, padahal di bagian lain ditulis "' + best + '".',
+          why: 'Label cabang decision sebaiknya seragam di seluruh proyek.', ev: fs.map(function (x) { return '"' + x + '" dipakai ' + lab[g][x] + ' kali'; }),
+          fix: { label: 'Samakan menjadi "' + best + '"', ch: L.map(function (x) { return { w: x.D.name, a: f, b: best }; }), apply: function () { L.forEach(function (x) { x.f.name = best; }); } } });
+      });
+    });
+  }
+
+  /* A5: kata kerja CRUD yang dipakai berganti-ganti (Membuat vs Menambah, Mengubah vs Mengedit) di nama use case & diagram */
+  if (!isDfd()) {
+    var names = [];
+    doc.diagrams.forEach(function (D) {
+      if (D.kind === 'activity' || D.kind === 'sequence') names.push({ D: D, o: D, raw: revClean(D.name) });
+      if (D.kind === 'usecase') D.elements.forEach(function (e) { if (e.type === 'usecase') names.push({ D: D, o: e, raw: revClean(e.name), id: e.id }); });
+    });
+    var ops = {};
+    names.forEach(function (x) { var v = (x.raw.split(' ')[0] || '').toLowerCase(), op = REV_CRUD[v]; if (!op) return; ((ops[op] = ops[op] || {})[v] = ops[op][v] || []).push(x); });
+    Object.keys(ops).forEach(function (op) {
+      var vs = Object.keys(ops[op]); if (vs.length < 2) return;
+      vs.sort(function (a, b) { return ops[op][b].length - ops[op][a].length; });
+      if (ops[op][vs[0]].length === ops[op][vs[1]].length) return;
+      var best = vs[0];
+      vs.slice(1).forEach(function (v) {
+        var L = ops[op][v];
+        push({ key: 'crud|' + op + '|' + v, cat: 'nama', s: 'warn', lv: 2, D: L[0].D, ids: L[0].id ? [L[0].id] : null,
+          t: 'Use case/diagram berawalan "' + revCap(v) + '" (' + L.length + '), padahal untuk aksi yang sama proyekmu lebih sering memakai "' + revCap(best) + '" (' + ops[op][best].length + ').',
+          why: 'Satu jenis aksi data (membuat, melihat, mengubah, menghapus) sebaiknya memakai satu kata kerja yang sama di seluruh use case dan diagram.',
+          ev: L.slice(0, 4).map(function (x) { return x.raw; }),
+          fix: { label: 'Ganti "' + revCap(v) + '" menjadi "' + revCap(best) + '"', ch: L.map(function (x) { return { w: x.o === x.D ? 'nama diagram' : x.D.name, a: x.raw, b: revCap(best) + x.raw.slice(v.length) }; }),
+            apply: function () { L.forEach(function (x) { var cur0 = revClean(x.o.name); if (cur0.toLowerCase().indexOf(v) === 0) x.o.name = revCap(best) + cur0.slice(v.length); }); } } });
+      });
+    });
+  }
+
+  if (isDfd()) revDfd(push); else revUml(push);
+  return out;
+}
+
+/* ---------- DFD: aturan materi W6/W7 ---------- */
+function revDfd(push) {
+  doc.diagrams.forEach(function (D) {
+    var P = D.elements.filter(function (e) { return e.type === 'process'; }), S = D.elements.filter(function (e) { return e.type === 'store'; });
+    if (!D.parent) {
+      if (P.length > 1) push({ key: 'l0p|' + D.id, cat: 'materi', s: 'warn', lv: 2, D: D, ids: P.map(function (e) { return e.id; }),
+        t: 'Level 0 "' + D.name + '" berisi ' + P.length + ' proses.', why: 'Materi W6: DFD Level 0 (context diagram) mewakili sistem sebagai SATU proses; rinciannya dibuat di Level 1 lewat dekomposisi.' });
+      if (S.length) push({ key: 'l0s|' + D.id, cat: 'materi', s: 'warn', lv: 2, D: D, ids: S.map(function (e) { return e.id; }),
+        t: 'Level 0 "' + D.name + '" sudah memuat data store.', why: 'Materi W7: DFD Level 0 tidak membentuk data store; data store baru muncul di Level 1 dari aliran data.' });
+    }
+    D.elements.forEach(function (e) {
+      if (e.type === 'process' && D.parent && revClean(e.name) && !revVerb(e.name)) push({ key: 'pverb|' + D.id + '|' + e.id, cat: 'materi', s: 'warn', lv: 2, D: D, ids: [e.id],
+        t: 'Proses ' + e.num + ' "' + revClean(e.name) + '" tidak diawali kata kerja.', why: 'Materi W6/W7: proses ditulis dengan kata kerja (pekerjaan yang dilakukan sistem), misalnya "Mencetak Laporan".' + (revPeAn(e.name) ? ' "' + revClean(e.name).split(' ')[0] + '" adalah kata benda (pe-an).' : '') });
+      if (e.type === 'entity' && revClean(e.name) && /^(me|di)[a-z]{4,}$/i.test(revClean(e.name).split(' ')[0]) && revVerb(e.name)) push({ key: 'ever|' + D.id + '|' + e.id, cat: 'materi', s: 'warn', lv: 2, D: D, ids: [e.id],
+        t: 'Entitas "' + revClean(e.name) + '" diberi nama seperti kata kerja.', why: 'Materi W6: entitas (terminator) adalah pihak di luar sistem, yaitu orang, kelompok, atau organisasi.' });
+    });
+    if (D.parent && depth(D) === 1 && P.length >= 2 && !S.length && D.elements.some(function (e) { return e.type === 'entity'; })) push({ key: 'l1s|' + D.id, cat: 'materi', s: 'info', lv: 3, D: D,
+      t: 'Diagram "' + revDiagLabel(D) + '" belum punya data store.', why: 'Materi W7: Level 1 membentuk data store dari aliran data (write = menuju store, read = dari store, update = dua arah).' });
+  });
+}
+
+/* ---------- UML: cek silang + aturan materi ---------- */
+function revUml(push) {
+  var UC = [], AD = [], SD = [];
+  doc.diagrams.forEach(function (D) {
+    if (D.kind === 'usecase') D.elements.forEach(function (e) { if (e.type === 'usecase' && revClean(e.name)) UC.push({ D: D, e: e, b: revBase(e.name) }); });
+    if (D.kind === 'activity' && D.elements.length) AD.push({ D: D, b: revBase(D.name), suf: revSuffix(D.name) });
+    if (D.kind === 'sequence' && D.elements.length) SD.push({ D: D, b: revBase(D.name), suf: revSuffix(D.name) });
+  });
+  var ucB = {}; UC.forEach(function (u) { ucB[u.b] = u; });
+  function tokSim(a, b) { var A = a.split(' '), B = b.split(' '), s = A.filter(function (w) { return B.indexOf(w) >= 0; }).length; return s / Math.max(A.length, B.length); }
+  function nearUc(b) { var best = null, sc = 0; UC.forEach(function (u) { var s = tokSim(u.b, b), d = revLev(u.b, b); if (d <= 2) s = Math.max(s, .95); if (s > sc) { sc = s; best = u; } }); return sc >= .6 ? best : null; }
+  /* B1: use case ↔ Activity/Sequence (nama sama) */
+  if (UC.length) {
+    [['Activity Diagram', AD, 'ad'], ['Sequence Diagram', SD, 'sd']].forEach(function (k) {
+      var L = k[1]; if (!L.length) return;
+      var skipMiss = k[2] === 'ad'; /* use case tanpa Activity Diagram sudah diperiksa di pemeriksaan Use Case (extra.js) */
+      var have = {}; L.forEach(function (x) { have[x.b] = 1; });
+      var seen = {}, miss = [];
+      UC.forEach(function (u) { if (seen[u.b] || have[u.b]) return; seen[u.b] = 1;
+        var near = L.find(function (x) { return !ucB[x.b] && (revLev(x.b, u.b) <= 2 || tokSim(x.b, u.b) >= .6); });
+        if (!near) miss.push(u);
+      });
+      /* dirangkum jadi satu temuan supaya daftar tidak penuh */
+      if (miss.length && !skipMiss) push({ key: 'miss' + k[2] + '|' + miss.map(function (u) { return u.b; }).sort().join('~'), cat: 'silang', s: 'info', lv: 2, D: miss[0].D, ids: miss.map(function (u) { return u.e.id; }),
+        t: miss.length === 1 ? 'Use case "' + revClean(miss[0].e.name) + '" belum punya ' + k[0] + '.' : miss.length + ' use case belum punya ' + k[0] + '.',
+        why: 'Setiap use case dijabarkan dengan skenario, lalu ' + k[0] + ' dengan nama yang sama.', ev: miss.length > 1 ? miss.map(function (u) { return revClean(u.e.name); }) : null });
+      L.forEach(function (x) {
+        if (ucB[x.b]) return;
+        var u = nearUc(x.b), nmNew = u ? revClean(u.e.name) + (x.suf ? ' (' + x.suf + ')' : '') : '';
+        push({ key: 'name' + k[2] + '|' + x.D.id, cat: 'silang', s: 'warn', lv: u ? 1 : 2, D: x.D,
+          t: k[0] + ' "' + x.D.name + '" tidak sama namanya dengan use case mana pun.' + (u ? ' Mungkin maksudnya "' + revClean(u.e.name) + '"?' : ''),
+          why: 'Nama ' + k[0] + ' sebaiknya persis sama dengan nama use case-nya supaya mudah dicocokkan di laporan.', ev: u ? ['Use case terdekat: "' + revClean(u.e.name) + '"'] : null,
+          fix: u ? { label: 'Ganti nama diagram', ch: [{ w: 'nama diagram', a: x.D.name, b: nmNew }], apply: function () { x.D.name = nmNew; } } : null });
+      });
+    });
+  }
+  /* B2: jumlah decision di Activity = jumlah fragment alt di Sequence yang namanya sama */
+  AD.forEach(function (a) {
+    var s = SD.find(function (x) { return x.b === a.b && x.suf === a.suf; }); if (!s) return;
+    var nd = a.D.elements.filter(function (e) { return e.type === 'decision' && a.D.flows.filter(function (f) { return f.from === e.id; }).length >= 2; }).length;
+    var na = s.D.elements.filter(function (e) { return e.type === 'fragment' && (e.op || 0) === 0; }).length;
+    if (nd !== na) push({ key: 'altn|' + a.D.id + '|' + s.D.id, cat: 'silang', s: 'warn', lv: 2, D: s.D,
+      t: 'Activity "' + a.D.name + '" punya ' + nd + ' decision, tetapi Sequence-nya punya ' + na + ' fragment alt.', why: 'Satu alternative flow = satu decision di Activity Diagram = satu fragment alt di Sequence Diagram.' });
+  });
+  /* B3: aktor/lajur di Activity & aktor di Sequence harus aktor use case-nya */
+  function ucActors(u) { var s = {}; var els = new Map(u.D.elements.map(function (e) { return [e.id, e]; })); u.D.flows.forEach(function (f) { if (f.kind !== 'assoc') return; var o = f.from === u.e.id ? els.get(f.to) : f.to === u.e.id ? els.get(f.from) : null; if (o && o.type === 'actor') s[revKey(o.name)] = revClean(o.name); }); return s; }
+  [[AD, 'partition', 'lajur'], [SD, 'sactor', 'aktor']].forEach(function (k) {
+    k[0].forEach(function (x) {
+      var u = ucB[x.b]; if (!u) return; var A = ucActors(u), names = Object.keys(A); if (!names.length) return;
+      x.D.elements.forEach(function (e) {
+        if (e.type !== k[1]) return; var n = revKey(e.name); if (!n || /^(sistem|system|aktor|actor|pengguna|user)$/.test(n) || A[n]) return;
+        if (x.suf && revKey(x.suf) === n) return;
+        push({ key: 'act' + k[1] + '|' + x.D.id + '|' + e.id, cat: 'silang', s: 'warn', lv: 2, D: x.D, ids: [e.id],
+          t: 'Di "' + x.D.name + '" ada ' + k[2] + ' "' + revClean(e.name) + '", padahal use case-nya hanya terhubung ke ' + names.map(function (q) { return '"' + A[q] + '"'; }).join(', ') + '.',
+          why: 'Aktor yang menjalankan use case di Use Case Diagram harus sama dengan aktor di Activity Diagram dan Sequence Diagram-nya.' });
+      });
+    });
+  });
+  /* B4: Model (M_Data…) di Sequence ↔ data store di DFD (proyek DFD terakhir di browser ini) */
+  var dfdDoc = typeof storedDoc === 'function' ? storedDoc(LS) : null, stores = {};
+  if (dfdDoc) dfdDoc.doc.diagrams.forEach(function (D) { D.elements.forEach(function (e) { if (e.type === 'store') stores[revKey(e.name).replace(/^data\s+/, '').replace(/\s+/g, '')] = revClean(e.name); }); });
+  if (Object.keys(stores).length) SD.forEach(function (x) {
+    x.D.elements.forEach(function (e) {
+      if (e.type !== 'sentity') return; var b = revKey(e.name).replace(/^m_/, '').replace(/^data/, '').replace(/[\s_]+/g, ''); if (!b || stores[b]) return;
+      push({ key: 'mstore|' + x.D.id + '|' + e.id, cat: 'silang', s: 'info', lv: 3, D: x.D, ids: [e.id],
+        t: 'Model "' + e.name + '" tidak punya data store yang cocok di DFD "' + dfdDoc.doc.name + '".', why: 'Model di Sequence Diagram biasanya sama dengan data store di DFD Level 1 (mis. M_DataArtikel dengan "Data Artikel").', ev: ['Data store di DFD: ' + Object.keys(stores).slice(0, 6).map(function (k) { return stores[k]; }).join(', ')] });
+    });
+  });
+
+  /* aturan materi per diagram */
+  doc.diagrams.forEach(function (D) {
+    var els = new Map(D.elements.map(function (e) { return [e.id, e]; }));
+    if (D.kind === 'usecase') {
+      var bnd = D.elements.filter(function (e) { return e.type === 'boundary'; });
+      bnd.forEach(function (b) { if (!revClean(b.name)) push({ key: 'bnd|' + D.id + '|' + b.id, cat: 'materi', s: 'warn', lv: 2, D: D, ids: [b.id], t: 'Boundary sistem di "' + D.name + '" belum diberi nama.', why: 'Materi W6: boundary menampilkan ruang lingkup sistem, berisi nama sistem.' }); });
+      D.elements.forEach(function (e) {
+        if (e.type === 'actor' && bnd.some(function (b) { return e.x + e.w / 2 > b.x && e.x + e.w / 2 < b.x + b.w && e.y + e.h / 2 > b.y && e.y + e.h / 2 < b.y + b.h; })) push({ key: 'actin|' + D.id + '|' + e.id, cat: 'materi', s: 'warn', lv: 2, D: D, ids: [e.id], t: 'Aktor "' + revClean(e.name) + '" berada di dalam boundary sistem.', why: 'Materi W6: aktor adalah pengguna di luar sistem, jadi diletakkan di luar boundary.' });
+        if (e.type === 'usecase' && revClean(e.name) && !revVerb(e.name)) push({ key: 'ucverb|' + D.id + '|' + e.id, cat: 'materi', s: 'warn', lv: 2, D: D, ids: [e.id], t: 'Use case "' + revClean(e.name) + '" tidak diawali kata kerja.', why: 'Use case adalah fungsi/aktivitas yang bisa dilakukan di sistem, jadi ditulis dengan kata kerja (mis. "Melakukan Login", "Melihat Data Produk").' });
+      });
+      /* use case tanpa aktor sama sekali (langsung atau lewat include/extend) */
+      var conn = {}; D.flows.forEach(function (f) { var a = els.get(f.from), b = els.get(f.to); if (!a || !b) return; if (f.kind === 'assoc' && (a.type === 'actor' || b.type === 'actor')) conn[a.type === 'actor' ? b.id : a.id] = 1; });
+      var grow = true; while (grow) { grow = false; D.flows.forEach(function (f) { if (f.kind !== 'include' && f.kind !== 'extend') return; if (conn[f.to] && !conn[f.from]) { conn[f.from] = 1; grow = true; } if (conn[f.from] && !conn[f.to] && f.kind === 'include') { conn[f.to] = 1; grow = true; } }); }
+      D.elements.forEach(function (e) { if (e.type === 'usecase' && !conn[e.id] && !D.flows.some(function (f) { return f.kind === 'extend' && f.from === e.id; })) push({ key: 'ucna|' + D.id + '|' + e.id, cat: 'materi', s: 'warn', lv: 1, D: D, ids: [e.id], t: 'Use case "' + revClean(e.name) + '" tidak terhubung ke aktor mana pun.', why: 'Materi W6: use case menunjukkan siapa yang bisa menggunakan fungsi itu; tanpa aktor, tidak ada yang menjalankannya.' }); });
+      /* arah «extend» terbalik: Melihat X → Mengubah/Menghapus X (seharusnya use case tambahan menunjuk ke use case dasar) */
+      D.flows.forEach(function (f) {
+        if (f.kind !== 'extend') return; var a = els.get(f.from), b = els.get(f.to); if (!a || !b) return;
+        var ma = /^(\S+)\s+(.*)$/.exec(revKey(a.name)), mb = /^(\S+)\s+(.*)$/.exec(revKey(b.name)); if (!ma || !mb) return;
+        if (REV_CRUD[ma[1]] === 'r' && /[ud]/.test(REV_CRUD[mb[1]] || '') && ma[2] === mb[2]) push({ key: 'extdir|' + D.id + '|' + f.id, cat: 'materi', s: 'bad', lv: 1, D: D, ids: [f.id],
+          t: 'Arah «extend» antara "' + revClean(a.name) + '" dan "' + revClean(b.name) + '" terbalik.', why: 'Materi W6: «extend» adalah use case tambahan menuju use case dasar. "' + revClean(b.name) + '" adalah tambahan dari "' + revClean(a.name) + '", jadi panahnya dari "' + revClean(b.name) + '" ke "' + revClean(a.name) + '".',
+          fix: { label: 'Balik arah panah', ch: [{ w: D.name, a: revClean(a.name) + ' ke ' + revClean(b.name), b: revClean(b.name) + ' ke ' + revClean(a.name) }], apply: function () { var t0 = f.from; f.from = f.to; f.to = t0; var s0 = f.sa; f.sa = f.ta; f.ta = s0; f.bends = (f.bends || []).slice().reverse(); } } });
+      });
+    }
+    if (D.kind === 'activity') {
+      var SYS_V = /^(menampilkan|memvalidasi|memeriksa|mengecek|menyimpan|memproses|menghitung|memverifikasi|mengarahkan|memperbarui|mencatat|menghapus\s+data|mengambil)\b/i, ACT_V = /^(menekan|mengklik|klik|tekan|mengisi|memilih|memasukkan|mengetik|mengunggah|membuka)\b/i;
+      D.elements.forEach(function (e) {
+        if (e.type !== 'action' || !revClean(e.name)) return;
+        var c = containerOf(D, e, ['partition']), ln = c ? revClean(c.name) : '';
+        if (!revVerb(e.name)) push({ key: 'acverb|' + D.id + '|' + e.id, cat: 'materi', s: 'warn', lv: 2, D: D, ids: [e.id], t: 'Aktivitas "' + revClean(e.name) + '" tidak diawali kata kerja.', why: 'Materi W7: activity menggambarkan aktivitas aktor atau respons sistem, jadi ditulis dengan kata kerja.' });
+        if (!ln) return;
+        var sys = /^(sistem|system)$/i.test(ln);
+        if (sys && ACT_V.test(revClean(e.name))) push({ key: 'lane|' + D.id + '|' + e.id, cat: 'materi', s: 'warn', lv: 2, D: D, ids: [e.id], t: 'Aktivitas "' + revClean(e.name) + '" ada di lajur Sistem, padahal itu tindakan aktor.', why: 'Materi W7: partition mengelompokkan aktivitas menurut pelakunya. Menekan, mengisi, dan memilih dilakukan aktor.' });
+        if (!sys && SYS_V.test(revClean(e.name))) push({ key: 'lane|' + D.id + '|' + e.id, cat: 'materi', s: 'warn', lv: 2, D: D, ids: [e.id], t: 'Aktivitas "' + revClean(e.name) + '" ada di lajur ' + ln + ', padahal itu respons sistem.', why: 'Materi W7: partition mengelompokkan aktivitas menurut pelakunya. Menampilkan, memvalidasi, dan menyimpan dilakukan sistem.' });
+      });
+      D.elements.forEach(function (e) { if (e.type === 'decision' && D.flows.filter(function (f) { return f.from === e.id; }).length >= 2 && revClean(e.name) && !/\?\s*$/.test(e.name)) push({ key: 'decq|' + D.id + '|' + e.id, cat: 'materi', s: 'info', lv: 3, D: D, ids: [e.id], t: 'Decision "' + revClean(e.name) + '" belum berbentuk pertanyaan.', why: 'Decision menunjukkan pilihan; menuliskannya sebagai pertanyaan (diakhiri "?") membuat cabang Ya/Tidak jelas.', fix: { label: 'Tambah tanda tanya', ch: [{ w: D.name, a: revClean(e.name), b: revClean(e.name) + '?' }], apply: function () { e.name = revClean(e.name) + '?'; } } }); });
+    }
+    if (D.kind === 'bpmn') {
+      D.elements.forEach(function (e) {
+        if (e.type !== 'task' || !revClean(e.name)) return;
+        var w = revClean(e.name).split(' ');
+        if (!revVerb(e.name) || w.length < 2) push({ key: 'task|' + D.id + '|' + e.id, cat: 'materi', s: 'warn', lv: 2, D: D, ids: [e.id], t: 'Task "' + revClean(e.name) + '" belum berupa kalimat aktif (predikat + objek).', why: 'Standar BPMN (materi W5): user task/activity mengandung objek dan predikat dalam kalimat aktif, mis. "Mengisi Formulir Pemesanan".' });
+      });
+    }
+    if (D.kind === 'sequence') {
+      var msgs = (typeof sqOrder === 'function' ? sqOrder(D) : D.flows).filter(function (f) { return f.kind === 'smsg'; });
+      msgs.forEach(function (f, i) {
+        if (!f.isRet) return;
+        var call = null; for (var j = i - 1; j >= 0; j--) { var g = msgs[j]; if (!g.isRet && g.from === f.to && g.to === f.from) { call = g; break; } }
+        if (call && !/^(get|count)/i.test(revClean(call.name))) push({ key: 'ret|' + D.id + '|' + f.id, cat: 'materi', s: 'warn', lv: 2, D: D, ids: [f.id],
+          t: 'Balasan "' + revClean(f.name) + '" mengikuti pesan "' + revClean(call.name) + '()", bukan getData/countData.', why: 'Aturan asisten praktikum: garis balasan (return) hanya untuk getData…() dan countData…(); insert/update/delete tidak diberi return.',
+          fix: { label: 'Hapus garis balasan', ch: [{ w: D.name, a: revClean(f.name), b: '(dihapus)' }], apply: function () { D.flows = D.flows.filter(function (x) { return x !== f; }); } } });
+      });
+    }
+  });
+}
+
+/* ---------- hasil tersaring (tingkat + diabaikan) ---------- */
+var REV_CACHE = { sig: null, all: null };
+function revAll() {
+  var sig = (isDfd() ? 'd' : 'u') + REV_GEN + '|' + doc.diagrams.length + '|' + (doc.name || '');
+  if (REV_CACHE.sig === sig && REV_CACHE.all) return REV_CACHE.all;
+  var all = []; try { all = revRules(); } catch (err) { all = []; }
+  var seen = {}; all = all.filter(function (x) { if (seen[x.key]) return false; seen[x.key] = 1; return true; });
+  REV_CACHE = { sig: sig, all: all }; return all;
+}
+function revItems(withIgnored) { var lv = REV_LV[revLevel()], ign = (doc.review && doc.review.ign) || {}; return revAll().filter(function (x) { return x.lv <= lv && (withIgnored ? true : !ign[x.key]); }); }
+function revForDiagram(D) { return revItems().filter(function (x) { return x.D === D; }); }
+function revPanelHtml(D) {
+  var n = 0; try { n = revForDiagram(D).length; } catch (x) { n = 0; }
+  return n ? '<div class="revline"><span>Tinjauan: ' + n + ' saran untuk diagram ini.</span><button class="lnk" data-act="check">Lihat</button></div>' : '';
+}
+
+/* ---------- jendela "Periksa & tinjau proyek" (F4 / tombol pemeriksaan) ---------- */
+function revModal() {
+  var flt = 'all', openFix = null;
+  function baseItems() {
+    var all = [];
+    orderedDiagrams().forEach(function (D) { checkDiagram(D).forEach(function (c) { if (c.s === 'ok') return; all.push({ cat: 'diagram', s: c.s, t: c.t, D: D, ids: c.ids, go: c.go, key: null }); }); });
+    return all;
+  }
+  function dname(D) { return revDiagLabel(D); }
+  function render(s) {
+    var base = baseItems(), rev = revItems(), ign = revItems(true).filter(function (x) { return doc.review && doc.review.ign && doc.review.ign[x.key]; });
+    var nBad = base.concat(rev).filter(function (x) { return x.s === 'bad'; }).length, nWarn = base.filter(function (x) { return x.s !== 'bad'; }).length, nSar = rev.filter(function (x) { return x.s !== 'bad'; }).length;
+    var list = flt === 'ign' ? ign : base.concat(rev).filter(function (x) { return flt === 'all' || (flt === 'bad' ? x.s === 'bad' : x.s !== 'bad'); });
+    var lv = revLevel();
+    var h = '<div class="rvtop"><div class="rvchips" role="tablist">' +
+      [['all', 'Semua', base.length + rev.length], ['bad', 'Salah', nBad], ['warn', 'Peringatan & saran', nWarn + nSar], ['ign', 'Diabaikan', ign.length]].map(function (c) { return '<button class="chip" role="tab" data-rf="' + c[0] + '" aria-pressed="' + (flt === c[0]) + '">' + c[1] + ' <b>' + c[2] + '</b></button>'; }).join('') +
+      '</div><label class="rvlv">Ketelitian <select class="in" data-rl><option value="longgar"' + (lv === 'longgar' ? ' selected' : '') + '>Longgar (yang pasti saja)</option><option value="normal"' + (lv === 'normal' ? ' selected' : '') + '>Normal</option><option value="ketat"' + (lv === 'ketat' ? ' selected' : '') + '>Ketat (semua saran)</option></select></label></div>';
+    if (!list.length) h += '<ul class="chk"><li class="ok"><span>' + (flt === 'ign' ? 'Tidak ada temuan yang diabaikan.' : 'Tidak ada temuan. Semua diagram lolos pemeriksaan dan tinjauan pada tingkat ketelitian ini.') + '</span></li></ul>';
+    var groups = [['diagram', 'Aturan diagram']].concat(Object.keys(REV_CAT).map(function (k) { return [k, REV_CAT[k]]; }));
+    groups.forEach(function (g) {
+      var L = list.filter(function (x) { return x.cat === g[0]; }); if (!L.length) return;
+      h += '<h3 class="rvh">' + g[1] + ' <span>' + L.length + '</span></h3><ul class="chk rv">';
+      L.forEach(function (x) {
+        var i = list.indexOf(x);
+        h += '<li class="' + (x.s === 'info' ? 'info' : x.s) + '" data-ri="' + i + '"><div class="rvb"><div class="rvt">' + esc(x.t) + '</div><small>' + esc(dname(x.D)) + '</small>' +
+          (x.why ? '<div class="rvwhy">' + esc(x.why) + '</div>' : '') + (x.ev && x.ev.length ? '<div class="rvev">' + x.ev.map(esc).join(' · ') + '</div>' : '') +
+          '<div class="rvact"><button class="btn sm" data-ra="go">Lihat</button>' + (x.fix && flt !== 'ign' ? '<button class="btn sm" data-ra="fix">Perbaiki…</button>' : '') +
+          (x.key ? (flt === 'ign' ? '<button class="btn sm" data-ra="unign">Tampilkan lagi</button>' : '<button class="btn sm" data-ra="ign" title="Sudah benar / disengaja. Temuan ini tidak ditampilkan lagi di proyek ini.">Abaikan</button>') : '') + '</div>' +
+          (openFix === x.key && x.fix ? '<div class="rvfix"><b>' + esc(x.fix.label) + '</b><table>' + x.fix.ch.slice(0, 12).map(function (c) { return '<tr><td>' + esc(c.w) + '</td><td><s>' + esc(c.a) + '</s></td><td>menjadi</td><td><b>' + esc(c.b) + '</b></td></tr>'; }).join('') + '</table>' + (x.fix.ch.length > 12 ? '<p class="hint">…dan ' + (x.fix.ch.length - 12) + ' perubahan lain.</p>' : '') + '<div class="row tight"><button class="btn sm pri" data-ra="apply">Terapkan</button><button class="btn sm" data-ra="nofix">Batal</button><span class="hint">Bisa dibatalkan dengan Ctrl+Z.</span></div></div>' : '') +
+          '</div></li>';
+      });
+      h += '</ul>';
+    });
+    $('#rvw', s).innerHTML = h; s._list = list;
+  }
+  modal('Periksa & tinjau proyek', '<p class="hint">Pemeriksaan aturan tiap diagram, ditambah tinjauan seluruh proyek: konsistensi nama, cek silang antar diagram, dan aturan materi. Patokannya bentuk yang paling sering kamu pakai; pilih Abaikan kalau temuan memang disengaja.</p><div id="rvw"></div>',
+    '<button class="btn pri" data-close>Tutup</button>', function (s, close) {
+      s.querySelector('.modal').classList.add('mid');
+      render(s);
+      s.addEventListener('change', function (e) { if (e.target.matches('[data-rl]')) { revSetLevel(e.target.value); render(s); } });
+      s.addEventListener('click', function (e) {
+        var c = e.target.closest('[data-rf]'); if (c) { flt = c.dataset.rf; openFix = null; render(s); return; }
+        var b = e.target.closest('[data-ra]'); if (!b) return;
+        var li = b.closest('li[data-ri]'), x = li && s._list[+li.dataset.ri]; if (!x) return;
+        var a = b.dataset.ra;
+        if (a === 'go') { close(); switchTo(x.go || x.D.id); if (x.ids) sel = new Set(x.ids); draw(); panel(); syncBar(); return; }
+        if (a === 'fix') { openFix = x.key; render(s); return; }
+        if (a === 'nofix') { openFix = null; render(s); return; }
+        if (a === 'apply') { mutate(function () { x.fix.apply(); }); openFix = null; toast('Diperbaiki: ' + x.fix.label + '. Ctrl+Z untuk membatalkan.'); render(s); return; }
+        if (a === 'ign') { mutate(function () { revIgn()[x.key] = 1; }); render(s); return; }
+        if (a === 'unign') { mutate(function () { delete revIgn()[x.key]; }); render(s); return; }
+      });
+    });
+}
+
 /* ================= Jelaskan diagram (tanpa AI, berbasis analisis alur) =================
    Alir membaca struktur diagram (lane, urutan, cabang, perulangan, paralel, ujung) lalu menyusun penjelasan dan
    menjawab pertanyaan tentang objek tertentu. Semua jawaban diturunkan langsung dari garis dan objek yang ada,
@@ -11955,7 +12373,7 @@ function panel() {
     h += '<div class="kv"><span>Notasi</span><b>' + METHODS[doc.method] + '</b></div></div>';
     var items = checkDiagram(D);
     if (!items.length) items.push({ s: 'ok', t: 'Tidak ada masalah di diagram ini.' });
-    h += '<div class="sec"><h2>Pemeriksaan</h2><ul class="chk">' + items.map(function (c) { return '<li class="' + c.s + '"' + (c.ids ? ' data-go="' + (c.go || active) + '" data-ids="' + c.ids.join(',') + '"' : '') + '><span>' + esc(c.t) + '</span></li>'; }).join('') + '</ul></div>';
+    h += '<div class="sec"><h2>Pemeriksaan</h2><ul class="chk">' + items.map(function (c) { return '<li class="' + c.s + '"' + (c.ids ? ' data-go="' + (c.go || active) + '" data-ids="' + c.ids.join(',') + '"' : '') + '><span>' + esc(c.t) + '</span></li>'; }).join('') + '</ul>' + (typeof revPanelHtml === 'function' ? revPanelHtml(D) : '') + '</div>';
     h += '<div class="sec"><h2>Pohon proses</h2>' + treeHtml() + '<p class="hint">Klik kanan diagram untuk ganti nama, duplikat, salin, atau hapus.</p></div>';
   }
   panelEl.innerHTML = h;
@@ -13092,6 +13510,7 @@ function objList() {
   });
 }
 function checkModal() {
+  if (typeof revModal === 'function') { revModal(); return; }
   var all = [], errs = 0, warns = 0;
   orderedDiagrams().forEach(function (D) {
     var it = checkDiagram(D).filter(function (c) { return c.s !== 'ok'; });
