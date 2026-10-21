@@ -629,6 +629,18 @@ html.notrans *, html.notrans *::before { transition: none !important; }
 #crumbs { background: var(--card); border-radius: 10px; }
 #crumbs { transition: opacity 220ms ease, transform 220ms ease; }
 #crumbs.cr-hide { opacity: 0; transform: translateY(-6px); pointer-events: none; }
+/* v61: sorotan objek yang dituju dari Periksa/Tinjauan, dan tombol "Tampilkan diagram" saat diagram tidak terlihat */
+#focusring { position: absolute; pointer-events: none; z-index: 4; border: 3px solid var(--acc); border-radius: 12px; box-shadow: 0 0 0 6px rgba(255, 90, 31, .18); opacity: 0; animation: al-ring 2.2s ease-out forwards; }
+@keyframes al-ring { 0% { opacity: 0; transform: scale(1.35); } 12% { opacity: 1; transform: scale(1); } 30% { box-shadow: 0 0 0 12px rgba(255, 90, 31, .05); } 45% { box-shadow: 0 0 0 4px rgba(255, 90, 31, .25); } 62% { box-shadow: 0 0 0 12px rgba(255, 90, 31, .05); } 80% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { #focusring { animation: al-ring-rm 2.2s linear forwards; } @keyframes al-ring-rm { 0%, 80% { opacity: 1; } 100% { opacity: 0; } } }
+#lostpill { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 5; display: flex; align-items: center; gap: 8px; max-width: calc(100% - 32px); padding: 6px 6px 6px 14px; background: var(--card); color: var(--fg); border: 1.5px solid var(--hard); border-radius: 999px; box-shadow: 0 6px 20px rgba(0, 0, 0, .16); font-size: 13px; }
+#lostpill[hidden] { display: none; }
+#lostpill span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#lostpill .btn { border-radius: 999px; white-space: nowrap; }
+#lostpill .lnk { font-size: 18px; line-height: 1; padding: 2px 8px; color: var(--mut); }
+html.anim #lostpill:not([hidden]) { animation: al-pill .22s var(--ease-out, ease-out); }
+@keyframes al-pill { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translateX(-50%); } }
+@media (max-width: 900px) { #lostpill span { display: none; } }
 #crumbs button { color: var(--acc); }
 #toast { border-radius: 10px; }
 #mpbar { background: var(--card); border: 1.5px solid var(--acc); color: var(--fg); border-radius: 12px; }
@@ -3650,8 +3662,8 @@ function eaExportModal() {
     $('[data-ok]', s).addEventListener('click', async function () {
       var xml;
       try { xml = eaXmi(doc); persist(); } catch (err) { toast('Gagal membuat XMI: ' + (err && err.message)); return; }
-      var n = fileBase() + ' (untuk EA).xml', r = await saveFile(n, latin1(xml), true);
-      if (r === 'ext') { r = await saveFile(fileBase() + ' (untuk EA).zip', zip1(n, latin1(xml)), true); if (r === 'ok') toast('Tersimpan sebagai ZIP. Ekstrak dulu, lalu impor berkas .xml-nya ke EA.'); }
+      var n = fileBase() + ' (untuk EA).xml', r = await saveFile(n, latin1(xml, true), true);
+      if (r === 'ext') { r = await saveFile(fileBase() + ' (untuk EA).zip', zip1(n, latin1(xml, true)), true); if (r === 'ok') toast('Tersimpan sebagai ZIP. Ekstrak dulu, lalu impor berkas .xml-nya ke EA.'); }
       else if (r === 'ok') toast('Tersimpan: ' + n + '. Ikuti langkah di jendela ini untuk mengimpornya ke EA.');
       if (r === 'fail') textFallback(n, xml);
     });
@@ -7548,18 +7560,18 @@ try { window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('ch
 /* selama kamera bergerak: gambar sekali tanpa bayangan/gradasi (fastDraw), lalu kualitas penuh di akhir — hasil akhir sama dengan tanpa animasi */
 function animFastEnd() { if (ANIM.fast) { ANIM.fast = false; fastDraw = false; } }
 /* gerakkan kamera ke {x,y,k} dengan mulus (zoom geometris, pusat layar bergerak lurus) */
-function animView(to, ms) {
+function animView(to, ms, force, cb) {
   var v = view(); cancelAnimationFrame(ANIM.raf); animFastEnd();
-  if (!ANIM.on || !isFinite(to.k) || !isFinite(to.x) || !isFinite(to.y)) { v.x = to.x; v.y = to.y; v.k = to.k; v.fresh = false; draw(); return; }
+  if (!(ANIM.on || force) || !isFinite(to.k) || !isFinite(to.x) || !isFinite(to.y)) { v.x = to.x; v.y = to.y; v.k = to.k; v.fresh = false; draw(); if (cb) cb(); return; }
   var s = stageBox(), f = { x: v.x, y: v.y, k: v.k }, d = ms || 240, t0 = performance.now();
   var cF = { x: (s.w / 2 - f.x) / f.k, y: (s.h / 2 - f.y) / f.k }, cT = { x: (s.w / 2 - to.x) / to.k, y: (s.h / 2 - to.y) / to.k };
-  if (Math.abs(f.k - to.k) < 1e-4 && Math.hypot(f.x - to.x, f.y - to.y) < 1) { v.fresh = false; draw(); return; }
+  if (Math.abs(f.k - to.k) < 1e-4 && Math.hypot(f.x - to.x, f.y - to.y) < 1) { v.fresh = false; draw(); if (cb) cb(); return; }
   v.fresh = false;
   if (!fastDraw) { ANIM.fast = true; fastDraw = true; draw(); }
   (function step(now) {
     var p = Math.min(1, (now - t0) / d), e = 1 - Math.pow(1 - p, 3), k = f.k * Math.pow(to.k / f.k, e);
     v.k = k; v.x = s.w / 2 - (cF.x + (cT.x - cF.x) * e) * k; v.y = s.h / 2 - (cF.y + (cT.y - cF.y) * e) * k;
-    if (p < 1) { drawView(); ANIM.raf = requestAnimationFrame(step); } else { v.x = to.x; v.y = to.y; v.k = to.k; animFastEnd(); draw(); }
+    if (p < 1) { drawView(); ANIM.raf = requestAnimationFrame(step); } else { v.x = to.x; v.y = to.y; v.k = to.k; animFastEnd(); draw(); if (cb) cb(); }
   })(t0);
 }
 /* posisi Fit tanpa langsung menggambar */
@@ -7568,9 +7580,9 @@ function fitTarget() {
   var pad = 56, k = Math.max(.15, Math.min((s.w - pad * 2) / b.w, (s.h - pad * 2) / b.h, 2.5));
   return { k: k, x: (s.w - b.w * k) / 2 - b.x * k, y: (s.h - b.h * k) / 2 - b.y * k };
 }
-function fitSmooth() { var t = fitTarget(); if (t) animView(t, 260); else fit(); }
+function fitSmooth(force) { var t = fitTarget(); if (t) animView(t, force ? 360 : 260, force && ANIM.ui); else fit(); }
 function zoomSmooth(f) {
-  var s = stageBox(), v = view(), sx = s.w / 2, sy = s.h / 2, nk = Math.min(8, Math.max(.1, v.k * f));
+  var s = stageBox(), v = view(), sx = s.w / 2, sy = s.h / 2, nk = Math.min(8, Math.max(Math.min(v.k, zoomFloor()), v.k * f));
   animView({ k: nk, x: sx - (sx - v.x) * (nk / v.k), y: sy - (sy - v.y) * (nk / v.k) }, 170);
 }
 /* pudar singkat saat berganti diagram (kanvas saja) */
@@ -7767,6 +7779,86 @@ function modeSwitch(m) {
 function modeSwUI() { $$('.modesw [data-mode]').forEach(function (b) { b.setAttribute('aria-pressed', String((b.dataset.mode === 'dfd') === isDfd())); }); }
 document.addEventListener('click', function (e) { var b = e.target.closest && e.target.closest('.modesw [data-mode]'); if (b) { e.preventDefault(); modeSwitch(b.dataset.mode); } });
 
+/* ===================== v61: fokus ke objek (Lihat dari pemeriksaan/tinjauan) & tombol kembali ke diagram ===================== */
+/* kotak dunia objek/garis yang dituju */
+function focusBox(D, ids) {
+  var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, R = null;
+  function add(x, y) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+  ids.forEach(function (id) {
+    var e = elOf(D, id); if (e) { add(e.x, e.y); add(e.x + e.w, e.y + e.h); return; }
+    var f = flOf(D, id); if (!f) return;
+    if (!R) { try { R = routeAll(D); } catch (x) { R = new Map(); } }
+    var r = R.get(id); if (r && r.pts) r.pts.forEach(function (p) { add(p.x, p.y); });
+    else [f.from, f.to].forEach(function (q) { var o = elOf(D, q); if (o) { add(o.x, o.y); add(o.x + o.w, o.y + o.h); } });
+  });
+  return isFinite(x0) ? { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } : null;
+}
+/* pindah ke diagram, pilih objek, lalu kamera mendekat ke objek itu (animasi pendek bila animasi antarmuka nyala) dan objek diberi sorotan berdenyut */
+function focusOn(dId, ids) {
+  var sw = dId && dId !== active && diag(dId); if (sw) switchTo(dId);
+  ids = (ids || []).filter(Boolean); sel = new Set(ids); panel(); syncBar();
+  var D = cur(), b = focusBox(D, ids), s = stageBox(), v = view();
+  if (!b || s.w < 10) { draw(); return; }
+  if (sw || v.fresh) { var ft = fitTarget(); if (ft) { v.x = ft.x; v.y = ft.y; v.k = ft.k; v.fresh = false; } }
+  var cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+  /* objek sudah terlihat utuh & cukup besar: kamera tidak perlu bergerak */
+  var sx0 = b.x * v.k + v.x, sy0 = b.y * v.k + v.y, sx1 = (b.x + b.w) * v.k + v.x, sy1 = (b.y + b.h) * v.k + v.y;
+  var shown = !sw && sx0 > 30 && sy0 > 30 && sx1 < s.w - 30 && sy1 < s.h - 30 && v.k >= .8;
+  var done = function () { focusRing(b); lostCheck(); };
+  if (shown) { draw(); done(); return; }
+  var m = 150, k = Math.max(.15, Math.min(s.w / (Math.max(b.w, 60) + m * 2), s.h / (Math.max(b.h, 40) + m * 2), 1.4));
+  remember();
+  animView({ k: k, x: s.w / 2 - cx * k, y: s.h / 2 - cy * k }, 420, ANIM.ui, done);
+}
+/* cincin sorotan di atas kanvas (DOM terpisah, tidak mengubah gambar diagram/ekspor) */
+function focusRing(b) {
+  var old = document.getElementById('focusring'); if (old) old.remove();
+  var v = view(), pad = 10, r = document.createElement('div'); r.id = 'focusring'; r.setAttribute('aria-hidden', 'true');
+  r.style.left = (b.x * v.k + v.x - pad) + 'px'; r.style.top = (b.y * v.k + v.y - pad) + 'px'; r.style.width = (b.w * v.k + pad * 2) + 'px'; r.style.height = (b.h * v.k + pad * 2) + 'px';
+  r.dataset.v = [v.x, v.y, v.k].join(); stage.appendChild(r);
+  var kill = function () { r.remove(); stage.removeEventListener('pointerdown', kill); stage.removeEventListener('wheel', kill); };
+  stage.addEventListener('pointerdown', kill); stage.addEventListener('wheel', kill, { passive: true });
+  setTimeout(kill, 2200);
+}
+/* "tersesat": diagram hampir/tidak terlihat (terlalu kecil karena ter-zoom-out, atau tergeser ke luar layar) → tombol Tampilkan diagram */
+function elBoxCheap(D) {
+  var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  D.elements.forEach(function (e) { x0 = Math.min(x0, e.x); y0 = Math.min(y0, e.y); x1 = Math.max(x1, e.x + e.w); y1 = Math.max(y1, e.y + e.h); });
+  return isFinite(x0) ? { x: x0, y: y0, w: Math.max(1, x1 - x0), h: Math.max(1, y1 - y0) } : null;
+}
+/* batas zoom-out: diagram tidak bisa diperkecil sampai jadi titik (maks. ±35% dari ukuran Tampilan global) */
+function zoomFloor() {
+  var D = cur && cur(), b = D && elBoxCheap(D), s = stageBox(); if (!b || s.w < 10) return .1;
+  var fk = Math.min((s.w - 112) / b.w, (s.h - 112) / b.h);
+  return Math.max(.1, Math.min(fk * .35, .5));
+}
+var LOST = { t: 0 };
+function lostSched() {
+  /* sorotan ikut hilang begitu tampilan bergeser/zoom (posisinya dihitung di layar) */
+  var fr = document.getElementById('focusring'); if (fr) { var v = view(); if (fr.dataset.v !== [v.x, v.y, v.k].join()) fr.remove(); }
+  clearTimeout(LOST.t); LOST.t = setTimeout(lostCheck, 260);
+}
+function lostCheck() {
+  var p = document.getElementById('lostpill'), D = cur(), b = D && elBoxCheap(D), s = stageBox(), v = view();
+  var lost = false, why = '';
+  if (b && s.w > 10 && !$('#start')) {
+    var sx0 = b.x * v.k + v.x, sy0 = b.y * v.k + v.y, sx1 = (b.x + b.w) * v.k + v.x, sy1 = (b.y + b.h) * v.k + v.y;
+    var iw = Math.max(0, Math.min(sx1, s.w) - Math.max(sx0, 0)), ih = Math.max(0, Math.min(sy1, s.h) - Math.max(sy0, 0));
+    if (iw * ih === 0) { lost = true; why = 'Diagram ada di luar layar.'; }
+    else if (iw * ih < s.w * s.h * .03) { lost = true; why = (sx0 >= 0 && sy0 >= 0 && sx1 <= s.w && sy1 <= s.h) ? 'Diagram terlalu kecil.' : 'Diagram hampir tidak terlihat.'; }
+  }
+  if (!lost) { if (p) p.hidden = true; return; }
+  if (!p) {
+    p = document.createElement('div'); p.id = 'lostpill'; p.setAttribute('role', 'status');
+    p.innerHTML = '<span></span><button class="btn sm pri" data-act="fit">Tampilkan diagram</button><button class="lnk" data-lp="x" aria-label="Tutup">×</button>';
+    p.addEventListener('click', function (e) { if (e.target.closest('[data-lp]')) { p.hidden = true; return; } if (e.target.closest('[data-act="fit"]')) { e.stopPropagation(); remember(); fitSmooth(true); p.hidden = true; } });
+    p.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+    stage.appendChild(p);
+  }
+  p.querySelector('span').textContent = why + ' Tekan F8 atau';
+  p.hidden = false;
+}
+
 /* ===================== v60: Tinjauan proyek (pengecekan lanjutan, tanpa AI) =====================
    Prinsip: patokan = proyek itu sendiri (bentuk yang paling sering dipakai), temuan hanya ditampilkan bila buktinya cukup,
    setiap temuan membawa bukti + dasar aturannya, bisa "Perbaiki" (pratinjau dulu, Ctrl+Z bisa) atau "Abaikan" (diingat di proyek: doc.review.ign).
@@ -7776,7 +7868,7 @@ var REV_LV = { longgar: 1, normal: 2, ketat: 3 };
 function revLevel() { try { var v = localStorage.getItem('alir-rev-level'); return REV_LV[v] ? v : 'normal'; } catch (x) { return 'normal'; } }
 function revSetLevel(v) { try { localStorage.setItem('alir-rev-level', v); } catch (x) { /* abaikan */ } }
 function revIgn() { if (!doc.review) doc.review = {}; if (!doc.review.ign) doc.review.ign = {}; return doc.review.ign; }
-var REV_CAT = { nama: 'Konsistensi nama', silang: 'Cek silang antar diagram', materi: 'Aturan materi' };
+var REV_CAT = { nama: 'Konsistensi nama', silang: 'Cek silang antar diagram', materi: 'Aturan materi', proyek: 'Kerapian proyek' };
 
 /* ---------- alat bahasa ---------- */
 function revClean(s) { return String(s || '').replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim(); }
@@ -7843,8 +7935,9 @@ function revRename(refs, from, to) {
 function revDiagLabel(D) { return D.parent && typeof procLabel === 'function' ? 'Level ' + depth(D) + ' · ' + procLabel(D) : D.name; }
 
 /* ---------- aturan ---------- */
+var REV_TSEEN = {};
 function revRules() {
-  var out = [], R = revRefs();
+  var out = [], R = revRefs(); REV_TSEEN = {};
   function push(it) { out.push(it); }
   var ROLE_NM = { pelaku: isDfd() ? 'entitas' : 'aktor/lajur', store: 'data store', proses: 'proses', alur: 'alur data', usecase: 'use case', lifeline: 'lifeline', aksi: 'aktivitas', pesan: 'pesan' };
 
@@ -7877,9 +7970,9 @@ function revRules() {
       var wa = a[dif[0]], wb = b[dif[0]], typo = false, syn = false;
       if (/\d/.test(wa + wb)) continue;
       if (wa.length >= 4 && wb.length >= 4 && wa.indexOf(wb) !== 0 && wb.indexOf(wa) !== 0) { var d = revLev(wa, wb); typo = d === 1 || (d === 2 && Math.min(wa.length, wb.length) >= 8); }
-      /* padanan hanya untuk peran benda (aktor, data store, alur, lifeline, use case); langkah/pesan yang beda kata kerja memang aksi berbeda */
-      if (!typo && !/^(aksi|pesan|proses)$/.test(role)) syn = revSyn(wa, wb);
+      /* v61: padanan kata (Pesanan/Order) kini diperiksa se-proyek di revTerms, tidak lagi per pasangan nama */
       if (!typo && !syn) continue;
+      if (typo) REV_TSEEN[wa + '~' + wb] = REV_TSEEN[wb + '~' + wa] = 1;
       var na = byKey[keys[i]].length, nb = byKey[keys[j]].length, ka = keys[i], kb = keys[j];
       /* patokan: lebih sering dipakai; bila seri, yang muncul di lebih banyak diagram, lalu yang dipakai di Use Case Diagram (sumber nama aktor/use case) */
       function rank(k) { var L2 = byKey[k], ds = {}, uc = 0; L2.forEach(function (x) { ds[x.ref.D.id] = 1; if (x.ref.D.kind === 'usecase') uc = 1; }); return L2.length * 100 + Object.keys(ds).length * 10 + uc; }
@@ -7944,8 +8037,157 @@ function revRules() {
     });
   }
 
+  revTerms(push);
   if (isDfd()) revDfd(push); else revUml(push);
   return out;
+}
+
+/* ---------- v61: istilah, singkatan, kata kerja aktor, salah ketik berkamus, huruf kecil, diagram kosong ---------- */
+/* pecah nama jadi kata: spasi, tanda baca, dan camelCase (showHalDaftarArtikel = show Hal Daftar Artikel) */
+var REV_TOKRX = /[A-Z]?[a-z]+|[A-Z]+(?![a-z])|\d+|[^A-Za-z\d]+/g;
+function revToks(s) { return String(s || '').match(REV_TOKRX) || []; }
+function revWords(s) { return revToks(s).filter(function (t) { return /^[A-Za-z]+$/.test(t); }).map(function (t) { return t.toLowerCase(); }); }
+function revCaseLike(src, w) { return src === src.toUpperCase() && src.length > 1 ? w.toUpperCase() : /^[A-Z]/.test(src) ? revCap(w) : w; }
+/* ganti satu kata (juga di dalam camelCase), huruf besar/kecil mengikuti aslinya */
+function revSwapWord(s, from, to, firstOnly) {
+  var done = false;
+  return revToks(s).map(function (t) { if (done || t.toLowerCase() !== from) return t; if (firstOnly) done = true; return revCaseLike(t, to); }).join('');
+}
+/* semua nama di proyek: nama diagram, elemen, garis, pesan (ident = nama gaya kode: lifeline & pesan sequence) */
+function revOcc() {
+  var L = [];
+  doc.diagrams.forEach(function (D) {
+    L.push({ D: D, o: D, w: 'nama diagram', ident: false, plain: true });
+    D.elements.forEach(function (e) {
+      if (!revClean(e.name) || /^(note|annotation|initial|final|flowfinal|merge|fork|forkv|pgfx|offpage|spmg)$/.test(e.type)) return;
+      var id = /^(sboundary|scontrol|sentity|lifeline)$/.test(e.type);
+      L.push({ D: D, o: e, id: e.id, w: D.name, ident: id, plain: !id && e.type !== 'fragment' && e.type !== 'decision' && e.type !== 'gateway' && e.type !== 'ptext' });
+    });
+    D.flows.forEach(function (f) { if (!revClean(f.name)) return; L.push({ D: D, o: f, id: f.id, w: D.name, ident: f.kind === 'smsg', plain: false, msg: f.kind === 'smsg' }); });
+  });
+  return L;
+}
+/* kamus kecil istilah sistem informasi (untuk menebak salah ketik bila kata yang benar tidak ada di proyek) */
+var REV_DICT = ('transaksi pesanan pemesanan pelanggan pembayaran laporan kategori produk barang artikel akun admin administrator halaman beranda keranjang pengiriman pengguna karyawan pegawai ' +
+  'status jadwal profil ulasan informasi tombol pesan menu daftar detail validasi konfirmasi penjualan pembelian stok anggota buku peminjaman pengembalian denda tagihan nota kasir pemasok ' +
+  'gudang supplier menampilkan memilih menekan mengisi menyimpan mengubah menghapus melihat membuat menambah menambahkan mengklik memasukkan mengirim mencetak mencari memvalidasi ' +
+  'memeriksa mengecek memproses menghitung mengelola mengunggah mengunduh berhasil gagal kosong valid sesuai password username email nama alamat nomor telepon tanggal jumlah harga total ' +
+  'diskon keterangan deskripsi gambar judul isi komentar pengumuman berita kegiatan layanan pesanan tiket reservasi kamar menu makanan minuman resep pasien dokter obat siswa mahasiswa ' +
+  'dosen kelas nilai jurusan pengunjung tamu wisata paket promo voucher ongkir kurir pengiriman rekening saldo pendaftaran registrasi login logout keluar masuk batal simpan hapus ubah ' +
+  'tambah lihat cari pilih kembali formulir form tabel filter pencarian notifikasi pengaturan dashboard sistem aktor pengelola petugas pemilik manajer owner')
+  .split(' ').reduce(function (o, w) { if (w) o[w] = 1; return o; }, {});
+var REV_FUNC = /^(dan|atau|yang|di|ke|dari|untuk|pada|dengan|oleh|akan|ini|itu|jika|bila|sudah|belum|tidak|ya|serta|sebagai|dalam|per|agar|bahwa|tersebut|nya|the|of|and|or|to|for|in|on|by|with)$/;
+var REV_ABBR = [['hal', 'halaman'], ['tgl', 'tanggal'], ['jml', 'jumlah'], ['ket', 'keterangan'], ['brg', 'barang'], ['trx', 'transaksi'], ['pwd', 'password'], ['kat', 'kategori'], ['info', 'informasi'], ['desc', 'deskripsi']];
+var REV_PRESS = { klik: 1, mengklik: 1, click: 1, menekan: 1, tekan: 1, press: 1 };
+
+/* nama Berhuruf Besar Di Awal Kata dengan tepat satu kata (bukan kata tugas, ≥3 huruf, di luar tanda kutip) berhuruf kecil: kembalikan kata itu */
+function revTitleWord(name, only) {
+  var nm = revClean(name).replace(/["“”'‘’][^"“”'‘’]*["“”'‘’]/g, ' ');
+  var ws = nm.split(/\s+/).filter(function (w) { return /^[A-Za-z]{3,}$/.test(w) && !REV_FUNC.test(w.toLowerCase()); }); if (ws.length < 3) return null;
+  var low = ws.filter(function (w) { return /^[a-z]/.test(w); }); if (low.length !== 1) return null;
+  return only && low[0].toLowerCase() !== only ? null : low[0];
+}
+var REV_WT = {};
+/* kata benda umum yang wajar ditulis kecil di depan nama ("Menekan tombol Simpan") */
+var REV_LCOK = /^(button|tombol|menu|halaman|form|formulir|data|pesan|kolom|ikon|icon|link|tautan|fitur|tab|opsi|pilihan|daftar|kotak|bagian|status|file|berkas|dokumen|nomor|kode|jumlah|tanggal|nama)$/;
+function revTerms(push) {
+  REV_WT = {};
+  var O = revOcc();
+  function ex(L) { return L.slice(0, 3).map(function (x) { return '"' + revClean(x.o.name) + '"' + (x.o === x.D ? ' (nama diagram)' : ' di ' + revDiagLabel(x.D)); }); }
+  function swapFix(label, L, from, to, firstOnly) {
+    return { label: label, ch: L.map(function (x) { return { w: x.o === x.D ? 'nama diagram' : revDiagLabel(x.D), a: revClean(x.o.name), b: revClean(revSwapWord(x.o.name, from, to, firstOnly)) }; }),
+      apply: function () { L.forEach(function (x) { x.o.name = revSwapWord(x.o.name, from, to, firstOnly); }); } };
+  }
+  /* jumlah pemakaian tiap kata (sekali per nama) */
+  function useMap(pred) {
+    var M = {};
+    O.forEach(function (x) { if (pred && !pred(x)) return; var seen = {}; revWords(x.o.name).forEach(function (w) { if (seen[w]) return; seen[w] = 1; (M[w] = M[w] || []).push(x); }); });
+    return M;
+  }
+  var ALL = useMap();
+  /* T1: istilah sepadan dipakai bersamaan di satu proyek (Pesanan & Order) */
+  REV_SYN.forEach(function (g) {
+    if (/^me/.test(g[0])) return; /* kelompok kata kerja diurus aturan CRUD */
+    var used = g.filter(function (w) { return ALL[w]; }); if (used.length < 2) return;
+    function rank(w) { var L = ALL[w]; return L.length * 100 + L.filter(function (x) { return x.o === x.D || x.D.kind === 'usecase'; }).length; }
+    used.sort(function (a, b) { return rank(b) - rank(a); });
+    var all = []; used.forEach(function (w) { all = all.concat(ALL[w]); });
+    var fixes = used.map(function (w) { var other = []; used.forEach(function (u) { if (u !== w) other = other.concat(ALL[u].map(function (x) { return { x: x, from: u }; })); });
+      return { label: 'Seragamkan menjadi "' + revCap(w) + '"', short: 'Pakai "' + revCap(w) + '"…', ch: other.map(function (q) { return { w: q.x.o === q.x.D ? 'nama diagram' : revDiagLabel(q.x.D), a: revClean(q.x.o.name), b: revClean(revSwapWord(q.x.o.name, q.from, w)) }; }),
+        apply: function () { other.forEach(function (q) { q.x.o.name = revSwapWord(q.x.o.name, q.from, w); }); } }; });
+    push({ key: 'term|' + used.slice().sort().join('~'), cat: 'nama', s: 'warn', lv: 2, D: ALL[used[1]][0].D, ids: ALL[used[1]][0].id ? [ALL[used[1]][0].id] : null,
+      t: 'Proyek ini memakai ' + used.map(function (w) { return '"' + revCap(w) + '" (' + ALL[w].length + ' nama)'; }).join(' dan ') + ' untuk hal yang sama.',
+      why: 'Satu hal sebaiknya disebut dengan satu istilah di semua diagram, termasuk nama diagram, aktivitas, dan pesan. Pilih salah satu istilah; kalau memang dua hal berbeda, pilih Abaikan.',
+      ev: [].concat.apply([], used.map(function (w) { return ex(ALL[w]); })), fix: fixes[0], fixes: fixes });
+  });
+  /* T2: singkatan campur di nama lifeline & pesan Sequence (Hal vs Halaman) */
+  var ID = useMap(function (x) { return x.ident; });
+  REV_ABBR.forEach(function (p) {
+    if (!ID[p[0]] || !ID[p[1]]) return;
+    var a = ID[p[0]], b = ID[p[1]], major = a.length >= b.length ? 0 : 1;
+    var fixes = [major, 1 - major].map(function (k) { var L = k === 0 ? b : a; return swapFix('Tulis "' + revCap(p[k]) + '" di semua nama', L, p[1 - k], p[k]); });
+    fixes[0].short = 'Pakai "' + revCap(p[major]) + '"…'; fixes[1].short = 'Pakai "' + revCap(p[1 - major]) + '"…';
+    var rare = major === 0 ? b : a;
+    push({ key: 'abbr|' + p[0], cat: 'nama', s: 'warn', lv: 2, D: rare[0].D, ids: rare[0].id ? [rare[0].id] : null,
+      t: 'Nama lifeline/pesan memakai "' + revCap(p[0]) + '" (' + a.length + ') dan "' + revCap(p[1]) + '" (' + b.length + ') bergantian.',
+      why: 'Penulisan nama di Sequence Diagram sebaiknya seragam, misalnya selalu V_HalDaftarArtikel dan showHalDaftarArtikel.', ev: ex(rare), fix: fixes[0], fixes: fixes });
+  });
+  /* T3: kata kerja tindakan aktor di Sequence campur (klik… dan menekan…) */
+  if (!isDfd()) {
+    var V = {};
+    doc.diagrams.forEach(function (D) {
+      if (D.kind !== 'sequence') return; var act = {}; D.elements.forEach(function (e) { if (e.type === 'sactor') act[e.id] = 1; });
+      D.flows.forEach(function (f) { if (f.kind !== 'smsg' || f.isRet || !act[f.from]) return; var w0 = (revWords(f.name)[0] || ''); if (REV_PRESS[w0]) (V[w0] = V[w0] || []).push({ D: D, o: f, id: f.id }); });
+    });
+    var vs = Object.keys(V);
+    if (vs.length >= 2) {
+      vs.sort(function (a, b) { return V[b].length - V[a].length; });
+      var fx = vs.map(function (v) { var L = []; vs.forEach(function (u) { if (u !== v) L = L.concat(V[u].map(function (x) { x.from = u; return x; })); });
+        return { label: 'Pakai "' + v + '…" untuk semua tindakan menekan/klik', short: 'Pakai "' + v + '…"', ch: L.map(function (x) { return { w: x.D.name, a: revClean(x.o.name), b: revSwapWord(x.o.name, x.from, v, true) }; }),
+          apply: function () { L.forEach(function (x) { x.o.name = revSwapWord(x.o.name, x.from, v, true); }); } }; });
+      var rv = V[vs[1]], mixD = doc.diagrams.some(function (D) { var f = {}; vs.forEach(function (v) { if (V[v].some(function (x) { return x.D === D; })) f[v] = 1; }); return Object.keys(f).length > 1; });
+      push({ key: 'press|' + vs.slice().sort().join('~'), cat: 'nama', s: 'warn', lv: mixD ? 2 : 3, D: rv[0].D, ids: [rv[0].id],
+        t: 'Pesan aktor di Sequence memakai kata kerja ' + vs.map(function (v) { return '"' + v + '…" (' + V[v].length + ')'; }).join(' dan ') + ' untuk tindakan yang sama.',
+        why: 'Tindakan menekan tombol/menu sebaiknya memakai satu kata kerja yang sama di semua Sequence Diagram (ikuti kata kerja di skenario).',
+        ev: rv.slice(0, 4).map(function (x) { return revClean(x.o.name) + '() di ' + x.D.name; }), fix: fx[0], fixes: fx });
+    }
+  }
+  /* T4: salah ketik kata (dibandingkan dengan kata lain di proyek dan kamus istilah) */
+  var cand = {}; Object.keys(ALL).forEach(function (w) { if (ALL[w].length >= 2) cand[w] = 1; }); Object.keys(REV_DICT).forEach(function (w) { cand[w] = 1; });
+  var CL = Object.keys(cand).filter(function (w) { return w.length >= 5; });
+  Object.keys(ALL).forEach(function (w) {
+    if (w.length < 5 || REV_DICT[w] || ALL[w].length > 2) return;
+    var best = null, bn = -1;
+    CL.forEach(function (c) {
+      if (c === w || c.indexOf(w) === 0 || w.indexOf(c) === 0) return;
+      /* hanya beda satu huruf, tidak di dua huruf pertama (awalan di-/me-/ber- = kata turunan), kata cukup panjang */
+      var d = revLev(w, c); if (d !== 1 || Math.min(w.length, c.length) < 7 || w.slice(0, 2) !== c.slice(0, 2)) return;
+      var n = (ALL[c] || []).length + (REV_DICT[c] ? 1 : 0); if (n > bn) { bn = n; best = c; }
+    });
+    if (!best || (ALL[best] && ALL[best].length < ALL[w].length) || REV_TSEEN[w + '~' + best]) return;
+    var L = ALL[w]; REV_WT[w] = 1;
+    push({ key: 'wtypo|' + w + '|' + best, cat: 'nama', s: 'warn', lv: ALL[best] ? 1 : 2, D: L[0].D, ids: L[0].id ? [L[0].id] : null,
+      t: 'Kata "' + w + '" di ' + ex(L)[0] + ' mungkin salah ketik "' + best + '".',
+      why: ALL[best] ? 'Kata "' + best + '" dipakai ' + ALL[best].length + ' kali di proyek ini dan hanya beda satu-dua huruf.' : '"' + best + '" adalah istilah yang lazim dan hanya beda satu-dua huruf. Kalau memang disengaja, pilih Abaikan.',
+      fix: (function () { var F = swapFix('Ganti "' + w + '" menjadi "' + best + '"', L, w, best);
+        /* nama Berhuruf Besar Di Awal Kata: kata pengganti ikut diawali huruf besar */
+        F.ch.forEach(function (c, i) { var t = revTitleWord(L[i].o.name, w); if (t) c.b = revClean(revSwapWord(L[i].o.name, w, revCap(best))); });
+        F.apply = function () { L.forEach(function (x) { x.o.name = revSwapWord(x.o.name, w, revTitleWord(x.o.name, w) ? revCap(best) : best); }); }; return F; })() });
+  });
+  /* T5: satu kata huruf kecil di nama yang lainnya Huruf Besar Di Awal Kata */
+  O.forEach(function (x) {
+    if (!x.plain) return; var w = revTitleWord(x.o.name); if (!w || REV_WT[w.toLowerCase()] || REV_LCOK.test(w)) return;
+    var to = revClean(x.o.name).replace(new RegExp('\\b' + w + '\\b'), revCap(w));
+    push({ key: 'lcase|' + x.D.id + '|' + (x.id || 'd') + '|' + w, cat: 'nama', s: 'info', lv: 3, D: x.D, ids: x.id ? [x.id] : null,
+      t: 'Kata "' + w + '" di "' + revClean(x.o.name) + '" ditulis huruf kecil, padahal kata lain diawali huruf besar.', why: 'Penulisan nama yang seragam membuat diagram terlihat rapi di laporan.',
+      fix: { label: 'Awali dengan huruf besar', ch: [{ w: x.o === x.D ? 'nama diagram' : revDiagLabel(x.D), a: revClean(x.o.name), b: to }], apply: function () { x.o.name = to; } } });
+  });
+  /* T6: diagram kosong (tidak berisi apa pun) */
+  if (doc.diagrams.length > 1) doc.diagrams.forEach(function (D) {
+    if (D.elements.length || D.flows.length || (isDfd() && D.parent)) return;
+    push({ key: 'empty|' + D.id, cat: 'proyek', s: 'info', lv: 1, D: D, t: 'Diagram "' + revDiagLabel(D) + '" masih kosong.', why: 'Diagram kosong ikut terekspor ke EA/PowerDesigner dan muncul di Project Browser. Hapus kalau tidak dipakai.',
+      fix: { label: 'Hapus diagram kosong ini', ch: [{ w: 'diagram', a: D.name, b: '(dihapus)' }], apply: function () { dropDiagram(D.id); if (!diag(active)) active = doc.diagrams[0].id; fixActive(); } } });
+  });
 }
 
 /* ---------- DFD: aturan materi W6/W7 ---------- */
@@ -8003,6 +8245,18 @@ function revUml(push) {
           why: 'Nama ' + k[0] + ' sebaiknya persis sama dengan nama use case-nya supaya mudah dicocokkan di laporan.', ev: u ? ['Use case terdekat: "' + revClean(u.e.name) + '"'] : null,
           fix: u ? { label: 'Ganti nama diagram', ch: [{ w: 'nama diagram', a: x.D.name, b: nmNew }], apply: function () { x.D.name = nmNew; } } : null });
       });
+    });
+  }
+  /* B1b (v61): tanpa Use Case Diagram, Activity & Sequence dicocokkan langsung lewat namanya */
+  if (!UC.length && AD.length && SD.length) {
+    var hasB = function (L, x) { return L.some(function (y) { return y.b === x.b || revLev(y.b, x.b) <= 1; }); };
+    [[AD, SD, 'Activity Diagram', 'Sequence Diagram', 'adsd'], [SD, AD, 'Sequence Diagram', 'Activity Diagram', 'sdad']].forEach(function (k) {
+      var seen = {}, miss = k[0].filter(function (x) { if (seen[x.b] || hasB(k[1], x)) return false; seen[x.b] = 1; return true; });
+      if (!miss.length) return;
+      push({ key: 'pair' + k[4] + '|' + miss.map(function (x) { return x.b; }).sort().join('~'), cat: 'silang', s: 'info', lv: 2, D: miss[0].D,
+        t: miss.length === 1 ? k[2] + ' "' + miss[0].D.name + '" belum punya ' + k[3] + ' dengan nama yang sama.' : miss.length + ' ' + k[2] + ' belum punya ' + k[3] + ' dengan nama yang sama.',
+        why: 'Setiap use case punya Activity Diagram dan Sequence Diagram dengan nama yang sama. Kalau pasangannya ada tapi namanya berbeda, samakan namanya.',
+        ev: miss.length > 1 ? miss.map(function (x) { return x.D.name; }) : null });
     });
   }
   /* B2: jumlah decision di Activity = jumlah fragment alt di Sequence yang namanya sama */
@@ -8119,6 +8373,7 @@ function revModal() {
     return all;
   }
   function dname(D) { return revDiagLabel(D); }
+  function fixOf(x, i) { return (x.fixes && x.fixes[i]) || x.fix; }
   function render(s) {
     var base = baseItems(), rev = revItems(), ign = revItems(true).filter(function (x) { return doc.review && doc.review.ign && doc.review.ign[x.key]; });
     var nBad = base.concat(rev).filter(function (x) { return x.s === 'bad'; }).length, nWarn = base.filter(function (x) { return x.s !== 'bad'; }).length, nSar = rev.filter(function (x) { return x.s !== 'bad'; }).length;
@@ -8136,9 +8391,9 @@ function revModal() {
         var i = list.indexOf(x);
         h += '<li class="' + (x.s === 'info' ? 'info' : x.s) + '" data-ri="' + i + '"><div class="rvb"><div class="rvt">' + esc(x.t) + '</div><small>' + esc(dname(x.D)) + '</small>' +
           (x.why ? '<div class="rvwhy">' + esc(x.why) + '</div>' : '') + (x.ev && x.ev.length ? '<div class="rvev">' + x.ev.map(esc).join(' · ') + '</div>' : '') +
-          '<div class="rvact"><button class="btn sm" data-ra="go">Lihat</button>' + (x.fix && flt !== 'ign' ? '<button class="btn sm" data-ra="fix">Perbaiki…</button>' : '') +
+          '<div class="rvact"><button class="btn sm" data-ra="go">Lihat</button>' + (x.fix && flt !== 'ign' ? (x.fixes && x.fixes.length > 1 ? x.fixes.map(function (f, fi) { return '<button class="btn sm" data-ra="fix" data-fi="' + fi + '">' + esc(f.short || f.label) + '</button>'; }).join('') : '<button class="btn sm" data-ra="fix">Perbaiki…</button>') : '') +
           (x.key ? (flt === 'ign' ? '<button class="btn sm" data-ra="unign">Tampilkan lagi</button>' : '<button class="btn sm" data-ra="ign" title="Sudah benar / disengaja. Temuan ini tidak ditampilkan lagi di proyek ini.">Abaikan</button>') : '') + '</div>' +
-          (openFix === x.key && x.fix ? '<div class="rvfix"><b>' + esc(x.fix.label) + '</b><table>' + x.fix.ch.slice(0, 12).map(function (c) { return '<tr><td>' + esc(c.w) + '</td><td><s>' + esc(c.a) + '</s></td><td>menjadi</td><td><b>' + esc(c.b) + '</b></td></tr>'; }).join('') + '</table>' + (x.fix.ch.length > 12 ? '<p class="hint">…dan ' + (x.fix.ch.length - 12) + ' perubahan lain.</p>' : '') + '<div class="row tight"><button class="btn sm pri" data-ra="apply">Terapkan</button><button class="btn sm" data-ra="nofix">Batal</button><span class="hint">Bisa dibatalkan dengan Ctrl+Z.</span></div></div>' : '') +
+          (openFix && openFix.k === x.key && x.fix ? (function (F) { return '<div class="rvfix"><b>' + esc(F.label) + '</b><table>' + F.ch.slice(0, 12).map(function (c) { return '<tr><td>' + esc(c.w) + '</td><td><s>' + esc(c.a) + '</s></td><td>menjadi</td><td><b>' + esc(c.b) + '</b></td></tr>'; }).join('') + '</table>' + (F.ch.length > 12 ? '<p class="hint">…dan ' + (F.ch.length - 12) + ' perubahan lain.</p>' : '') + '<div class="row tight"><button class="btn sm pri" data-ra="apply">Terapkan</button><button class="btn sm" data-ra="nofix">Batal</button><span class="hint">Bisa dibatalkan dengan Ctrl+Z.</span></div></div>'; })(fixOf(x, openFix.i)) : '') +
           '</div></li>';
       });
       h += '</ul>';
@@ -8155,10 +8410,10 @@ function revModal() {
         var b = e.target.closest('[data-ra]'); if (!b) return;
         var li = b.closest('li[data-ri]'), x = li && s._list[+li.dataset.ri]; if (!x) return;
         var a = b.dataset.ra;
-        if (a === 'go') { close(); switchTo(x.go || x.D.id); if (x.ids) sel = new Set(x.ids); draw(); panel(); syncBar(); return; }
-        if (a === 'fix') { openFix = x.key; render(s); return; }
+        if (a === 'go') { close(); if (x.ids && x.ids.length) focusOn(x.go || x.D.id, x.ids); else { switchTo(x.go || x.D.id); remember(); fitSmooth(true); panel(); syncBar(); } return; }
+        if (a === 'fix') { openFix = { k: x.key, i: +(b.dataset.fi || 0) }; render(s); return; }
         if (a === 'nofix') { openFix = null; render(s); return; }
-        if (a === 'apply') { mutate(function () { x.fix.apply(); }); openFix = null; toast('Diperbaiki: ' + x.fix.label + '. Ctrl+Z untuk membatalkan.'); render(s); return; }
+        if (a === 'apply') { var F = fixOf(x, openFix ? openFix.i : 0); mutate(function () { F.apply(); }); openFix = null; toast('Diperbaiki: ' + F.label + '. Ctrl+Z untuk membatalkan.'); render(s); return; }
         if (a === 'ign') { mutate(function () { revIgn()[x.key] = 1; }); render(s); return; }
         if (a === 'unign') { mutate(function () { delete revIgn()[x.key]; }); render(s); return; }
       });
@@ -12173,7 +12428,7 @@ function draw0() {
   stage.style.backgroundPosition = [pos, pos, pos, pos].join(',');
   $('#zoomv').textContent = Math.round(v.k * 100) + '%';
   cv.style.cursor = (drag && drag.t === 'pan') ? 'grabbing' : (tool === 'hand' || spaceDown) ? 'grab' : tool === 'select' ? 'default' : 'crosshair';
-  crumbs();
+  crumbs(); lostSched();
 }
 /* pada zoom 100% garis 1px digeser setengah piksel supaya tajam & hitam pekat seperti EA (tidak abu-abu kabur) */
 function viewTf(v) { var one = Math.abs(v.k - 1) < 1e-3; return 'translate(' + (one ? Math.round(v.x) + .5 : v.x) + ' ' + (one ? Math.round(v.y) + .5 : v.y) + ') scale(' + v.k + ')'; }
@@ -12185,7 +12440,7 @@ function drawView() {
   stage.style.backgroundSize = mg + 'px ' + mg + 'px,' + mg + 'px ' + mg + 'px,' + G + 'px ' + G + 'px,' + G + 'px ' + G + 'px';
   stage.style.backgroundPosition = [pos, pos, pos, pos].join(',');
   $('#zoomv').textContent = Math.round(v.k * 100) + '%';
-  clearTimeout(viewQ); viewQ = setTimeout(function () { if (!drag) draw(); }, 160);
+  clearTimeout(viewQ); viewQ = setTimeout(function () { if (!drag) draw(); }, 160); lostSched();
 }
 
 /* ---------- tampilan ---------- */
@@ -12213,7 +12468,7 @@ function fit() {
   v.k = Math.max(.15, k); v.x = (s.w - b.w * v.k) / 2 - b.x * v.k; v.y = (s.h - b.h * v.k) / 2 - b.y * v.k; v.fresh = false; draw();
 }
 function zoomAt(cx, cy, f) {
-  var s = stageBox(), v = view(), sx = cx - s.l, sy = cy - s.t, nk = Math.min(8, Math.max(.1, v.k * f));
+  var s = stageBox(), v = view(), sx = cx - s.l, sy = cy - s.t, nk = Math.min(8, Math.max(Math.min(v.k, zoomFloor()), v.k * f));
   v.x = sx - (sx - v.x) * (nk / v.k); v.y = sy - (sy - v.y) * (nk / v.k); v.k = nk; v.fresh = false; draw();
 }
 function zoomCenter(f) { var s = stageBox(); zoomAt(s.l + s.w / 2, s.t + s.h / 2, f); }
@@ -12417,7 +12672,7 @@ panelEl.addEventListener('change', function (e) {
 panelEl.addEventListener('click', function (e) {
   if (!isDfd() && umlPanelClick(e)) return;
   var li = e.target.closest('li[data-ids]');
-  if (li) { switchTo(li.dataset.go); sel = new Set(li.dataset.ids.split(',')); draw(); panel(); syncBar(); return; }
+  if (li) { focusOn(li.dataset.go, li.dataset.ids.split(',')); return; }
   var tb = e.target.closest('[data-tree]'); if (tb) { treeClick(tb); return; }
   var b = e.target.closest('[data-act]'); if (!b) return;
   run(b.dataset.act, b);
@@ -13174,7 +13429,7 @@ function menuItems(name) {
   if (name === 'help') return [item('Cara pakai…', 'help', 'F1'), item('Arti warna pemeriksaan…', 'helpchk'), item('Pintasan keyboard…', 'helpkeys')].concat(installEv ? [HR, item('Pasang Alir sebagai aplikasi', 'install')] : []).concat([HR, item('Tentang Alir', 'about')]);
   if (name === 'view') return [item('Skala 100%', 'z100', 'F5'), item('Perbesar', 'zin', 'F6'), item('Perkecil', 'zout', 'F7'), { hd: 'Skala' }]
     .concat([25, 50, 75, 100, 150, 200, 400].map(function (s) { return item(s + '%', 'scale:' + s, '', { ck: Math.round(view().k * 100) === s }); }))
-    .concat([HR, item('Tampilan global', 'fit', 'F8'), item('Tampilan sebelumnya', 'prevview', 'F9', { dis: !prevView }), item('Perbesar ke pilihan', 'viewsel', '', { dis: !nE }), HR, item('Tampilkan grid', 'grid', '', { ck: showGrid }), { hd: 'Tema' }, item('Tema terang', 'theme:light', '', { ck: themePref() === 'light' }), item('Tema gelap', 'theme:dark', '', { ck: themePref() === 'dark' }), item('Ikuti sistem', 'theme:auto', '', { ck: themePref() === 'auto' })]);
+    .concat([HR, item('Tampilan global (seluruh diagram)', 'fit', 'F8'), item('Tampilan sebelumnya', 'prevview', 'F9', { dis: !prevView }), item('Perbesar ke pilihan', 'viewsel', '', { dis: !nE }), HR, item('Tampilkan grid', 'grid', '', { ck: showGrid }), { hd: 'Tema' }, item('Tema terang', 'theme:light', '', { ck: themePref() === 'light' }), item('Tema gelap', 'theme:dark', '', { ck: themePref() === 'dark' }), item('Ikuti sistem', 'theme:auto', '', { ck: themePref() === 'auto' })]);
   return [];
 }
 function renderMenu(items, x, y, anchorBtn) {
@@ -13506,7 +13761,7 @@ function objList() {
     rows.map(function (r, i) { return '<tr><td>' + TYPE_ID[r.e.type] + '</td><td class="num">' + esc(r.e.num || '') + '</td><td><input class="in" style="height:28px;min-width:140px" aria-label="Nama" data-row="' + i + '" value="' + esc(r.e.name) + '"></td><td><button class="btn" style="height:26px;padding:0 8px" data-goto="' + i + '">' + r.where.map(function (d) { return 'L' + depth(d); }).join(', ') + '</button></td></tr>'; }).join('') + '</tbody></table></div>';
   modal('Daftar objek', body, '<button class="btn" data-close>Tutup</button>', function (s, close) {
     s.addEventListener('change', function (e) { var t = e.target; if (t.dataset.row == null) return; var r = rows[Number(t.dataset.row)], v = t.value.trim(); if (!v) { t.value = r.e.name; return; } rename(r.e, v); });
-    s.addEventListener('click', function (e) { var b = e.target.closest('[data-goto]'); if (!b) return; var r = rows[Number(b.dataset.goto)]; close(); switchTo(r.D.id); sel = new Set([r.e.id]); draw(); panel(); syncBar(); });
+    s.addEventListener('click', function (e) { var b = e.target.closest('[data-goto]'); if (!b) return; var r = rows[Number(b.dataset.goto)]; close(); focusOn(r.D.id, [r.e.id]); });
   });
 }
 function checkModal() {
@@ -13521,7 +13776,7 @@ function checkModal() {
   var body = '<p class="hint">' + (all.length ? errs + ' kesalahan dan ' + warns + ' peringatan di ' + doc.diagrams.length + ' diagram. Klik untuk menuju objeknya.' : 'Model lolos pemeriksaan: semua proses punya input dan output, alur melewati proses, dan level turunan seimbang dengan induknya.') + '</p>' +
     '<ul class="chk">' + all.map(function (c, i) { return '<li class="' + c.s + '" data-i="' + i + '" data-go="1"><span>' + esc(c.t) + '<small>' + esc(name(c.D)) + '</small></span></li>'; }).join('') + '</ul>';
   modal('Periksa model', body, '<button class="btn pri" data-close>Tutup</button>', function (s, close) {
-    s.addEventListener('click', function (e) { var li = e.target.closest('li[data-i]'); if (!li) return; var c = all[Number(li.dataset.i)]; close(); switchTo(c.go || c.D.id); if (c.ids) sel = new Set(c.ids); draw(); panel(); syncBar(); });
+    s.addEventListener('click', function (e) { var li = e.target.closest('li[data-i]'); if (!li) return; var c = all[Number(li.dataset.i)]; close(); if (c.ids) focusOn(c.go || c.D.id, c.ids); else { switchTo(c.go || c.D.id); draw(); panel(); syncBar(); } });
   });
 }
 
@@ -13565,7 +13820,7 @@ function startPinch() {
 function doPinch() {
   var a = Array.from(ptrs.values()), v = view(), s = stageBox(); if (a.length < 2) return;
   var d = Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y) || 1, cx = (a[0].x + a[1].x) / 2 - s.l, cy = (a[0].y + a[1].y) / 2 - s.t;
-  v.k = Math.min(8, Math.max(.1, pinch.k * d / pinch.d)); v.x = cx - pinch.wx * v.k; v.y = cy - pinch.wy * v.k; v.fresh = false; draw();
+  v.k = Math.min(8, Math.max(Math.min(pinch.k, zoomFloor()), pinch.k * d / pinch.d)); v.x = cx - pinch.wx * v.k; v.y = cy - pinch.wy * v.k; v.fresh = false; draw();
 }
 cv.addEventListener('contextmenu', function (e) {
   e.preventDefault();
@@ -13833,6 +14088,8 @@ window.addEventListener('keydown', function (e) {
   if (sim && e.key === 'Escape') { simStop(); return; }
   var fk = { F1: 'help', F3: 'explain', F4: 'check', F5: 'z100', F6: 'zin', F7: 'zout', F8: 'fit', F9: 'prevview' }[e.key];
   if (fk) { e.preventDefault(); run(fk); return; }
+  /* v61: Ctrl+0 / Shift+1 = tampilan global (seperti Figma/draw.io), untuk yang tersesat setelah ter-zoom-out */
+  if ((mod && (e.key === '0' || e.code === 'Digit0')) || (e.shiftKey && !mod && e.code === 'Digit1')) { e.preventDefault(); run('fit'); return; }
   if (e.altKey && e.key === 'ArrowUp') { e.preventDefault(); upLevel(); return; }
   if (e.altKey && e.key === 'ArrowDown') { e.preventDefault(); var one = selEls()[0]; if (one && one.type === 'process' && isDfd()) decompose(one.id); return; }
   if (mod && e.altKey && k === 'c') { e.preventDefault(); run('copyimg'); return; }
@@ -13900,7 +14157,22 @@ function textFallback(filename, text) {
     });
 }
 function fname(ext) { return (doc.name || 'diagram').replace(/[^\w\-. ]+/g, '_') + ext; }
-function latin1(str) { var b = new Uint8Array(str.length); for (var i = 0; i < str.length; i++) { var c = str.charCodeAt(i); b[i] = c < 256 ? c : 63; } return b; }
+/* teks ke byte windows-1252 (penyandian .pam PD6 & XMI EA). v61: tanda kutip melengkung, en/em dash, elipsis, € dll. dipetakan ke byte cp1252 aslinya
+   (dulu jadi "?"); karakter lain: di XMI ditulis sebagai rujukan karakter &#x…; (xml=true), selain itu "?" */
+var CP1252 = { 0x20AC: 0x80, 0x201A: 0x82, 0x0192: 0x83, 0x201E: 0x84, 0x2026: 0x85, 0x2020: 0x86, 0x2021: 0x87, 0x02C6: 0x88, 0x2030: 0x89, 0x0160: 0x8A, 0x2039: 0x8B, 0x0152: 0x8C, 0x017D: 0x8E,
+  0x2018: 0x91, 0x2019: 0x92, 0x201C: 0x93, 0x201D: 0x94, 0x2022: 0x95, 0x2013: 0x96, 0x2014: 0x97, 0x02DC: 0x98, 0x2122: 0x99, 0x0161: 0x9A, 0x203A: 0x9B, 0x0153: 0x9C, 0x017E: 0x9E, 0x0178: 0x9F };
+function latin1(str, xml) {
+  var out = [];
+  for (var i = 0; i < str.length; i++) {
+    var c = str.charCodeAt(i);
+    if (c < 128 || (c >= 160 && c < 256)) { out.push(c); continue; }
+    if (CP1252[c]) { out.push(CP1252[c]); continue; }
+    if (xml && c >= 0xD800 && c < 0xDC00 && i + 1 < str.length) { var cp = str.codePointAt(i); i++; ('&#x' + cp.toString(16).toUpperCase() + ';').split('').forEach(function (ch) { out.push(ch.charCodeAt(0)); }); continue; }
+    if (xml && c >= 128) { ('&#x' + c.toString(16).toUpperCase() + ';').split('').forEach(function (ch) { out.push(ch.charCodeAt(0)); }); continue; }
+    out.push(63);
+  }
+  return new Uint8Array(out);
+}
 var CRCT = (function () { var t = new Uint32Array(256); for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
 function crc32(b) { var c = 0xFFFFFFFF; for (var i = 0; i < b.length; i++) c = CRCT[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
 function dosTime() { var d = new Date(); return { t: (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1), d: ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate() }; }
@@ -14219,7 +14491,7 @@ var HELP = {
     '<tr><td><span class="sw3" style="background:var(--warn)"></span><b>Kuning: peringatan</b></td><td>Boleh, tapi perlu dicek. Contoh: alur belum diberi nama, data store hanya diisi tapi tidak pernah dibaca, entitas belum terhubung, nama proses dipakai dua kali.</td></tr>' +
     '<tr><td><span class="sw3" style="background:var(--ok)"></span><b>Hijau: aman</b></td><td>Contoh: "Seimbang dengan induk: 10 alur cocok".</td></tr></table>' +
     '<p><b>Seimbang (balancing)</b> artinya setiap alur yang masuk atau keluar dari proses di level induk harus muncul juga di level turunannya, dengan nama yang sama.</p>',
-  kunci: '<table>' + [['V / H / P / D / E / F', 'Alat Pilih / Geser / Proses / Store / Entitas / Alur'], ['Ctrl+A, Ctrl+C, Ctrl+X, Ctrl+V', 'Pilih semua, salin, potong, tempel'], ['Shift+klik, atau klik kanan → Pilih beberapa', 'Memilih banyak objek satu per satu'], ['Ctrl+G, Ctrl+Shift+G', 'Kelompokkan, pisahkan kelompok'], ['Ctrl+F', 'Cari elemen di semua diagram'], ['Klik kanan → Kunci posisi', 'Objek tidak bisa tergeser, diubah ukurannya, atau terhapus'], ['Shift saat menggeser, Esc saat menyeret', 'Gerak lurus, batalkan geseran'], ['Ctrl+D', 'Duplikat'], ['Ctrl+Z / Ctrl+Y', 'Urungkan / ulangi'], ['Delete', 'Hapus pilihan'], ['F2', 'Ganti nama'], ['Ctrl+L', 'Rapikan garis alur terpilih'], ['Ctrl+J', 'Sesuaikan ukuran dengan teks'], ['Panah / Shift+panah', 'Geser objek 1 / 10 px'], ['Alt+↓ / Alt+↑', 'Masuk dekomposisi / naik satu level'], ['Ctrl + scroll, cubit touchpad', 'Zoom'], ['Scroll, geser dua jari di touchpad, Shift+scroll, Spasi+seret', 'Geser kanvas'], ['Alt saat menyeret', 'Tanpa snap ke grid'], ['F1', 'Bantuan ini'], ['F3', 'Jelaskan diagram (tanya jawab tentang alur)'], ['F4', 'Periksa model'], ['F5 / F6 / F7', 'Skala 100% / perbesar / perkecil'], ['F8 / F9', 'Tampilan global / tampilan sebelumnya'], ['Ctrl+S', 'Simpan .pam'], ['Ctrl+O', 'Buka berkas']].map(function (r) { return '<tr><td><kbd>' + r[0] + '</kbd></td><td>' + r[1] + '</td></tr>'; }).join('') + '</table>',
+  kunci: '<table>' + [['V / H / P / D / E / F', 'Alat Pilih / Geser / Proses / Store / Entitas / Alur'], ['Ctrl+A, Ctrl+C, Ctrl+X, Ctrl+V', 'Pilih semua, salin, potong, tempel'], ['Shift+klik, atau klik kanan → Pilih beberapa', 'Memilih banyak objek satu per satu'], ['Ctrl+G, Ctrl+Shift+G', 'Kelompokkan, pisahkan kelompok'], ['Ctrl+F', 'Cari elemen di semua diagram'], ['Klik kanan → Kunci posisi', 'Objek tidak bisa tergeser, diubah ukurannya, atau terhapus'], ['Shift saat menggeser, Esc saat menyeret', 'Gerak lurus, batalkan geseran'], ['Ctrl+D', 'Duplikat'], ['Ctrl+Z / Ctrl+Y', 'Urungkan / ulangi'], ['Delete', 'Hapus pilihan'], ['F2', 'Ganti nama'], ['Ctrl+L', 'Rapikan garis alur terpilih'], ['Ctrl+J', 'Sesuaikan ukuran dengan teks'], ['Panah / Shift+panah', 'Geser objek 1 / 10 px'], ['Alt+↓ / Alt+↑', 'Masuk dekomposisi / naik satu level'], ['Ctrl + scroll, cubit touchpad', 'Zoom'], ['Scroll, geser dua jari di touchpad, Shift+scroll, Spasi+seret', 'Geser kanvas'], ['Alt saat menyeret', 'Tanpa snap ke grid'], ['F1', 'Bantuan ini'], ['F3', 'Jelaskan diagram (tanya jawab tentang alur)'], ['F4', 'Periksa model'], ['F5 / F6 / F7', 'Skala 100% / perbesar / perkecil'], ['F8 (atau Ctrl+0 / Shift+1) / F9', 'Tampilan global, kembali melihat seluruh diagram / tampilan sebelumnya'], ['Ctrl+S', 'Simpan .pam'], ['Ctrl+O', 'Buka berkas']].map(function (r) { return '<tr><td><kbd>' + r[0] + '</kbd></td><td>' + r[1] + '</td></tr>'; }).join('') + '</table>',
   uml: '<h4>Memulai</h4><ul><li>Klik ikon <b>rumah</b> di kiri atas (Halaman mulai) untuk memilih <b>Activity</b>, <b>Use Case</b>, <b>BPMN</b>, atau <b>Sequence</b>. Semua diagram UML disimpan dalam satu proyek, terpisah dari DFD.</li>' +
     '<li><b>Toolbox</b> di kiri berisi elemen dan jenis garis, sama seperti di Enterprise Architect. Klik elemen lalu klik di kanvas.</li>' +
     '<li><b>Project Browser</b> di kanan menampilkan paket, diagram, dan elemennya. Klik diagram untuk membukanya; tanda <b>›</b> di kiri untuk menampilkan/melipat isinya, lalu klik elemen untuk langsung menuju ke elemennya. Kotak <b>Cari diagram</b> menyaring daftar (Enter membuka hasil pertama, Esc mengosongkan). Titik biru = diagram yang sedang terbuka di tab. Tarik pojok kanan bawah kotaknya untuk mengubah tinggi.</li></ul>' +
