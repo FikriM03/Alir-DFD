@@ -763,9 +763,10 @@ html.anim #lostpill:not([hidden]) { animation: al-pill .22s var(--ease-out, ease
   #app:not(.ea) #rail .tool.gtop { margin-top: 12px; }
 }
 /* v57: saklar DFD/UML & Pilih/Geser dengan pil penanda yang meluncur */
-.modesw { position: relative; display: inline-grid; grid-template-columns: 1fr 1fr; gap: 0; }
-.modesw::before { content: ""; position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc(50% - 3px); border-radius: 999px; background: var(--on); }
+.modesw { position: relative; display: inline-grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; }
+.modesw::before { content: ""; position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc(33.333% - 2px); border-radius: 999px; background: var(--on); }
 .modesw:has([data-mode="uml"][aria-pressed="true"])::before { transform: translateX(100%); }
+.modesw:has([data-mode="fc"][aria-pressed="true"])::before { transform: translateX(200%); }
 .modesw button { position: relative; z-index: 1; }
 .modesw button[aria-pressed="true"] { background: transparent; }
 html.anim .modesw::before { transition: transform 220ms var(--ease-spring); }
@@ -835,7 +836,7 @@ html.anim .modesw::before { transition: transform 220ms var(--ease-spring); }
 </style>
 <div id="app">
   <nav id="menubar" aria-label="Menu utama">
-    <div class="brand"><span class="logo" aria-hidden="true"><svg viewBox="0 0 22 22" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2.5"/><rect x="12" y="13" width="7" height="6" rx="1.5"/><path d="M7.5 6H13a2.5 2.5 0 0 1 2.5 2.5V13"/></svg></span><b>Alir</b><span class="modesw" role="group" aria-label="Jenis proyek"><button type="button" data-mode="dfd" aria-pressed="true" title="DFD gaya PowerDesigner. Membuka proyek DFD terakhirmu.">DFD</button><button type="button" data-mode="uml" aria-pressed="false" title="Activity, Use Case, BPMN gaya Enterprise Architect. Membuka proyek UML terakhirmu.">UML</button></span></div>
+    <div class="brand"><span class="logo" aria-hidden="true"><svg viewBox="0 0 22 22" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2.5"/><rect x="12" y="13" width="7" height="6" rx="1.5"/><path d="M7.5 6H13a2.5 2.5 0 0 1 2.5 2.5V13"/></svg></span><b>Alir</b><span class="modesw" role="group" aria-label="Jenis proyek"><button type="button" data-mode="dfd" aria-pressed="true" title="DFD gaya PowerDesigner. Membuka proyek DFD terakhirmu.">DFD</button><button type="button" data-mode="uml" aria-pressed="false" title="Activity, Use Case, BPMN, Sequence, Collaboration gaya Enterprise Architect. Membuka proyek UML terakhirmu.">UML</button><button type="button" data-mode="fc" aria-pressed="false" title="Flowchart program. Disimpan terpisah, ekspor XML (.drawio), PNG, SVG.">FLOW</button></span></div>
     <button class="mbtn" data-menu="file" aria-haspopup="true" aria-expanded="false">Berkas</button>
     <button class="mbtn" data-menu="edit" aria-haspopup="true" aria-expanded="false">Edit</button>
     <button class="mbtn" data-menu="dict" aria-haspopup="true" aria-expanded="false">Kamus</button>
@@ -1415,7 +1416,7 @@ var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, fu
 var clone = function (o) { return JSON.parse(JSON.stringify(o)); };
 var cv = $('#cv'), stage = $('#stage'), panelEl = $('#panel'), inl = $('#inl'), tabsEl = $('#tabs'), toastEl = $('#toast'), fileIn = $('#file');
 
-var GAP = 18, MINW = 30, MINH = 20, LS = 'alir-dfd-v2', LS_EA = 'alir-ea-v1';
+var GAP = 18, MINW = 30, MINH = 20, LS = 'alir-dfd-v2', LS_EA = 'alir-ea-v1', LS_FC = 'alir-fc-v1';
 var METHODS = ['OMT', 'Yourdon/DeMarco', 'Gane & Sarson', 'SSADM'];
 var TYPE_ID = { process: 'Proses', entity: 'Entitas eksternal', store: 'Data store', flow: 'Data flow', offpage: 'Konektor off-page', spmg: 'Split/Merge', ptext: 'Teks', pgfx: 'Gambar' };
 var DEFNAME = { process: 'Proses', entity: 'Entitas', store: 'Data store', spmg: 'SpMg', ptext: 'Teks', pgfx: '' };
@@ -1521,7 +1522,7 @@ function es(e) {
 }
 function fs(fl) {
   var d = doc.defaults.flow, s = fl.style || {};
-  return { stroke: s.stroke || d.stroke, dash: s.dash || (CT[fl.kind] ? CT[fl.kind].dash : d.dash) || 'solid', route: s.route != null ? s.route : (d.route || 0), arrows: s.arrows || d.arrows || { t: true },
+  return { stroke: s.stroke || d.stroke, dash: s.dash || (CT[fl.kind] ? CT[fl.kind].dash : d.dash) || 'solid', route: s.route != null ? s.route : fl.kind === 'clink' ? 0 : (d.route || 0), arrows: s.arrows || d.arrows || { t: true },
     text: s.text || d.text || '#000000', textSet: !!s.text, font: Object.assign({ family: 'Arial', size: 8 }, d.font || {}, s.font || {}) };
 }
 function fontCss(f) {
@@ -1550,7 +1551,7 @@ var atT = 0, atSig = {};
 function geoSig(D) { return D.elements.map(function (e) { return e.id + ':' + Math.round(e.x) + ',' + Math.round(e.y) + ',' + Math.round(e.w) + ',' + Math.round(e.h); }).join('|') + '#' + D.flows.map(function (f) { return f.id + f.from + f.to + (f.manual ? 'm' : '') + (f.kind || ''); }).join('|'); }
 function autoTidyOn() { return doc.prefs.autoTidy != null ? doc.prefs.autoTidy : !isDfd(); }
 function scheduleAutoTidy() {
-  if (!autoTidyOn() || (!isDfd() && isSeq(cur()))) return;
+  if (!autoTidyOn() || (!isDfd() && (isSeq(cur()) || cur().kind === 'comm'))) return;
   clearTimeout(atT);
   atT = setTimeout(function () {
     if (drag) return;
@@ -1561,8 +1562,11 @@ function scheduleAutoTidy() {
   }, 180);
 }
 var saveT = 0;
-function lsKey() { return isDfd() ? LS : LS_EA; }
-function persist() { clearTimeout(saveT); var k = lsKey(), d = doc, a = active; saveT = setTimeout(function () { try { localStorage.setItem(k, JSON.stringify({ doc: d, active: a, t: Date.now() })); localStorage.setItem('alir-mode', isDfd() ? 'dfd' : 'ea'); } catch (e) { /* tanpa penyimpanan */ } }, 400); }
+function lsKey() { return isDfd() ? LS : isFcDoc() ? LS_FC : LS_EA; }
+/* v63: proyek Flowchart = mode sendiri (DFD | UML | Flowchart), memakai mesin diagram UML tapi disimpan terpisah dan tidak diekspor ke EA */
+function isFcDoc() { return !!doc && doc.kind === 'ea' && !!doc.fc; }
+function curMode() { return isDfd() ? 'dfd' : isFcDoc() ? 'fc' : 'uml'; }
+function persist() { clearTimeout(saveT); var k = lsKey(), d = doc, a = active; saveT = setTimeout(function () { try { localStorage.setItem(k, JSON.stringify({ doc: d, active: a, t: Date.now() })); localStorage.setItem('alir-mode', isDfd() ? 'dfd' : isFcDoc() ? 'fc' : 'ea'); } catch (e) { /* tanpa penyimpanan */ } }, 400); }
 
 /* ---------- geometri bentuk ---------- */
 function isEll(e) { var m = doc.method; return (e.type === 'process' && (m === 0 || m === 1)) || (e.type === 'entity' && m === 3); }
@@ -3515,7 +3519,7 @@ function eaXmi(d, only) {
     var routes = routeAll(D);
     D.flows.forEach(function (f) {
       var r = routes.get(f.id), A = elOf(D, f.from), B = elOf(D, f.to); if (!r || !A || !B) return;
-      if (f.kind === 'clink') return;
+      if (f.kind === 'clink' && f.from === f.to) return;
       if (f.kind === 'smsg') { s += '\t\t\t\t<UML:DiagramElement geometry="SX=0;SY=0;EX=0;EY=0;Path=;" subject="' + xid(f.guid) + '" style=";Hidden=0;"/>\n'; return; }
       var P = r.pts, S = P[0], T = P[P.length - 1], ortho = fs(f).route > 0, mid = P.slice(1, -1);
       var s1 = P[1], t1 = P[P.length - 2], sHz = Math.abs(s1.y - S.y) < .5, tHz = Math.abs(t1.y - T.y) < .5;
@@ -3582,7 +3586,7 @@ function modeUI() {
   $('#app').classList.toggle('ea', ea);
   var dm = $('.mbtn[data-menu="dict"]'); if (dm) dm.textContent = ea ? 'Diagram' : 'Kamus';
   modeSwUI();
-  fileIn.setAttribute('accept', '.pam,.json,.txt,.zip,.eap,.xml,.xmi,.docx');
+  fileIn.setAttribute('accept', '.pam,.json,.txt,.zip,.eap,.xml,.xmi,.docx,.drawio'); $('#app').classList.toggle('fcmode', isFcDoc());
   buildToolbar(); buildRail();
 }
 function storedDoc(key) { try { var raw = localStorage.getItem(key); if (!raw) return null; var j = JSON.parse(raw); return j && j.doc && Array.isArray(j.doc.diagrams) && j.doc.diagrams.length ? j : null; } catch (x) { return null; } }
@@ -3591,10 +3595,10 @@ function useDoc(nd, act, label) {
   if (doc && doc !== nd && doc.diagrams) histSnap('Sebelum membuka ' + String(label || 'proyek lain').replace(/^Dibuka: /, '')); if (sim) simStop();
   persistNow();
   /* proyek jenis lain yang tersimpan (DFD / UML) akan tertimpa: simpan dulu ke Riwayat versi */
-  var tk = nd.kind === 'ea' ? LS_EA : LS;
+  var tk = nd.kind === 'ea' ? (nd.fc ? LS_FC : LS_EA) : LS;
   if (doc && tk !== lsKey()) { var stk = storedDoc(tk); if (stk && stk.doc !== nd && JSON.stringify(stk.doc) !== JSON.stringify(nd)) histSnap('Sebelum diganti ' + String(label || 'proyek lain').replace(/^Dibuka: /, ''), stk.doc); }
   doc = nd.kind === 'ea' ? normEa(nd) : normDoc(nd);
-  if (isDfd()) pinImported();
+  if (isDfd()) pinImported(); else fcMigrate(doc);
   bumpSeq(); views = {}; active = act && doc.diagrams.some(function (d) { return d.id === act; }) ? act : doc.diagrams[0].id; tbReset();
   sel.clear(); flowFrom = null; tool = 'select'; undoS = []; redoS = [];
   modeUI(); setTool('select'); afterChange();
@@ -3603,10 +3607,11 @@ function useDoc(nd, act, label) {
 function persistNow() { if (!doc) return; try { localStorage.setItem(lsKey(), JSON.stringify({ doc: doc, active: active, t: Date.now() })); } catch (x) { /* abaikan */ } }
 function openKind(kind) {
   closeStart();
+  if (kind === 'flowchart') { if (isFcDoc()) { afterChange(); return; } modeSwitch('fc'); return; }
   if (kind === 'dfd') { var s0 = storedDoc(LS); if (isDfd() && doc) { afterChange(); return; } useDoc(s0 ? s0.doc : blankDoc(), s0 && s0.active, s0 ? 'Melanjutkan DFD "' + s0.doc.name + '".' : 'DFD baru.'); return; }
-  var s1 = isDfd() ? storedDoc(LS_EA) : { doc: doc, active: active };
+  var s1 = isDfd() || isFcDoc() ? storedDoc(LS_EA) : { doc: doc, active: active };
   if (!s1) { useDoc(blankEa('Proyek EA', kind), null, KINDS[kind].name + ' baru. Pilih elemen di Toolbox lalu klik di kanvas.'); return; }
-  if (isDfd()) useDoc(s1.doc, s1.active);
+  if (isDfd() || isFcDoc()) useDoc(s1.doc, s1.active);
   var D = doc.diagrams.find(function (d) { return d.id === active && d.kind === kind; }) || doc.diagrams.find(function (d) { return d.kind === kind; });
   if (D) { switchTo(D.id); modeUI(); }
   else { run('newdiag:' + kind); }
@@ -3614,8 +3619,8 @@ function openKind(kind) {
 function closeStart() { var s = $('#start'); if (s) s.remove(); }
 function startPage() {
   closeMenus(); closePop(); closeStart();
-  var dfd = storedDoc(LS), ea = storedDoc(LS_EA);
-  if (isDfd()) dfd = { doc: doc, active: active }; else ea = { doc: doc, active: active };
+  var dfd = storedDoc(LS), ea = storedDoc(LS_EA), fcd = storedDoc(LS_FC);
+  if (isDfd()) dfd = { doc: doc, active: active }; else if (isFcDoc()) fcd = { doc: doc, active: active }; else ea = { doc: doc, active: active };
   function cnt(d, k) { return d ? d.doc.diagrams.filter(function (x) { return x.kind === k; }).length : 0; }
   var cards = [
     ['dfd', 'Data Flow Diagram', 'Gaya PowerDesigner 6. Buka dan simpan .pam, level 0 sampai level 2.', dfd && dfd.doc.diagrams.some(function (x) { return x.elements.length; }) ? 'Lanjutkan "' + dfd.doc.name + '"' : 'Mulai baru', '<circle cx="24" cy="24" r="10"/><rect x="3" y="18" width="10" height="12"/><path d="M13 24h1M34 24h4M38 20h8M38 28h8"/>'],
@@ -3624,15 +3629,15 @@ function startPage() {
     ['bpmn', 'BPMN', 'Proses bisnis: pool, lane, event, gateway, data store.', ea && cnt(ea, 'bpmn') ? 'Lanjutkan (' + cnt(ea, 'bpmn') + ' diagram)' : 'Mulai baru', '<rect x="2" y="8" width="44" height="32"/><path d="M8 8v32M8 24h38"/><circle cx="15" cy="16" r="3"/><rect x="22" y="12" width="12" height="8" rx="2"/><path d="M40 13l4 3-4 3-4-3z"/>'],
     ['sequence', 'Sequence Diagram', 'Lifeline V_/C_/M_, pesan, activation, fragment alt/opt/loop.', ea && cnt(ea, 'sequence') ? 'Lanjutkan (' + cnt(ea, 'sequence') + ' diagram)' : 'Mulai baru', '<rect x="3" y="4" width="12" height="7"/><rect x="33" y="4" width="12" height="7"/><path d="M9 11v33M39 11v33" stroke-dasharray="3 2"/><rect x="7" y="16" width="4" height="16"/><rect x="37" y="20" width="4" height="8"/><path d="M11 20h24M31 17l4 3-4 3"/>'],
     ['comm', 'Collaboration Diagram', 'Transform dari Sequence: objek, link, pesan bernomor 0.1, 0.2, … langsung rapi.', ea && cnt(ea, 'comm') ? 'Lanjutkan (' + cnt(ea, 'comm') + ' diagram)' : 'Mulai baru', '<circle cx="10" cy="12" r="6"/><circle cx="38" cy="12" r="6"/><circle cx="24" cy="38" r="6"/><path d="M16 12h16M13 17l8 16M35 17l-8 16"/><path d="M20 7h6M24 5l2 2-2 2"/>'],
-    ['flowchart', 'Flowchart', 'Program flowchart dari Activity Diagram atau skenario; simpan .drawio / PNG.', ea && cnt(ea, 'flowchart') ? 'Lanjutkan (' + cnt(ea, 'flowchart') + ' diagram)' : 'Mulai baru', '<rect x="14" y="3" width="20" height="8" rx="4"/><path d="M24 11v4M24 15l9 7-9 7-9-7z"/><path d="M24 29v4"/><path d="M15 33h22l-4 9H11z"/>']
+    ['flowchart', 'Flowchart', 'Mode sendiri (FLOW): simbol lengkap, dibuat dari Activity Diagram atau skenario, ekspor XML / PNG / SVG.', fcd && cnt(fcd, 'flowchart') ? 'Lanjutkan (' + cnt(fcd, 'flowchart') + ' flowchart)' : 'Mulai baru', '<rect x="14" y="3" width="20" height="8" rx="4"/><path d="M24 11v4M24 15l9 7-9 7-9-7z"/><path d="M24 29v4"/><path d="M15 33h22l-4 9H11z"/>']
   ];
   var el = document.createElement('div'); el.id = 'start'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Halaman mulai');
   /* v56: tata letak baru (header, hero + tombol, kartu dengan ubin ikon & chip format, footer) — data & data-st sama seperti sebelumnya */
   var arrow = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg>';
   el.innerHTML = '<header class="st-top"><div class="st-brand"><span class="logo" aria-hidden="true"><svg viewBox="0 0 22 22" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2.5"/><rect x="12" y="13" width="7" height="6" rx="1.5"/><path d="M7.5 6H13a2.5 2.5 0 0 1 2.5 2.5V13"/></svg></span><b>Alir</b><span>DFD · Activity · Use Case · BPMN · Sequence · Collaboration · Flowchart</span></div><div class="st-acts"><button type="button" class="tb st-theme" data-st="theme"></button>' + (doc ? '<button class="btn" data-st="close">Tutup</button>' : '') + '</div></header>' +
     '<div class="st-in"><div class="st-hero"><div><h1>Mau menggambar apa hari ini?</h1><p class="st-lead">Simpan sebagai .pam untuk PowerDesigner 6 atau ekspor ke Enterprise Architect. Tanpa login.</p></div>' +
-    '<div class="st-row"><button class="btn pri st-open" data-st="open"><span>Buka berkas</span><small>.pam .eap .xml .json</small></button>' + (dfd ? '<button class="btn" data-st="newdfd">DFD baru (kosong)</button>' : '') + (ea ? '<button class="btn" data-st="neweap">Proyek UML baru (kosong)</button>' : '') + '</div></div>' +
-    '<p class="st-sec">Mulai diagram baru</p><div class="st-cards">' + cards.map(function (c, i) { return '<button class="st-card" style="--i:' + i + '" data-st="' + c[0] + '"><span class="st-ic"><svg viewBox="0 0 48 48" aria-hidden="true">' + c[4] + '</svg></span><em class="st-chip">' + (c[0] === 'dfd' ? '.pam' : c[0] === 'flowchart' ? '.drawio' : 'EA') + '</em><b>' + c[1] + '</b><span class="st-d">' + c[2] + '</span><i>' + esc(c[3]) + ' ' + arrow + '</i></button>'; }).join('') + '</div>' +
+    '<div class="st-row"><button class="btn pri st-open" data-st="open"><span>Buka berkas</span><small>.pam .eap .xml .drawio</small></button>' + (dfd ? '<button class="btn" data-st="newdfd">DFD baru (kosong)</button>' : '') + (ea ? '<button class="btn" data-st="neweap">Proyek UML baru (kosong)</button>' : '') + (fcd ? '<button class="btn" data-st="newfc">Flowchart baru (kosong)</button>' : '') + '</div></div>' +
+    '<p class="st-sec">Mulai diagram baru</p><div class="st-cards">' + cards.map(function (c, i) { return '<button class="st-card" style="--i:' + i + '" data-st="' + c[0] + '"><span class="st-ic"><svg viewBox="0 0 48 48" aria-hidden="true">' + c[4] + '</svg></span><em class="st-chip">' + (c[0] === 'dfd' ? '.pam' : c[0] === 'flowchart' ? 'XML · PNG' : 'EA') + '</em><b>' + c[1] + '</b><span class="st-d">' + c[2] + '</span><i>' + esc(c[3]) + ' ' + arrow + '</i></button>'; }).join('') + '</div>' +
     (function () {
       /* v57: Lanjutkan pekerjaan — kartu lebar untuk proyek DFD & UML terakhir (aksi sama dengan kartu DFD "Lanjutkan" dan saklar mode UML) */
       var arr = '<svg viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9h11M10 4.5L14.5 9 10 13.5"/></svg>', L = [], n = cards.length;
@@ -3653,6 +3658,7 @@ function startPage() {
     else if (k === 'theme') setTheme(themeNow() === 'dark' ? 'light' : 'dark');
     else if (k === 'open') { closeStart(); fileIn.click(); }
     else if (k === 'neweap') { closeStart(); newBlank('uml'); }
+    else if (k === 'newfc') { closeStart(); newBlank('fc'); }
     else if (k === 'newdfd') { closeStart(); newBlank('dfd'); }
     else openKind(k);
   });
@@ -5316,7 +5322,7 @@ function scGenerate(list, withUc) {
 }
 function scSummary(u) { return u.normal.length + ' langkah' + (u.alts.length ? ', ' + u.alts.length + ' alternatif' : ', <span class="scnoalt">belum ada alternative flow</span>') + (u.multi ? ', <span class="scnoalt">aktornya lebih dari satu (' + esc(u.multi.join(', ')) + '): sebaiknya tabel dipecah per aktor, diagram ini memakai aktor pertama</span>' : ''); }
 /* jenis diagram tujuan menurut kanvas yang sedang dibuka: Activity → Activity Diagram, Sequence → Sequence Diagram; lainnya ditanyakan */
-function scTargetOf() { var k = cur() && cur().kind; return k === 'sequence' ? 'sequence' : k === 'activity' ? 'activity' : k === 'comm' ? 'seqcomm' : k === 'flowchart' ? 'flowchart' : null; }
+function scTargetOf() { if (isFcDoc()) return 'flowchart'; var k = cur() && cur().kind; return k === 'sequence' ? 'sequence' : k === 'activity' ? 'activity' : k === 'comm' ? 'seqcomm' : k === 'flowchart' ? 'flowchart' : null; }
 /* letak decision yang hanya ditebak (tabel tanpa nomor) dan kurang yakin: ditampilkan supaya bisa dibetulkan sebelum diagram dibuat */
 function scFixList(ucs) {
   var out = [];
@@ -5334,10 +5340,10 @@ function scFixHtml(ucs) {
 }
 function scenarioModal(pre, target) {
   if (isDfd()) { dfdScenarioModal(pre); return; }
-  var found = [], tgt = target || scTargetOf() || 'activity', fixed = !!target;
+  var found = [], tgt = isFcDoc() ? 'flowchart' : target === 'flowchart' ? 'activity' : (target || scTargetOf() || 'activity'), fixed = !!target || isFcDoc();
   var lead = function () { return tgt === 'sequence' ? 'Tiap use case dibuatkan <b>Sequence Diagram</b>: Aktor, View (V_), Controller (C_), dan Model (M_), lengkap dengan fragment <b>alt</b> untuk alur alternatifnya.' : tgt === 'seqcomm' ? 'Tiap use case dibuatkan <b>Sequence Diagram</b> lalu langsung di-Transform menjadi <b>Collaboration Diagram</b> yang sudah rapi (nomor pesan 0.1, 0.2, …).' : tgt === 'flowchart' ? 'Tiap use case dibuatkan <b>Flowchart</b> program: Preparation berisi atribut (tipe varchar/enum → String, int → Integer), getData/print, input, Decision dari alternative flow, dan pesannya.' : 'Tiap use case dibuatkan <b>Activity Diagram</b> lengkap dengan partition, decision, dan cabang alternatifnya.'; };
   var body = '<p class="xp-lead">Tempel tabel <b>skenario use case</b> (kolom Aktor dan Sistem, Normal Flow, Alternative Flow) dari Google Docs atau Word, atau buka berkas <b>.docx</b> laporanmu. <span id="sclead">' + lead() + '</span></p>' +
-    (fixed ? '' : '<div class="scto" role="radiogroup" aria-label="Jadikan diagram"><span>Jadikan:</span><label><input type="radio" name="scto" value="activity"' + (tgt === 'activity' ? ' checked' : '') + '> Activity Diagram</label><label><input type="radio" name="scto" value="sequence"' + (tgt === 'sequence' ? ' checked' : '') + '> Sequence Diagram</label><label><input type="radio" name="scto" value="seqcomm"' + (tgt === 'seqcomm' ? ' checked' : '') + '> Sequence + Collaboration</label><label><input type="radio" name="scto" value="flowchart"' + (tgt === 'flowchart' ? ' checked' : '') + '> Flowchart</label></div>') +
+    (fixed ? '' : '<div class="scto" role="radiogroup" aria-label="Jadikan diagram"><span>Jadikan:</span><label><input type="radio" name="scto" value="activity"' + (tgt === 'activity' ? ' checked' : '') + '> Activity Diagram</label><label><input type="radio" name="scto" value="sequence"' + (tgt === 'sequence' ? ' checked' : '') + '> Sequence Diagram</label><label><input type="radio" name="scto" value="seqcomm"' + (tgt === 'seqcomm' ? ' checked' : '') + '> Sequence + Collaboration</label></div>') +
     '<div class="scbox" id="scbox" contenteditable="true" role="textbox" aria-label="Tempel tabel skenario di sini" data-ph="Klik di sini lalu tekan Ctrl+V (boleh banyak tabel sekaligus)"></div>' +
     '<div class="row"><button class="btn" id="scdocx">Buka berkas .docx…</button><input type="file" id="scfile" accept=".docx" hidden><span class="scmsg" id="scmsg"></span></div>' +
     '<div id="sclist"></div><div id="scfixw"></div>' +
@@ -7799,42 +7805,46 @@ function clipStore(c) { try { localStorage.setItem(OCLIP_KEY, JSON.stringify(c))
 
 /* ---------- v40: proyek baru (kosong) langsung dari menu Berkas & sakelar DFD | UML ---------- */
 function newBlank(kind) {
-  var dfd = kind === 'dfd', same = dfd === isDfd();
-  var old = same ? (doc && { doc: doc }) : storedDoc(dfd ? LS : LS_EA);
+  /* kind: 'dfd' | 'uml' (atau jenis diagram UML) | 'fc' */
+  var mode = kind === 'dfd' ? 'dfd' : kind === 'fc' ? 'fc' : 'uml', dfd = mode === 'dfd', fc = mode === 'fc', same = mode === curMode();
+  var old = same ? (doc && { doc: doc }) : storedDoc(dfd ? LS : fc ? LS_FC : LS_EA);
   var has = !!(old && old.doc.diagrams.some(function (x) { return x.elements.length; }));
-  var nm0 = dfd ? 'Model_1' : 'Proyek EA';
+  var nm0 = dfd ? 'Model_1' : fc ? 'Flowchart' : 'Proyek EA', label = dfd ? 'DFD' : fc ? 'Proyek Flowchart' : 'Proyek UML';
   var body = '<div class="field"><label for="nb-n">Nama ' + (dfd ? 'model' : 'proyek') + '</label><input class="in" id="nb-n" value="' + esc(nm0) + '"></div>' +
-    (dfd ? '' : '<div class="field"><label for="nb-k">Diagram pertama</label><select class="in" id="nb-k"><option value="activity">Activity Diagram</option><option value="usecase">Use Case Diagram</option><option value="bpmn">BPMN</option></select></div>') +
-    (has ? '<p class="hint">' + (same ? 'Proyek yang sedang dibuka' : 'Proyek ' + (dfd ? 'DFD' : 'UML') + ' terakhirmu') + ' "' + esc(old.doc.name || '') + '" disimpan dulu ke Berkas → Riwayat versi' +
-      (same ? ', dan bisa dikembalikan dengan Ctrl+Z.' : '. Kalau hanya ingin membukanya, klik ' + (dfd ? 'DFD' : 'UML') + ' di kiri atas.') + '</p>' : '');
-  modal(dfd ? 'DFD baru (kosong)' : 'Proyek UML baru (kosong)', body, '<button class="btn" data-close>Batal</button><button class="btn pri" data-ok>Buat</button>', function (s, close) {
+    (dfd || fc ? '' : '<div class="field"><label for="nb-k">Diagram pertama</label><select class="in" id="nb-k"><option value="activity">Activity Diagram</option><option value="usecase">Use Case Diagram</option><option value="bpmn">BPMN</option><option value="sequence">Sequence Diagram</option><option value="comm">Collaboration Diagram</option></select></div>') +
+    (has ? '<p class="hint">' + (same ? 'Proyek yang sedang dibuka' : 'Proyek ' + label.replace('Proyek ', '') + ' terakhirmu') + ' "' + esc(old.doc.name || '') + '" disimpan dulu ke Berkas → Riwayat versi' +
+      (same ? ', dan bisa dikembalikan dengan Ctrl+Z.' : '. Kalau hanya ingin membukanya, klik ' + (dfd ? 'DFD' : fc ? 'FLOW' : 'UML') + ' di kiri atas.') + '</p>' : '');
+  modal(label + ' baru (kosong)', body, '<button class="btn" data-close>Batal</button><button class="btn pri" data-ok>Buat</button>', function (s, close) {
     function go() {
-      var nm = ($('#nb-n', s).value || '').trim() || nm0, k = dfd ? null : $('#nb-k', s).value;
+      var nm = ($('#nb-n', s).value || '').trim() || nm0, k = dfd || fc ? null : $('#nb-k', s).value;
       close();
       if (has) histSnap('Sebelum proyek baru', old.doc, true);
       fhPending = null; closeStart(); if (sim) simStop();
+      var nd = dfd ? blankDoc(nm) : fc ? blankFc(nm) : blankEa(nm, k);
       if (same) {
         push(); fhAdopt();
-        doc = dfd ? normDoc(blankDoc(nm)) : normEa(blankEa(nm, k));
+        doc = dfd ? normDoc(nd) : normEa(nd);
         bumpSeq(); views = {}; active = doc.diagrams[0].id; tbReset(); sel.clear(); flowFrom = null; modeUI(); setTool('select'); afterChange();
-        toast((dfd ? 'DFD' : 'Proyek UML') + ' baru "' + nm + '" dibuat.' + (has ? ' Ctrl+Z untuk kembali ke proyek sebelumnya.' : ''));
-      } else useDoc(dfd ? blankDoc(nm) : blankEa(nm, k), null, (dfd ? 'DFD' : 'Proyek UML') + ' baru "' + nm + '" dibuat.');
+        toast(label + ' baru "' + nm + '" dibuat.' + (has ? ' Ctrl+Z untuk kembali ke proyek sebelumnya.' : ''));
+      } else useDoc(nd, null, label + ' baru "' + nm + '" dibuat.');
     }
     $('[data-ok]', s).addEventListener('click', go);
     var i = $('#nb-n', s); i.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); go(); } }); i.select();
   });
 }
-/* DFD | UML: pindah ke proyek terakhir jenis itu (masing-masing tersimpan terpisah), tanpa halaman mulai */
+/* DFD | UML | Flowchart: pindah ke proyek terakhir jenis itu (masing-masing tersimpan terpisah), tanpa halaman mulai */
 function modeSwitch(m) {
   closeMenus(); closePop();
-  var toDfd = m === 'dfd';
-  if (toDfd === isDfd() && doc) { closeStart(); toast('Sudah di mode ' + (toDfd ? 'DFD' : 'UML') + '. Proyek baru: Berkas → ' + (toDfd ? 'DFD baru (kosong)' : 'Proyek UML baru (kosong)') + '.'); return; }
+  if (m === 'ea') m = 'uml';
+  var NAMES = { dfd: 'DFD', uml: 'UML', fc: 'Flowchart' };
+  if (m === curMode() && doc) { closeStart(); toast('Sudah di mode ' + NAMES[m] + '. Proyek baru: Berkas → ' + (m === 'dfd' ? 'DFD baru (kosong)' : m === 'fc' ? 'Flowchart baru (kosong)' : 'Proyek UML baru (kosong)') + '.'); return; }
   closeStart();
-  if (toDfd) { var s0 = storedDoc(LS); useDoc(s0 ? s0.doc : blankDoc(), s0 && s0.active, s0 ? 'Mode DFD: melanjutkan "' + s0.doc.name + '".' : 'Mode DFD: model baru.'); return; }
+  if (m === 'dfd') { var s0 = storedDoc(LS); useDoc(s0 ? s0.doc : blankDoc(), s0 && s0.active, s0 ? 'Mode DFD: melanjutkan "' + s0.doc.name + '".' : 'Mode DFD: model baru.'); return; }
+  if (m === 'fc') { var s2 = storedDoc(LS_FC); useDoc(s2 ? s2.doc : blankFc('Flowchart'), s2 && s2.active, s2 ? 'Mode Flowchart: melanjutkan "' + s2.doc.name + '".' : 'Mode Flowchart: proyek baru. Pilih simbol di kiri lalu klik di kanvas, atau buat dari Activity Diagram / skenario (menu Diagram).'); return; }
   var s1 = storedDoc(LS_EA);
   useDoc(s1 ? s1.doc : blankEa('Proyek EA', 'activity'), s1 && s1.active, s1 ? 'Mode UML: melanjutkan "' + s1.doc.name + '".' : 'Mode UML: proyek baru. Pilih elemen di Toolbox lalu klik di kanvas.');
 }
-function modeSwUI() { $$('.modesw [data-mode]').forEach(function (b) { b.setAttribute('aria-pressed', String((b.dataset.mode === 'dfd') === isDfd())); }); }
+function modeSwUI() { var m = curMode(); $$('.modesw [data-mode]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.mode === m)); }); var w = $('.modesw'); if (w) w.dataset.m = m; }
 document.addEventListener('click', function (e) { var b = e.target.closest && e.target.closest('.modesw [data-mode]'); if (b) { e.preventDefault(); modeSwitch(b.dataset.mode); } });
 
 /* ===================== v61: fokus ke objek (Lihat dari pemeriksaan/tinjauan) & tombol kembali ke diagram ===================== */
@@ -12198,9 +12208,12 @@ TT.cboundary = T({ k: 'comm', label: 'Boundary (View, V_)', name: 'V_', ea: 'Obj
 TT.ccontrol = T({ k: 'comm', label: 'Control (Controller, C_)', name: 'C_', ea: 'Object', stereo: 'control', size: [90, 99], grow: false, fill: CM_FILL, font: ufont(false), icon: '<circle cx="12" cy="13" r="6"/><path d="M14 5l-3 2 3 2" />', draw: cmCircle('c') });
 TT.centity = T({ k: 'comm', label: 'Entity (Model, M_)', name: 'M_', ea: 'Object', stereo: 'entity', size: [90, 99], grow: false, fill: CM_FILL, font: ufont(false), icon: '<circle cx="12" cy="10" r="6"/><path d="M5 17h14" />', draw: cmCircle('e') });
 TT.cobject = T({ k: 'comm', label: 'Object', name: 'Objek', ea: 'Object', size: [90, 50], grow: false, fill: CM_FILL, font: ufont(false), icon: '<rect x="4" y="7" width="16" height="10"/>', draw: cmBoxDraw });
-TOOLBOX.comm = [['Communication', ['cactor', 'cboundary', 'ccontrol', 'centity', 'cobject', 'note']], ['Communication Relationships', ['c:clink', 'c:notelink']]];
+TOOLBOX.comm = [['Communication', ['cactor', 'cboundary', 'ccontrol', 'centity', 'cobject', 'note']], ['Communication Relationships', ['c:clink', 'c:cmsg', 'c:notelink']]];
 CT.clink = C({ label0: 'Link (Association)', ea: 'Association', head: '', icon: '<path d="M4 18L20 6"/><path d="M13 8l3-2.2-1 3.6" />' });
 CT.clink.label = function () { return ''; };
+/* alat Message: bukan jenis garis sendiri — membuat pesan bernomor di link (link dibuat bila belum ada) */
+CT.cmsg = C({ label0: 'Message (pesan bernomor)', ea: 'Collaboration', head: '', icon: '<path d="M4 18L20 6"/><path d="M8 9h7M12 6.5l3 2.5-3 2.5" />' });
+CT.cmsg.label = function () { return ''; };
 
 /* ---------- pesan ---------- */
 /* nomor "0.12" → [0, 12] untuk diurutkan seperti angka */
@@ -12222,7 +12235,10 @@ function cmNormalize(D) {
   D.flows.forEach(function (f) {
     if (f.kind !== 'clink') return;
     f.msgs = Array.isArray(f.msgs) ? f.msgs : [];
-    f.bends = []; delete f.sa; delete f.ta;
+    f.bends = Array.isArray(f.bends) ? f.bends : [];
+    /* v62 menyimpan bentuk siku sebagai cmCorner: jadikan titik belok biasa (Custom Line) */
+    if (f.cmCorner) { var A = elOf(D, f.from), B = elOf(D, f.to); if (A && B && !f.bends.length && f.from !== f.to) { var ca = { x: A.x + A.w / 2, y: A.y + A.h / 2 }, cb = { x: B.x + B.w / 2, y: B.y + B.h / 2 }; if (Math.abs(ca.x - cb.x) > 2 && Math.abs(ca.y - cb.y) > 2) f.bends = [f.cmCorner === 'v' ? { x: Math.round(ca.x), y: Math.round(cb.y) } : { x: Math.round(cb.x), y: Math.round(ca.y) }]; } delete f.cmCorner; }
+    if (f.from === f.to) { f.bends = []; delete f.sa; delete f.ta; }
     f.msgs.forEach(function (m) { if (!m.id || seen[m.id]) m.id = uid('m'); seen[m.id] = 1; });
   });
 }
@@ -12236,52 +12252,89 @@ function cmLoop(A, side) {
   var xIn = circ ? cx + (L ? -1 : 1) * Math.sqrt(Math.max(0, r * r - (y1 - cy) * (y1 - cy))) : (L ? R.l : R.r);
   return { pts: [{ x: x0, y: yIn }, { x: x0, y: yT }, { x: x1, y: yT }, { x: x1, y: y1 }, { x: xIn, y: y1 }], box: { l: Math.min(x0, x1), t: yT, r: Math.max(x0, x1), b: y1 }, ref: { x: R.r + 14, y: R.t + 17 }, side: L ? 'l' : 'r' };
 }
-/* titik garis link: lurus antar pusat, atau siku satu tikungan (f.cmCorner 'h' = mendatar dulu dari asal, 'v' = tegak dulu) */
-function cmLinkPts(f, A, B) {
-  var RA = rect(A), RB = rect(B), ca = { x: RA.cx, y: RA.cy }, cb = { x: RB.cx, y: RB.cy };
-  if (f.cmCorner && Math.abs(ca.x - cb.x) > 2 && Math.abs(ca.y - cb.y) > 2) {
-    var c = f.cmCorner === 'v' ? { x: ca.x, y: cb.y } : { x: cb.x, y: ca.y };
-    return [clip(RA, ca, c), c, clip(RB, cb, c)];
+/* ---------- letak label pesan ----------
+   Di EA letak teks pesan = titik tengah antara PUSAT kedua objek + (SX, −SY), tidak tergantung bentuk garis.
+   Mode mendatar (|dx| ≥ |dy| antar pusat): teks di tengah SX, panah kecil di kanan (→) / kiri (←) teks.
+   Mode tegak: ↑ teks rata kiri mulai SX+1 dan panah di SX−13, ↓ teks rata kanan sampai SX−1 dan panah di SX+13.
+   cmItemAt menghitung gambar satu pesan dari (SX, SY) persis seperti itu; perapian otomatis hanya memilih SX/SY. */
+function cmSegInfo(A, B, pts) {
+  var ca = { x: A.x + A.w / 2, y: A.y + A.h / 2 }, cb = { x: B.x + B.w / 2, y: B.y + B.h / 2 }, dx = cb.x - ca.x, dy = cb.y - ca.y, hz = Math.abs(dx) >= Math.abs(dy);
+  /* ruas tempat label: garis lurus = seluruhnya; bertikungan = ruas terpanjang yang searah sumbu dominan */
+  var P = pts, seg = null, best = -1;
+  for (var i = 0; i + 1 < P.length; i++) {
+    var u = P[i], v = P[i + 1], L = Math.hypot(v.x - u.x, v.y - u.y), al = hz ? Math.abs(v.x - u.x) >= Math.abs(v.y - u.y) : Math.abs(v.y - u.y) > Math.abs(v.x - u.x);
+    var sc = (al ? 1e6 : 0) + L; if (P.length === 2) sc = 1; if (sc > best) { best = sc; seg = { a: u, b: v }; }
   }
-  return [clip(RA, ca, cb), clip(RB, cb, ca)];
+  var sdx = seg.b.x - seg.a.x, sdy = seg.b.y - seg.a.y, len = Math.hypot(sdx, sdy) || 1, ux = sdx / len, uy = sdy / len;
+  var fw = (cb.x - ca.x) * ux + (cb.y - ca.y) * uy >= 0 ? 1 : -1; ux *= fw; uy *= fw;
+  return { hz: hz, c0: { x: (ca.x + cb.x) / 2, y: (ca.y + cb.y) / 2 }, seg: seg, mid: { x: (seg.a.x + seg.b.x) / 2, y: (seg.a.y + seg.b.y) / 2 }, ux: ux, uy: uy, sdx: sdx, sdy: sdy };
 }
-/* kelompok label satu link: [{side, items:[{m,text,w,dx,dy,al}], seg, axis}] — posisi dihitung relatif, lalu digeser menyusuri ruasnya */
-function cmGroups(D, f, A, B, pts, fc) {
-  var ms = (f.msgs || []).slice().sort(function (a, b) { return cmCmp(a.num, b.num); }), vOrd = D.cmVOrd === 'bottom' ? -1 : 1, out = [];
+function cmDirOf(I, m) { return m.rev ? { x: -I.ux, y: -I.uy } : { x: I.ux, y: I.uy }; }
+function cmItemAt(I, m, text, w, sx, sy, fpx) {
+  var d = cmDirOf(I, m), it = { m: m, text: text, w: w, d: d, sx: Math.round(sx), sy: Math.round(sy) }, A2 = CM_ARW / 2;
+  it.y = I.c0.y - it.sy;
+  if (I.hz) {
+    it.x = I.c0.x + it.sx; it.al = 'middle';
+    var acx = it.x + (d.x > 0 || (d.x === 0 && d.y < 0) ? w / 2 + 13 + A2 : -w / 2 - 15 - A2);
+    it.arw = { x1: acx - d.x * A2, y1: it.y - d.y * A2, x2: acx + d.x * A2, y2: it.y + d.y * A2 };
+  } else {
+    var g = d.y < 0 ? 1 : -1, anc = I.c0.x + it.sx, ax = anc - g * 13, ay = it.y + (d.y < 0 ? 3.5 : -9);
+    it.x = g > 0 ? anc + 1 : anc - 1; it.al = g > 0 ? 'start' : 'end'; it.anc = anc;
+    it.arw = { x1: ax - d.x * A2, y1: ay - d.y * A2, x2: ax + d.x * A2, y2: ay + d.y * A2 };
+  }
+  it.box = cmBoxOf(it, fpx);
+  return it;
+}
+/* label pesan di loop (link ke diri sendiri): teks di tengah SX dari titik acuan loop, panah di kiri teks (loop kanan) / kanan (loop kiri) */
+function cmLoopItemAt(Lp, m, text, w, sx, sy, fpx) {
+  var it = { m: m, text: text, w: w, sx: Math.round(sx), sy: Math.round(sy), al: 'middle' };
+  it.x = Lp.ref.x + it.sx; it.y = Lp.ref.y - it.sy;
+  if (Lp.side === 'l') { var xr = it.x + w / 2; it.arw = { x1: xr + 10, y1: it.y, x2: xr + 33, y2: it.y }; }
+  else { var xl = it.x - w / 2; it.arw = { x1: xl - 10, y1: it.y, x2: xl - 33, y2: it.y }; }
+  it.box = cmBoxOf(it, fpx); return it;
+}
+/* kelompok label otomatis satu link: per sisi, posisi (SX, SY) awal + sumbu geser.
+   Mendatar: panah sejajar satu kolom seperti anak tangga (teks → rata kanan, teks ← rata kiri), kedua sisi berpusat sama.
+   Miring: label bertangga menyusuri garis, jaraknya ke garis tetap.
+   Tegak: teks rata ke garis, panah satu kolom. Nomor terkecil paling dekat ke garis. */
+function cmGroups(D, f, I, fc) {
+  var ms = (f.msgs || []).filter(function (m) { return !m.pos; }).sort(function (a, b) { return cmCmp(a.num, b.num); }), vOrd = D.cmVOrd === 'bottom' ? -1 : 1, out = [];
   if (!ms.length) return out;
   function tw(m) { return textW(cmMsgText(m), fc); }
-  var ca = { x: A.x + A.w / 2, y: A.y + A.h / 2 }, cb = { x: B.x + B.w / 2, y: B.y + B.h / 2 }, dx = cb.x - ca.x, dy = cb.y - ca.y, hz = Math.abs(dx) >= Math.abs(dy);
-  /* ruas tempat label: garis lurus = seluruhnya; siku = ruas yang searah sumbu dominan (sama dengan cara EA memilih arah panah) */
-  var P = pts, seg = null;
-  for (var i = 0; i + 1 < P.length; i++) { var u = P[i], v = P[i + 1], sh = Math.abs(v.y - u.y) < .5, sv = Math.abs(v.x - u.x) < .5; if (P.length === 2 || (hz && sh) || (!hz && sv)) { seg = { a: u, b: v }; break; } }
-  if (!seg) seg = { a: P[0], b: P[P.length - 1] };
-  var sdx = seg.b.x - seg.a.x, sdy = seg.b.y - seg.a.y, len = Math.hypot(sdx, sdy) || 1, ux = sdx / len, uy = sdy / len;
-  /* arah ruas dari sisi asal link ke sisi tujuan */
-  var fw = (cb.x - ca.x) * ux + (cb.y - ca.y) * uy >= 0 ? 1 : -1; ux *= fw; uy *= fw;
-  var mid = { x: (seg.a.x + seg.b.x) / 2, y: (seg.a.y + seg.b.y) / 2 };
-  function dir(m) { return m.rev ? { x: -ux, y: -uy } : { x: ux, y: uy }; }
-  if (hz) {
-    var slope = Math.abs(sdy / (sdx || 1)), up = [], dn = [];
-    ms.forEach(function (m) { (dir(m).x > 0 ? up : dn).push(m); });
-    [[up, -1, 'a'], [dn, 1, 'b']].forEach(function (g) {
-      if (!g[0].length) return;
-      var W = Math.max.apply(null, g[0].map(tw)), base = CM_GAP0 + slope * (W / 2 + 40), items = [];
-      g[0].forEach(function (m, k) {
-        var w = tw(m), y = g[1] * (base + k * CM_LH), d = dir(m), right = d.x > 0, acx = right ? w / 2 + 13 + CM_ARW / 2 : -w / 2 - 15 - CM_ARW / 2;
-        items.push({ m: m, text: cmMsgText(m), w: w, x: 0, y: y, al: 'middle', ax: acx, ay: 0, d: d });
+  var mid = I.mid, ox = mid.x - I.c0.x, oy = mid.y - I.c0.y, A = CM_ARW;
+  if (I.hz) {
+    var s = I.sdy / (I.sdx || 1), up = [], dn = [];
+    ms.forEach(function (m) { (cmDirOf(I, m).x > 0 ? up : dn).push(m); });
+    [[up, -1, 'a', true], [dn, 1, 'b', false]].forEach(function (G) {
+      if (!G[0].length) return;
+      var g = G[1], right = G[3], W = Math.max.apply(null, G[0].map(tw)), B = W + (right ? 13 : 15) + A, items = [], stair = Math.abs(s) >= .3;
+      G[0].forEach(function (m, k) {
+        var w = tw(m), cx, y;
+        if (!stair) {
+          /* tangga mendatar: semua panah satu kolom */
+          y = g * (CM_GAP0 + Math.abs(s) * (B / 2 + 6) + k * CM_LH);
+          cx = right ? B / 2 - 13 - A - w / 2 : -B / 2 + A + 15 + w / 2;
+        } else {
+          var u = g * k * CM_LH / s, px = u, py = s * u, ext = (g < 0) === (s > 0);
+          y = py + g * (CM_GAP0 + 2);
+          if (right) cx = ext ? px + 3 + w / 2 : px - 3 - w / 2 - 13 - A; else cx = ext ? px + 3 + w / 2 + 15 + A : px - 3 - w / 2;
+        }
+        items.push({ m: m, text: cmMsgText(m), w: w, rx: cx, ry: y, l: right ? cx - w / 2 : cx - w / 2 - 15 - A, r: right ? cx + w / 2 + 13 + A : cx + w / 2 });
       });
-      out.push({ side: g[2], items: items, mid: mid, axis: { x: 1, y: slope ? sdy / Math.abs(sdx) : 0 }, seg: seg, len: Math.abs(sdx), span: W + 2 * (CM_ARW + 16) });
+      var l = Math.min.apply(null, items.map(function (q) { return q.l; })), r = Math.max.apply(null, items.map(function (q) { return q.r; })), sh = -(l + r) / 2;
+      items.forEach(function (q) { q.rx += sh; q.ry += s * sh * (stair ? 1 : 0); q.sx = ox + q.rx; q.sy = -(oy + q.ry); });
+      out.push({ side: G[2], items: items, axis: { x: 1, y: s }, len: Math.abs(I.sdx), span: (r - l) + 16 });
     });
   } else {
-    var inv = sdx / (sdy || 1), rt = [], lf = [];
-    ms.forEach(function (m) { (dir(m).y < 0 ? rt : lf).push(m); });
-    [[rt, 1, 'r'], [lf, -1, 'l']].forEach(function (g) {
-      var n = g[0].length; if (!n) return; var items = [];
-      g[0].forEach(function (m, k) {
-        var w = tw(m), kk = vOrd > 0 ? k : n - 1 - k, y = -(n - 1) * CM_LH / 2 + kk * CM_LH, lx = y * inv, d = dir(m), anc = lx + g[1] * CM_SIDE, up2 = d.y < 0;
-        items.push({ m: m, text: cmMsgText(m), w: w, x: g[1] > 0 ? anc + 1 : anc - 1, y: y, al: g[1] > 0 ? 'start' : 'end', ax: anc - g[1] * 13, ay: y + (up2 ? 3.5 : -9), d: d, anc: anc });
+    var inv = I.sdx / (I.sdy || 1), rt = [], lf = [];
+    ms.forEach(function (m) { (cmDirOf(I, m).y < 0 ? rt : lf).push(m); });
+    [[rt, 1, 'r'], [lf, -1, 'l']].forEach(function (G) {
+      var n = G[0].length; if (!n) return; var items = [];
+      G[0].forEach(function (m, k) {
+        var w = tw(m), kk = vOrd > 0 ? k : n - 1 - k, y = -(n - 1) * CM_LH / 2 + kk * CM_LH, anc = y * inv + G[1] * CM_SIDE;
+        items.push({ m: m, text: cmMsgText(m), w: w, sx: ox + anc, sy: -(oy + y) });
       });
-      out.push({ side: g[2], items: items, mid: mid, axis: { x: inv, y: 1 }, seg: seg, len: Math.abs(sdy), span: n * CM_LH + 30 });
+      out.push({ side: G[2], items: items, axis: { x: inv, y: 1 }, len: Math.abs(I.sdy), span: n * CM_LH + 30 });
     });
   }
   return out;
@@ -12291,95 +12344,82 @@ function cmBoxOf(q, fpx) {
   return { l: Math.min(x0, Math.min(a.x1, a.x2) - 3), r: Math.max(x0 + q.w, Math.max(a.x1, a.x2) + 3), t: Math.min(q.y - fpx * .62, Math.min(a.y1, a.y2) - 3), b: Math.max(q.y + fpx * .62, Math.max(a.y1, a.y2) + 3), tl: x0, tr: x0 + q.w };
 }
 function cmOv(a, b) { var w = Math.min(a.r, b.r) - Math.max(a.l, b.l), h = Math.min(a.b, b.b) - Math.max(a.t, b.t); return w > 0 && h > 0 ? w * h : 0; }
-function cmSegBox(p, q, a) { return { l: Math.min(p.x, q.x) - 1, r: Math.max(p.x, q.x) + 1, t: Math.min(p.y, q.y) - 1, b: Math.max(p.y, q.y) + 1 }; }
 function cmSegHits(B, P) { var n = 0; for (var i = 0; i + 1 < P.length; i++) if (segHitsRect(P[i], P[i + 1], B.l, B.t, B.r, B.b)) n++; return n; }
+/* garis link memakai perute garis UML biasa (Direct / Custom Line dengan titik belok, Orthogonal, Tree, Lateral) seperti diagram lain */
+function cmLinkRoutes(D) {
+  var flows = D.flows.filter(function (f) { return !(f.kind === 'clink' && f.from === f.to); });
+  return routeAll({ id: D.id, kind: 'commlinks', elements: D.elements, flows: flows });
+}
 function cmRouteAll(D) {
-  var out = new Map(), els = new Map(D.elements.map(function (e) { return [e.id, e]; })), geo = {}, st0 = fs({ kind: 'clink', style: {} }), fc = fontCss(st0.font), fpx = st0.font.size * 4 / 3;
-  var objBoxes = D.elements.filter(function (e) { return !isNoteish(e) || true; }).map(function (e) { var circ = !!CM_PREFIX[e.type]; return { l: e.x - 3, t: e.y - (e.type === 'ccontrol' ? 8 : 3), r: e.x + e.w + 3, b: e.y + e.h + (circ ? 0 : 3), id: e.id }; });
-  var groups = [], selfs = [];
+  var out = cmLinkRoutes(D), els = new Map(D.elements.map(function (e) { return [e.id, e]; })), geo = {}, st0 = fs({ kind: 'clink', style: {} }), fc = fontCss(st0.font), fpx = st0.font.size * 4 / 3;
+  var objBoxes = D.elements.map(function (e) { var circ = !!CM_PREFIX[e.type]; return { l: e.x - 3, t: e.y - (e.type === 'ccontrol' ? 8 : 3), r: e.x + e.w + 3, b: e.y + e.h + (circ ? 0 : 3), id: e.id }; });
+  var units = [], selfs = [], placed = [], lines = [], info = {};
+  out.forEach(function (r) { r.text = ''; r.labs = []; r.cm = []; lines.push(r.pts); });
   D.flows.forEach(function (f) {
+    if (f.kind !== 'clink') return;
     var A = els.get(f.from), B = els.get(f.to); if (!A || !B) return;
-    var pts;
-    if (f.kind === 'clink' && f.from === f.to) { selfs.push(f); return; }
-    if (f.kind === 'clink') pts = cmLinkPts(f, A, B);
-    else { var RA = rect(A), RB = rect(B); pts = [clip(RA, { x: RA.cx, y: RA.cy }, { x: RB.cx, y: RB.cy }), clip(RB, { x: RB.cx, y: RB.cy }, { x: RA.cx, y: RA.cy })]; }
-    var r = { pts: pts, raw: pts, lab: labelAt(pts), text: '', labs: [], cm: [], loop: null };
-    out.set(f.id, r);
-    if (f.kind === 'clink') cmGroups(D, f, A, B, pts, fc).forEach(function (g) { g.f = f; g.A = A; g.B = B; groups.push(g); });
+    if (f.from === f.to) { selfs.push(f); return; }
+    var r = out.get(f.id); if (!r) return;
+    var I = cmSegInfo(A, B, r.pts); info[f.id] = I;
+    /* pesan yang digeser sendiri: tetap di tempatnya (seperti EA) */
+    (f.msgs || []).forEach(function (m) { if (!m.pos) return; var t = cmMsgText(m), it = cmItemAt(I, m, t, textW(t, fc), m.pos.sx, m.pos.sy, fpx); it.own = true; r.cm.push(it); placed.push(it.box); });
+    var gs = cmGroups(D, f, I, fc); if (gs.length) units.push({ f: f, I: I, gs: gs, n: (f.msgs || []).length });
   });
-  /* tempatkan kelompok: yang paling banyak pesannya dulu; geser menyusuri ruas sampai tidak menimpa objek/label/garis lain */
-  var placed = [], lines = []; out.forEach(function (r) { lines.push(r.pts); });
-  var PERP = { a: { x: 0, y: -1 }, b: { x: 0, y: 1 }, r: { x: 1, y: 0 }, l: { x: -1, y: 0 } };
-  function realize(g, t, pd) {
-    var pp = PERP[g.side], px = pp.x * (pd || 0), py = pp.y * (pd || 0);
-    return g.items.map(function (q) {
-      var ox = g.mid.x + g.axis.x * t + px, oy = g.mid.y + g.axis.y * t + py, it = { m: q.m, text: q.text, w: q.w, al: q.al };
-      if (g.side === 'a' || g.side === 'b') { it.x = ox + q.x; it.y = oy + q.y; var acx = it.x + q.ax, acy = it.y; it.arw = { x1: acx - q.d.x * CM_ARW / 2, y1: acy - q.d.y * CM_ARW / 2, x2: acx + q.d.x * CM_ARW / 2, y2: acy + q.d.y * CM_ARW / 2 }; }
-      else { it.x = ox + q.x; it.y = oy + q.y; var ax = ox + q.ax, ay = oy + q.ay; it.arw = { x1: ax - q.d.x * CM_ARW / 2, y1: ay - q.d.y * CM_ARW / 2, x2: ax + q.d.x * CM_ARW / 2, y2: ay + q.d.y * CM_ARW / 2 }; it.anc = ox + q.anc; }
-      it.box = cmBoxOf(it, fpx); return it;
-    });
-  }
+  function realize(I, g, t) { return g.items.map(function (q) { return cmItemAt(I, q.m, q.text, q.w, q.sx + g.axis.x * t, q.sy - g.axis.y * t, fpx); }); }
   function cost(list, own) {
     var c = 0;
     list.forEach(function (it) {
       objBoxes.forEach(function (o) { c += cmOv(it.box, o) * 6; });
-      placed.forEach(function (p) { c += cmOv(it.box, p) * 4 + (cmOv(it.box, p) > 0 ? 400 : 0); });
+      placed.forEach(function (p) { var o = cmOv(it.box, p); c += o * 4 + (o > 0 ? 400 : 0); });
       lines.forEach(function (P) { if (P === own) return; c += cmSegHits(it.box, P) * 300; });
     });
     return c;
   }
-  groups.sort(function (a, b) { return b.items.length - a.items.length; });
-  groups.forEach(function (g) {
-    var room = Math.max(0, (g.len - g.span) / 2), best = null, own = out.get(g.f.id).pts, steps = [0];
-    for (var d = 12; d <= room + .1; d += 12) { steps.push(d, -d); }
+  /* tempatkan per link (kedua sisi digeser bersama supaya tetap sejajar); link dengan pesan terbanyak dulu */
+  units.sort(function (a, b) { return b.n - a.n; });
+  units.forEach(function (U) {
+    var own = out.get(U.f.id).pts, room = Math.min.apply(null, U.gs.map(function (g) { return Math.max(0, (g.len - g.span) / 2); })), steps = [0], best = null;
+    for (var d = 12; d <= room + .1; d += 12) steps.push(d, -d);
     if (room > 0 && steps.indexOf(room) < 0) steps.push(room, -room);
-    steps.forEach(function (t) { var L = realize(g, t, 0), c = cost(L, own) + Math.abs(t) * .5; if (!best || c < best.c) best = { c: c, L: L }; });
-    /* masih menimpa sesuatu: jauhkan sedikit dari garis (tetap di sisi yang sama) */
-    if (best.c >= 300) [10, 20, 32, 46].forEach(function (pd) { steps.forEach(function (t) { var L = realize(g, t, pd), c = cost(L, own) + Math.abs(t) * .5 + pd * 4; if (c < best.c) best = { c: c, L: L }; }); });
-    best.L.forEach(function (it) { placed.push(it.box); });
-    g.res = best.L;
-  });
-  groups.forEach(function (g) {
-    var r = out.get(g.f.id), A = g.A, B = g.B, cm0 = { x: (A.x + A.w / 2 + B.x + B.w / 2) / 2, y: (A.y + A.h / 2 + B.y + B.h / 2) / 2 };
-    g.res.forEach(function (it) {
-      /* EA: SX/SY = letak teks relatif ke titik tengah pusat kedua objek; garis tegak: SX = titik jangkar di samping garis */
-      it.sx = Math.round((it.anc != null ? it.anc : it.x) - cm0.x); it.sy = Math.round(cm0.y - it.y);
-      r.cm.push(it);
-    });
+    steps.forEach(function (t) { var L = [], c = 0; U.gs.forEach(function (g) { var x = realize(U.I, g, t); c += cost(x, own); L.push(x); }); c += Math.abs(t) * .5; if (!best || c < best.c) best = { c: c, L: L }; });
+    /* masih menimpa: tiap sisi boleh bergeser sendiri */
+    if (best.c >= 300 && U.gs.length > 1) {
+      var L2 = [], c2 = 0;
+      U.gs.forEach(function (g) { var r1 = Math.max(0, (g.len - g.span) / 2), st = [0], b1 = null; for (var d2 = 12; d2 <= r1 + .1; d2 += 12) st.push(d2, -d2); st.forEach(function (t) { var x = realize(U.I, g, t), c = cost(x, own) + Math.abs(t) * .5 + 40; if (!b1 || c < b1.c) b1 = { c: c, L: x }; }); L2.push(b1.L); c2 += b1.c; b1.L.forEach(function (it) { placed.push(it.box); }); });
+      L2.forEach(function (x) { x.forEach(function (it) { placed.pop(); void it; }); });
+      if (c2 < best.c) best = { c: c2, L: L2 };
+    }
+    var r = out.get(U.f.id);
+    best.L.forEach(function (x) { x.forEach(function (it) { placed.push(it.box); r.cm.push(it); }); });
   });
   /* link ke diri sendiri: loop di kanan atas atau kiri atas, mana yang lebih lega */
   selfs.forEach(function (f) {
-    var A = els.get(f.from), ms = (f.msgs || []).slice().sort(function (a, b) { return cmCmp(a.num, b.num); }), best = null;
+    var A = els.get(f.from), all = (f.msgs || []).slice().sort(function (a, b) { return cmCmp(a.num, b.num); }), ms = all.filter(function (m) { return !m.pos; }), best = null;
     var cands = [];
     [['r', 'b', 0], ['r', 'a', 2], ['l', 'b', 4], ['l', 'a', 6]].forEach(function (c0) { [0, 24, 48, 80, 120].forEach(function (dx) { [0, 16, 36, 60].forEach(function (dy) { cands.push([c0[0], c0[1], c0[2] + dx * .04 + dy * .05, dx, dy]); }); }); });
+    /* loop kiri: letak label & panahnya di EA berbeda (belum terkalibrasi) — pakai loop kanan saja seperti hasil Transform EA */
+    cands = cands.filter(function (c) { return c[0] === 'r'; });
     cands.forEach(function (cand) {
       var side = cand[0], Lp = cmLoop(A, side), list = [], R = rect(A), n = ms.length, sx0 = side === 'r' ? cand[3] : -cand[3], sy0 = cand[1] === 'b' ? cand[4] : -cand[4];
       ms.forEach(function (m, k) {
-        var t = cmMsgText(m), w = textW(t, fc), it, y;
-        if (cand[1] === 'b') {
-          y = Lp.box.b + 14 + k * CM_LH + sy0;
-          if (side === 'r') { var xl = R.r + 40 + sx0; it = { m: m, text: t, w: w, x: xl, y: y, al: 'start', arw: { x1: xl - 10, y1: y, x2: xl - 33, y2: y } }; }
-          else { var xr = R.l - 40 + sx0; it = { m: m, text: t, w: w, x: xr, y: y, al: 'end', arw: { x1: xr + 10, y1: y, x2: xr + 33, y2: y } }; }
-        } else {
-          /* di atas loop, nomor terkecil paling atas */
-          y = Lp.box.t - 12 - (n - 1 - k) * CM_LH + sy0;
-          if (side === 'r') { var xa = Lp.box.l + 30 + sx0; it = { m: m, text: t, w: w, x: xa, y: y, al: 'start', arw: { x1: xa - 6, y1: y, x2: xa - 29, y2: y } }; }
-          else { var xb = Lp.box.r - 30 + sx0; it = { m: m, text: t, w: w, x: xb, y: y, al: 'end', arw: { x1: xb + 6, y1: y, x2: xb + 29, y2: y } }; }
-        }
-        it.box = cmBoxOf(it, fpx); it.sx = Math.round((it.al === 'start' ? it.x + w / 2 : it.x - w / 2) - Lp.ref.x); it.sy = Math.round(Lp.ref.y - y); list.push(it);
+        var t = cmMsgText(m), w = textW(t, fc), cx, y;
+        if (cand[1] === 'b') { y = Lp.box.b + 14 + k * CM_LH + sy0; cx = side === 'r' ? R.r + 40 + sx0 + w / 2 : R.l - 40 + sx0 - w / 2; }
+        else { y = Lp.box.t - 12 - (n - 1 - k) * CM_LH + sy0; cx = side === 'r' ? Lp.box.l + 30 + sx0 + w / 2 : Lp.box.r - 30 + sx0 - w / 2; }
+        list.push(cmLoopItemAt(Lp, m, t, w, cx - Lp.ref.x, Lp.ref.y - y, fpx));
       });
       var lb = { l: Lp.box.l, t: Lp.box.t, r: Lp.box.r, b: Lp.box.b }, c = cost(list, null) + objBoxes.reduce(function (a, o) { return a + (o.id === A.id ? 0 : cmOv(lb, o) * 6); }, 0) + lines.reduce(function (a, P) { return a + cmSegHits(lb, P) * 300; }, 0) + placed.reduce(function (a, p) { var o = cmOv(lb, p); return a + o * 4 + (o > 0 ? 400 : 0); }, 0) + cand[2];
       if (!best || c < best.c) best = { c: c, L: list, loop: Lp };
     });
-    best.L.forEach(function (it) { placed.push(it.box); });
-    var r = { pts: best.loop.pts, raw: best.loop.pts, lab: labelAt(best.loop.pts), text: '', labs: [], cm: best.L, loop: best.loop };
+    var own = all.filter(function (m) { return m.pos; }).map(function (m) { var t = cmMsgText(m), it = cmLoopItemAt(best.loop, m, t, textW(t, fc), m.pos.sx, m.pos.sy, fpx); it.own = true; return it; });
+    best.L.concat(own).forEach(function (it) { placed.push(it.box); });
+    var r = { pts: best.loop.pts, raw: best.loop.pts, lab: labelAt(best.loop.pts), text: '', labs: [], cm: best.L.concat(own), loop: best.loop };
     out.set(f.id, r); lines.push(best.loop.pts);
   });
   out.forEach(function (r, id) {
     (r.cm || []).forEach(function (q) { var b = q.box; r.labs.push({ k: 'cm', t: q.text, x: (b.l + b.r) / 2, y: (b.t + b.b) / 2, w: b.r - b.l, h: b.b - b.t, moved: false }); q.box = { l: b.tl, r: b.tr, t: q.y - fpx * .62, b: q.y + fpx * .62, all: b }; });
-    geo[id] = r.cm;
+    geo[id] = r.cm || [];
   });
-  CM_LAST = { d: D.id, geo: geo };
+  CM_LAST = { d: D.id, geo: geo, info: info };
   return out;
 }
 function cmArrowHead(x1, y1, x2, y2, ret, col) {
@@ -12415,7 +12455,13 @@ function cmCreateLink(a, b, opt) {
   var D = cur(), A = elOf(D, a), B = elOf(D, b);
   if (opt && opt.kind === 'notelink') return false;
   if (!isCmObj(A) || !isCmObj(B)) { if (isNoteish(A) || isNoteish(B)) return false; toast('Link hanya antar objek (aktor, V_, C_, M_).'); return true; }
-  var f = cmLinkOf(D, a, b), mid;
+  var f = cmLinkOf(D, a, b), mid, wantMsg = (opt && opt.kind === 'cmsg') || !!f;
+  /* seperti EA: alat Link (atau panah biru ke objek yang belum tersambung) = garis link saja; alat Message (atau link yang sudah ada) = pesan bernomor */
+  if (!wantMsg) {
+    mutate(function () { f = { id: uid('f'), kind: 'clink', from: a, to: b, name: '', bends: [], style: {}, msgs: [] }; D.flows.push(f); sel = new Set([f.id]); cmSel = null; });
+    toast('Link ' + (A.name || '') + ' — ' + (B.name || '') + ' dibuat. Tambah pesan: tombol + di panel kanan, klik kanan link, atau seret lagi panah biru / alat Message ke objek yang sama.');
+    return true;
+  }
   mutate(function () {
     if (!f) { f = { id: uid('f'), kind: 'clink', from: a, to: b, name: '', bends: [], style: {}, msgs: [] }; D.flows.push(f); }
     var m = { id: uid('m'), num: cmNextNum(D), name: '', args: '', ret: '', rev: f.from !== a };
@@ -12435,6 +12481,20 @@ function cmRenumber(D, quiet) {
   var a = cmAll(D), pre = cmPrefix(D);
   mutate(function () { a.forEach(function (q, i) { q.m.num = pre + (i + 1); }); });
   if (!quiet) toast(a.length + ' pesan dinomori ulang: ' + pre + '1 sampai ' + pre + a.length + '.');
+}
+/* nomor pesan dirapatkan lagi (0.1, 0.2, …) setelah ada yang dihapus — hanya bila semua nomor satu tingkat */
+function cmCompact(D) {
+  var a = cmAll(D), pre = cmPrefix(D);
+  if (!a.every(function (q) { return new RegExp('^' + pre.replace(/\./g, '\\.') + '\\d+$').test(String(q.m.num || '')); })) return false;
+  var ch = false; a.forEach(function (q, i) { var nn = pre + (i + 1); if (q.m.num !== nn) { q.m.num = nn; ch = true; } }); return ch;
+}
+/* hapus satu pesan (label terpilih + Delete), link tetap ada */
+function cmDelMsg(D, f, id) {
+  var m = (f.msgs || []).find(function (x) { return x.id === id; }); if (!m) return;
+  var ch = false;
+  mutate(function () { f.msgs = f.msgs.filter(function (x) { return x.id !== id; }); ch = cmCompact(D); });
+  cmSel = null; panel();
+  toast('Pesan ' + (m.num || '') + ' dihapus' + (ch ? ', nomor sesudahnya dirapatkan' : '') + '. Garis link tetap ada. Ctrl+Z untuk membatalkan.');
 }
 /* geser urutan pesan (naik/turun satu) dan nomori ulang */
 function cmMove(D, id, dlt) {
@@ -12577,7 +12637,7 @@ function cmLayout(D) {
     if (sc < bestS) { bestS = sc; best = pos.slice(); }
   }
   var keep = {}; evalPos(best, keep); 
-  links.forEach(function (L, i) { if (keep.cor[i] && keep.cor[i] !== 'd') L.f.cmCorner = keep.cor[i]; else delete L.f.cmCorner; });
+  var COR = keep.cor;
   /* buang kolom/baris kosong */
   var usedC = {}, usedR = {}; best.forEach(function (c) { usedC[c % cols] = 1; usedR[Math.floor(c / cols)] = 1; });
   var cmap = {}, rmap = {}, nc = 0, nr = 0;
@@ -12591,7 +12651,7 @@ function cmLayout(D) {
   var rightExt = {}, leftExt = {}, aboveExt = {}, belowExt = {};
   function mw(list) { return list.length ? Math.max.apply(null, list.map(function (m) { return textW(cmMsgText(m), fc); })) : 0; }
   links.forEach(function (L) {
-    var a = G[L.a], b = G[L.b], ms = L.f.msgs || [], cor = L.f.cmCorner;
+    var a = G[L.a], b = G[L.b], ms = L.f.msgs || [], cor = COR[links.indexOf(L)];
     function dirOf(m) { var fwd = !m.rev, A = fwd ? a : b, B = fwd ? b : a; return { x: B.c - A.c, y: B.r - A.r }; }
     /* sumbu dominan (perkiraan: satu kolom ±250 px, satu baris ±170 px) menentukan ruas berlabel */
     var hzMode = Math.abs(a.c - b.c) * 250 >= Math.abs(a.r - b.r) * 170;
@@ -12615,9 +12675,36 @@ function cmLayout(D) {
   objs.forEach(function (e, k) { var g = G[k]; halfW[g.c] = Math.max(halfW[g.c] || 0, e.w / 2); halfH[g.r] = Math.max(halfH[g.r] || 0, e.h / 2); });
   for (i2 = 0; i2 < nc - 1; i2++) gapC[i2] = Math.max(gapC[i2], halfW[i2] + halfW[i2 + 1] + (rightExt[i2] || 0) + (leftExt[i2 + 1] || 0) + 40);
   for (i2 = 0; i2 < nr - 1; i2++) gapR[i2] = Math.max(gapR[i2], halfH[i2] + halfH[i2 + 1] + (belowExt[i2] || 0) + (aboveExt[i2 + 1] || 0) + 40);
-  var Xs = [0], Ys = [0]; for (i2 = 0; i2 < nc - 1; i2++) Xs.push(Xs[i2] + gapC[i2]); for (i2 = 0; i2 < nr - 1; i2++) Ys.push(Ys[i2] + gapR[i2]);
-  var ox = 60 + (leftExt[0] || 0) + (halfW[0] || 45), oy = 60 + (aboveExt[0] || 0) + (halfH[0] || 50);
-  objs.forEach(function (e, k) { var g = G[k]; e.x = Math.round(ox + Xs[g.c] - e.w / 2); e.y = Math.round(oy + Ys[g.r] - e.h / 2); });
+  D.flows.forEach(function (f) { if (f.kind === 'clink') { delete f.loopSide; (f.msgs || []).forEach(function (m) { delete m.pos; }); } });
+  var ox = 60 + (leftExt[0] || 0) + (halfW[0] || 45), oy = 60 + (aboveExt[0] || 0) + (halfH[0] || 50), Xs, Ys;
+  function place() {
+    Xs = [0]; Ys = [0]; for (i2 = 0; i2 < nc - 1; i2++) Xs.push(Xs[i2] + gapC[i2]); for (i2 = 0; i2 < nr - 1; i2++) Ys.push(Ys[i2] + gapR[i2]);
+    objs.forEach(function (e, k) { var g = G[k]; e.x = Math.round(ox + Xs[g.c] - e.w / 2); e.y = Math.round(oy + Ys[g.r] - e.h / 2); });
+    /* garis: lurus (Direct) atau satu tikungan (Custom Line, titik belok di sudut L) */
+    links.forEach(function (L, i) {
+      var f = L.f, A = objs[L.a], B = objs[L.b], ca = { x: A.x + A.w / 2, y: A.y + A.h / 2 }, cb = { x: B.x + B.w / 2, y: B.y + B.h / 2 }, cor = COR[i];
+      delete f.sa; delete f.ta; delete f.manual; if (f.style) delete f.style.route;
+      f.bends = (cor === 'h' || cor === 'v') && Math.abs(ca.x - cb.x) > 2 && Math.abs(ca.y - cb.y) > 2 ? [cor === 'v' ? { x: Math.round(ca.x), y: Math.round(cb.y) } : { x: Math.round(cb.x), y: Math.round(ca.y) }] : [];
+    });
+  }
+  /* masih ada label bertumpuk / menimpa objek: lebarkan kolom/baris di tempat itu lalu ulangi (label tetap dekat garis) */
+  for (var pass = 0; pass < 7; pass++) {
+    place();
+    var R = cmRouteAll(D), B = [], hot = [];
+    R.forEach(function (r) { (r.cm || []).forEach(function (q) { B.push(q.box.all || q.box); }); });
+    for (var i3 = 0; i3 < B.length; i3++) {
+      for (var j3 = i3 + 1; j3 < B.length; j3++) if (cmOv(B[i3], B[j3]) > 4) hot.push({ x: (Math.max(B[i3].l, B[j3].l) + Math.min(B[i3].r, B[j3].r)) / 2, y: (Math.max(B[i3].t, B[j3].t) + Math.min(B[i3].b, B[j3].b)) / 2 });
+      objs.forEach(function (e) { var o = { l: e.x, t: e.y, r: e.x + e.w, b: e.y + e.h }; if (cmOv(B[i3], o) > 4) hot.push({ x: (Math.max(B[i3].l, o.l) + Math.min(B[i3].r, o.r)) / 2, y: (Math.max(B[i3].t, o.t) + Math.min(B[i3].b, o.b)) / 2 }); });
+    }
+    if (!hot.length) break;
+    var gc = {}, gr = {};
+    hot.forEach(function (h) {
+      for (var c = 0; c < nc - 1; c++) if (h.x > ox + Xs[c] && h.x < ox + Xs[c + 1]) gc[c] = 1;
+      for (var r = 0; r < nr - 1; r++) if (h.y > oy + Ys[r] && h.y < oy + Ys[r + 1]) gr[r] = 1;
+    });
+    if (!Object.keys(gc).length && !Object.keys(gr).length) break;
+    Object.keys(gc).forEach(function (c) { gapC[c] += 36; }); Object.keys(gr).forEach(function (r) { gapR[r] += 26; });
+  }
   var notes = D.elements.filter(function (e) { return !isCmObj(e); }), mxr = Math.max.apply(null, objs.map(function (e) { return e.x + e.w; }));
   notes.forEach(function (e, k) { e.x = Math.round(mxr + 80); e.y = 40 + k * (e.h + 20); });
   return true;
@@ -12637,7 +12724,22 @@ function cmDown(e, D, p, gid) {
   var id = lb.dataset.cmm, hit = cmFindMsg(D, id); if (!hit) return false;
   var again = cmSel === id && sel.has(hit.f.id);
   sel = new Set([hit.f.id]); cmSel = id; panel(); draw(); syncBar();
-  if (again || e.detail >= 2) setTimeout(function () { var n = $('#cm-name'); if (n) { n.focus(); n.select(); } }, 20);
+  void again;
+  if (e.detail >= 2) { setTimeout(function () { var n = $('#cm-name'); if (n) { n.focus(); n.select(); } }, 20); return true; }
+  /* seret label pesan ke mana saja (seperti EA); panahnya ikut. Shift = kunci mendatar/tegak */
+  var geo = CM_LAST && CM_LAST.d === D.id && CM_LAST.geo[hit.f.id], it = geo && geo.find(function (q) { return q.m.id === id; });
+  if (!it) return true;
+  var sx0 = it.sx, sy0 = it.sy, moved = false;
+  function mv(ev) {
+    var q = pt(ev), dx = q.x - p.x, dy = q.y - p.y;
+    if (!moved && Math.hypot(dx, dy) * view().k < 4) return;
+    if (ev.shiftKey) { if (Math.abs(dx) >= Math.abs(dy)) dy = 0; else dx = 0; }
+    if (!moved) { push(); moved = true; }
+    hit.m.pos = { sx: Math.round(sx0 + dx), sy: Math.round(sy0 - dy) };
+    draw();
+  }
+  function up() { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up); if (moved) { afterChange(); toast('Label pesan dipindah. Klik kanan → Kembalikan posisi label, atau Rapikan untuk menata semuanya.'); } }
+  window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
   return true;
 }
 
@@ -12653,7 +12755,6 @@ function cmPanelLink(D, f) {
   var A = elOf(D, f.from) || {}, B = elOf(D, f.to) || {}, ms = (f.msgs || []).slice().sort(function (a, b) { return cmCmp(a.num, b.num); });
   if (cmSel && !ms.some(function (m) { return m.id === cmSel; })) cmSel = null;
   var self = f.from === f.to, h = '<div class="sec"><h2>Link ' + esc(A.name || '') + (self ? ' (ke diri sendiri)' : ' — ' + esc(B.name || '')) + '</h2>';
-  if (!self) h += '<div class="field"><label for="cm-cor">Bentuk link</label><select class="in" id="cm-cor" data-f="cmcor"><option value=""' + (f.cmCorner ? '' : ' selected') + '>Lurus</option><option value="h"' + (f.cmCorner === 'h' ? ' selected' : '') + '>Siku: mendatar dulu dari ' + esc(cmShort(A.name)) + '</option><option value="v"' + (f.cmCorner === 'v' ? ' selected' : '') + '>Siku: tegak dulu dari ' + esc(cmShort(A.name)) + '</option></select></div>';
   h += '<div class="cmmsgs">' + (ms.length ? ms.map(function (m) {
     var ft = cmFromTo(f, m), an = (elOf(D, ft.a) || {}).name || '', bn = (elOf(D, ft.b) || {}).name || '';
     return '<button class="cmrow' + (m.id === cmSel ? ' on' : '') + '" data-act="cmpick:' + m.id + '" title="' + esc(an + ' → ' + bn) + '"><b>' + esc(m.num || '?') + '</b> ' + esc(sqLabel({ name: m.name, args: m.args, ret: m.ret }) || '(belum diberi nama)') + ' <i>' + (self ? '↺' : m.rev ? '←' : '→') + (m.isRet ? ' balasan' : '') + '</i></button>';
@@ -12672,6 +12773,8 @@ function cmPanelLink(D, f) {
       '<div class="row"><button class="btn" data-act="cmup" title="Tukar dengan pesan sebelumnya">Naikkan</button><button class="btn" data-act="cmdown" title="Tukar dengan pesan sesudahnya">Turunkan</button><button class="btn danger" data-act="cmdel">Hapus pesan</button></div>' +
       '<p class="hint">' + esc((elOf(D, ft.a) || {}).name || '') + ' → ' + esc((elOf(D, ft.b) || {}).name || '') + '. Teks di diagram: <b>' + esc(cmMsgText(m)) + '</b></p></div>';
   } else if (ms.length) h += '<p class="hint">Klik salah satu pesan (di daftar atau di diagram) untuk mengubahnya.</p>';
+  if (!self) { var st = fs(f); h += '<div class="sec"><h2>Gaya garis</h2><div class="field"><label for="p-route">Bentuk</label><select class="in" id="p-route" data-f="route">' + routeNames().map(function (r, i) { return '<option value="' + i + '"' + (st.route === i ? ' selected' : '') + '>' + r + '</option>'; }).join('') + '</select></div><p class="hint">Sama seperti garis di diagram lain: seret garisnya, Ctrl+klik untuk menambah/menghapus titik belok, kotak di ujung bisa digeser. Label pesan juga bisa diseret ke mana saja.</p><div class="row"><button class="btn" data-act="cmstraight">Luruskan (hapus titik belok)</button>' + (ms.some(function (x) { return x.pos; }) ? '<button class="btn" data-act="cmlabreset">Kembalikan posisi label</button>' : '') + '</div></div>'; }
+  else if (ms.some(function (x) { return x.pos; })) h += '<div class="row"><button class="btn" data-act="cmlabreset">Kembalikan posisi label</button></div>';
   h += '<button class="btn danger block" data-act="del">Hapus link beserta pesannya</button>';
   return h;
 }
@@ -12695,7 +12798,6 @@ function cmPanelChange(t, D, o) {
     return true;
   }
   if (!/^cm/.test(fk || '') || !o || o.kind !== 'clink') return false;
-  if (fk === 'cmcor') { mutate(function () { if (v) o.cmCorner = v; else delete o.cmCorner; }); return true; }
   var m = (o.msgs || []).find(function (x) { return x.id === cmSel; }); if (!m) return true;
   mutate(function () {
     if (fk === 'cmnum') m.num = String(v).trim();
@@ -12712,11 +12814,14 @@ function cmAct(a, D) {
   var f = flOf(D, Array.from(sel)[0]);
   if (a === 'cmtidy') { cmTidyCmd(); return true; }
   if (a === 'cmrenum') { cmRenumber(D); return true; }
+  if (a === 'cmstraight' && f) { mutate(function () { f.bends = []; delete f.sa; delete f.ta; delete f.manual; f.style = f.style || {}; f.style.route = 0; }); return true; }
+  if (a === 'cmlabreset') { mutate(function () { (f ? [f] : D.flows).forEach(function (x) { (x.msgs || []).forEach(function (m) { delete m.pos; }); }); }); return true; }
+  if (a === 'cmlabone' && f) { mutate(function () { (f.msgs || []).forEach(function (m) { if (m.id === cmSel) delete m.pos; }); }); return true; }
   if (a === 'cmsync') { var S = D.src && diag(D.src); if (S) { var keepA = active; cmTransformCmd(S.id); active = keepA; draw(); panel(); } return true; }
   var pk = /^cmpick:(.*)$/.exec(a); if (pk) { cmSel = pk[1]; draw(); panel(); return true; }
   var ad = /^cmadd:(\d)$/.exec(a); if (ad && f && f.kind === 'clink') { cmAddMsg(f, ad[1] === '1'); return true; }
   if ((a === 'cmdel' || a === 'cmup' || a === 'cmdown') && f && cmSel) {
-    if (a === 'cmdel') { mutate(function () { f.msgs = (f.msgs || []).filter(function (m) { return m.id !== cmSel; }); }); cmSel = null; panel(); toast('Pesan dihapus. Nomor pesan lain tidak berubah; klik Nomori ulang pesan kalau perlu.'); return true; }
+    if (a === 'cmdel') { cmDelMsg(D, f, cmSel); return true; }
     cmMove(D, cmSel, a === 'cmup' ? -1 : 1); return true;
   }
   return false;
@@ -12813,18 +12918,12 @@ function cmLinkXml(f, D, ind, H) {
 }
 /* DiagramElement link & pesan: SX/SY pesan = letak teks relatif ke titik tengah pusat kedua objek (dicek di EA 12) */
 function cmDiagXml(D, duid, ox, oy) {
+  /* link biasa ditulis oleh ekspor garis UML umum (Direct / Custom Line / Orthogonal, titik belok di Path); di sini loop & pesan */
   var R = cmRouteAll(D), s = '';
   D.flows.forEach(function (f) {
     if (f.kind !== 'clink') return; var A = elOf(D, f.from), B = elOf(D, f.to), r = R.get(f.id); if (!A || !B || !r) return;
-    var g;
-    if (f.from === f.to) { var bx = r.loop.box; g = 'SCTR=1;SCME=1;SX=0;SY=0;EX=0;EY=0;EDGE=1;SCTR.LEFT=' + Math.round(bx.l + ox) + ';SCTR.TOP=' + (-Math.round(bx.t + oy)) + ';SCTR.RIGHT=' + Math.round(bx.r + ox) + ';SCTR.BOTTOM=' + (-Math.round(bx.b + oy)) + ';'; }
-    var path = '';
-    if (f.from !== f.to) {
-      var ax = A.x + A.w / 2, ay = A.y + A.h / 2, nx = r.pts.length === 3 ? r.pts[1] : { x: B.x + B.w / 2, y: B.y + B.h / 2 }, dx = nx.x - ax, dy = nx.y - ay, edge = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 2 : 4) : (dy > 0 ? 3 : 1);
-      g = 'SX=0;SY=0;EX=0;EY=0;EDGE=' + edge + ';';
-      if (r.pts.length === 3) path = Math.round(r.pts[1].x + ox) + ':' + (-Math.round(r.pts[1].y + oy)) + '$';
-    }
-    s += '\t\t\t\t<UML:DiagramElement geometry="' + g + '$LLB=;LLT=;LMT=;LMB=;LRT=;LRB=;IRHS=;ILHS=;Path=' + path + ';" subject="' + xid(f.guid) + '" style="Mode=3;EOID=' + duid[B.id] + ';SOID=' + duid[A.id] + ';Color=' + (f.style.stroke ? colorToRef(f.style.stroke) : -1) + ';LWidth=0;Hidden=0;"/>\n';
+    if (f.from === f.to) { var bx = r.loop.box, g = 'SCTR=1;SCME=1;SX=0;SY=0;EX=0;EY=0;EDGE=1;SCTR.LEFT=' + Math.round(bx.l + ox) + ';SCTR.TOP=' + (-Math.round(bx.t + oy)) + ';SCTR.RIGHT=' + Math.round(bx.r + ox) + ';SCTR.BOTTOM=' + (-Math.round(bx.b + oy)) + ';';
+      s += '\t\t\t\t<UML:DiagramElement geometry="' + g + '$LLB=;LLT=;LMT=;LMB=;LRT=;LRB=;IRHS=;ILHS=;Path=;" subject="' + xid(f.guid) + '" style="Mode=3;EOID=' + duid[B.id] + ';SOID=' + duid[A.id] + ';Color=' + (f.style.stroke ? colorToRef(f.style.stroke) : -1) + ';LWidth=0;Hidden=0;"/>\n'; }
     (r.cm || []).forEach(function (q) {
       var m = q.m, ft = cmFromTo(f, m), mx = q.sx, my = q.sy, ex = mx + (m.rev ? -5 : 5), ey = my - 95;
       s += '\t\t\t\t<UML:DiagramElement geometry="SX=' + mx + ';SY=' + my + ';EX=' + ex + ';EY=' + ey + ';$LLB=;LLT=;LMT=;LMB=;LRT=;LRB=;IRHS=;ILHS=;Path=;" subject="' + xid(m.guid) + '" style="Mode=1;EOID=' + duid[ft.b] + ';SOID=' + duid[ft.a] + ';Color=-1;LWidth=0;Hidden=0;"/>\n';
@@ -12853,6 +12952,8 @@ function cmImportLinks(D, g, M, idm, n0f) {
     if (c.type === 'NoteLink') { D.flows.push({ id: 'f' + (++n), kind: 'notelink', from: a, to: b, name: '', bends: [], style: {}, guid: c.guid }); return; }
     if (c.type !== 'Association' && c.type !== 'Dependency') return;
     var f = { id: 'f' + (++n), kind: 'clink', from: a, to: b, name: '', bends: [], style: {}, guid: c.guid, msgs: [] }, col = colorFromRef(c.color); if (col) f.style.stroke = col;
+    /* bentuk garis dari EA: titik belok (Path) & gaya (TREE=OS/OR/…); Mode=1 = Direct tanpa titik belok */
+    if (a !== b) { var gs = styleKV(gl.style), pts = parsePath(styleKV(gl.geometry).Path); if (String(gs.Mode) === '1') pts = []; f.bends = pts; var rt = ({ OS: 1, OR: 2, V: 3, H: 4, LV: 5, LH: 6 })[(String(gl.style || '').match(/TREE=([A-Z]+)/) || [])[1]]; if (rt) { f.style.route = rt; if (rt >= 3) f.bends = []; } }
     links[gl.cid] = f; links['g:' + c.guid] = f; D.flows.push(f);
   });
   msgs.sort(function (x, y) { return cmCmp(x.c.num, y.c.num) || ((x.c.seqno || 0) - (y.c.seqno || 0)); });
@@ -12861,7 +12962,10 @@ function cmImportLinks(D, g, M, idm, n0f) {
     var f = links[c.link] || links['g:' + normGuid(c.link)] || D.flows.find(function (x) { return x.kind === 'clink' && ((x.from === a && x.to === b) || (x.from === b && x.to === a)); });
     if (!f) { f = { id: 'f' + (++n), kind: 'clink', from: a, to: b, name: '', bends: [], style: {}, msgs: [] }; D.flows.push(f); }
     var p = cmParsePd2(c.pd2), nm = String(c.name || '');
-    f.msgs.push({ id: 'm' + (++n), num: c.num || '0.' + (i + 1), name: nm, args: p.args, ret: p.ret, isRet: !!c.isRet, async: /Asynchronous/i.test(c.pd1 || ''), rev: f.from !== a, guid: c.guid, ord: i });
+    var mm = { id: 'm' + (++n), num: c.num || '0.' + (i + 1), name: nm, args: p.args, ret: p.ret, isRet: !!c.isRet, async: /Asynchronous/i.test(c.pd1 || ''), rev: f.from !== a, guid: c.guid, ord: i };
+    /* letak teks pesan dari EA (SX/SY) dipertahankan, seperti di EA; Rapikan menata ulang */
+    var gk = styleKV(q.gl.geometry || ''); if (gk.SX != null && gk.SY != null && (+gk.SX || +gk.SY)) mm.pos = { sx: +gk.SX, sy: +gk.SY };
+    f.msgs.push(mm);
   });
   D.flows.forEach(function (f) { (f.msgs || []).forEach(function (m) { delete m.ord; }); });
   return n;
@@ -13146,7 +13250,7 @@ function fcSuccOf(op, ent) {
 function fcSpaced(c) { return String(c || '').replace(/([a-z])([A-Z])/g, '$1 $2'); }
 /* atribut dari Sequence Diagram bernama sama (input…(a, b) / insert…(a, b)) */
 function fcAttrsFromSeq(name) {
-  var k = String(name || '').trim().toLowerCase(), S = doc.diagrams.find(function (d) { return d.kind === 'sequence' && String(d.name || '').trim().toLowerCase() === k; }), out = [];
+  var SD = fcSrcDoc() || doc, k = String(name || '').trim().toLowerCase(), S = SD.diagrams.find(function (d) { return d.kind === 'sequence' && String(d.name || '').trim().toLowerCase() === k; }), out = [];
   if (!S) return out;
   S.flows.forEach(function (f) { if (f.kind !== 'smsg') return; if (/^input/i.test(f.name || '') && f.args) String(f.args).split(',').forEach(function (a) { a = fcSnake(a.replace(/^\$/, '')); if (a && a !== 'data' && !out.some(function (x) { return x.n === a; })) out.push({ n: a, t: fcGuessType(a) }); }); });
   return out;
@@ -13344,9 +13448,11 @@ function fcModelModal(M, opt) {
     $('[data-ok]', s).addEventListener('click', function () { read(); close(); if (opt.onOk) opt.onOk(M); });
   });
 }
+/* diagram flowchart kosong bawaan ("Flowchart 1") dibuang saat flowchart pertama dibuat */
+function fcDropEmpty() { var e = doc.diagrams.filter(function (d) { return isFc(d) && !d.elements.length && /^Flowchart \d+$/.test(d.name || ''); }); if (e.length && e.length < doc.diagrams.length) doc.diagrams = doc.diagrams.filter(function (d) { return e.indexOf(d) < 0; }); }
 function fcNewFromModel(M, near, Dold) {
   var D;
-  mutate(function () {
+  mutate(function () { if (!Dold) fcDropEmpty();
     if (Dold) { D = fcGenerate(M, Dold); D.name = M.title; }
     else { D = fcGenerate(M); D.name = M.title; if (near && near.pkg) D.pkg = near.pkg; fcInsert(D, near); }
     active = D.id; sel.clear(); views[D.id] = { x: 0, y: 0, k: 1, fresh: true };
@@ -13357,26 +13463,28 @@ function fcNewFromModel(M, near, Dold) {
 function fcFromAdCmd(id) {
   var A = diag(id) || cur(); if (!A || A.kind !== 'activity') { toast('Buka Activity Diagram-nya dulu.'); return; }
   var M = fcModelFromAD(A);
-  fcModelModal(M, { title: 'Flowchart dari Activity Diagram "' + A.name + '"', onOk: function (m) { fcNewFromModel(m, A); } });
+  fcModelModal(M, { title: 'Flowchart dari Activity Diagram "' + A.name + '"', ok: isFcDoc() ? 'Buat Flowchart' : 'Buat di mode Flowchart', onOk: function (m) { if (isFcDoc()) fcNewFromModel(m, cur()); else fcSendToFc([m]); } });
 }
 /* banyak sekaligus dari Activity Diagram */
 function fcBatchModal() {
-  var A = doc.diagrams.filter(function (d) { return d.kind === 'activity' && d.elements.length; });
+  var SD = fcSrcDoc(), A = SD ? SD.diagrams.filter(function (d) { return d.kind === 'activity' && d.elements.length; }) : [];
   var body = '<p class="hint">Tiap Activity Diagram dibuatkan flowchart program: atribut diambil dari Sequence Diagram bernama sama (pesan input…), pemeriksaan & pesan dari decision di Activity Diagram. Hasilnya bisa diatur lagi per flowchart (panel kanan → Ubah data & buat ulang).</p>' +
-    (A.length ? '<div class="cmlist">' + A.map(function (d) { var has = doc.diagrams.some(function (x) { return x.kind === 'flowchart' && x.fcModel && x.fcModel.src && x.fcModel.src.id === d.id; }); return '<label class="cbx"><input type="checkbox" data-aid="' + d.id + '"' + (has ? '' : ' checked') + '> ' + esc(d.name) + (has ? ' <i class="hint">(sudah ada)</i>' : '') + '</label>'; }).join('') + '</div>' : '<p>Belum ada Activity Diagram. Pakai <b>Berkas → Buat diagram dari skenario</b> lalu pilih Flowchart.</p>') +
+    (isFcDoc() ? '<p class="hint">Activity Diagram diambil dari proyek UML-mu' + (SD ? ' "' + esc(SD.name || '') + '"' : '') + '.</p>' : '<p class="hint">Hasilnya dibuat di mode <b>Flowchart</b> (terpisah dari proyek UML, tidak ikut ekspor EA).</p>') + (A.length ? '<div class="cmlist">' + A.map(function (d) { var FD = isFcDoc() ? doc : (storedDoc(LS_FC) || { doc: { diagrams: [] } }).doc, has = FD.diagrams.some(function (x) { return x.kind === 'flowchart' && x.fcModel && x.fcModel.src && x.fcModel.src.id === d.id; }); return '<label class="cbx"><input type="checkbox" data-aid="' + d.id + '"' + (has ? '' : ' checked') + '> ' + esc(d.name) + (has ? ' <i class="hint">(sudah ada)</i>' : '') + '</label>'; }).join('') + '</div>' : '<p>Belum ada Activity Diagram' + (isFcDoc() ? ' di proyek UML-mu' : '') + '. Pakai <b>Dari tabel skenario</b> di bawah.</p>') +
     '<div class="row"><button class="btn" data-act2="blank">Flowchart kosong / dari nama fitur…</button><button class="btn" data-act2="scen">Dari tabel skenario…</button></div>';
   modal('Buat Flowchart', body, '<button class="btn" data-close>Batal</button>' + (A.length ? '<button class="btn pri" data-ok>Buat</button>' : ''), function (s, close) {
     s.addEventListener('click', function (e) {
       var b = e.target.closest('[data-act2]'); if (!b) return;
       close();
-      if (b.dataset.act2 === 'scen') { scenarioModal(null, 'flowchart'); return; }
-      fcModelModal(fcBlankModel('Menambah Data Produk'), { title: 'Flowchart baru', onOk: function (m) { fcNewFromModel(m, cur()); } });
+      if (b.dataset.act2 === 'scen') { if (!isFcDoc()) { modeSwitch('fc'); } scenarioModal(null, 'flowchart'); return; }
+      fcModelModal(fcBlankModel('Menambah Data Produk'), { title: 'Flowchart baru', onOk: function (m) { if (isFcDoc()) fcNewFromModel(m, cur()); else fcSendToFc([m]); } });
     });
     var ok = $('[data-ok]', s); if (!ok) return;
     ok.addEventListener('click', function () {
       var ids = $$('[data-aid]', s).filter(function (x) { return x.checked; }).map(function (x) { return x.dataset.aid; }), made = [];
       if (!ids.length) { toast('Belum ada yang dicentang.'); return; }
-      mutate(function () { ids.forEach(function (id) { var Ad = diag(id), M = fcModelFromAD(Ad), D = fcGenerate(M); D.name = M.title; D.pkg = Ad.pkg; fcInsert(D, Ad); made.push(D); }); active = made[0].id; sel.clear(); made.forEach(function (D) { views[D.id] = { x: 0, y: 0, k: 1, fresh: true }; }); });
+      var srcOf = function (id) { return SD.diagrams.find(function (d) { return d.id === id; }); };
+      if (!isFcDoc()) { close(); fcSendToFc(ids.map(function (id) { return fcModelFromAD(srcOf(id)); })); return; }
+      mutate(function () { ids.forEach(function (id) { var Ad = srcOf(id), M = fcModelFromAD(Ad), D = fcGenerate(M); D.name = M.title; D.pkg = doc.packages[0].id; fcInsert(D, null); made.push(D); }); fcDropEmpty(); active = made[0].id; sel.clear(); made.forEach(function (D) { views[D.id] = { x: 0, y: 0, k: 1, fresh: true }; }); });
       close(); umlToolbox(); setTool('select');
       toast(made.length + ' flowchart dibuat. Periksa atribut di Preparation; ubah lewat panel kanan → Ubah data & buat ulang.');
     });
@@ -13385,7 +13493,7 @@ function fcBatchModal() {
 /* dari jendela skenario (target 'flowchart') */
 function scGenerateFc(list) {
   var made = [];
-  mutate(function () { list.forEach(function (u) { var M = fcModelFromScen(u), D = fcGenerate(M); D.name = M.title; fcInsert(D, null); made.push(D); }); if (made.length) { active = made[0].id; sel.clear(); made.forEach(function (D) { views[D.id] = { x: 0, y: 0, k: 1, fresh: true }; }); } });
+  mutate(function () { list.forEach(function (u) { var M = fcModelFromScen(u), D = fcGenerate(M); D.name = M.title; fcInsert(D, null); made.push(D); }); if (made.length) fcDropEmpty(); if (made.length) { active = made[0].id; sel.clear(); made.forEach(function (D) { views[D.id] = { x: 0, y: 0, k: 1, fresh: true }; }); } });
   return made;
 }
 
@@ -13432,7 +13540,7 @@ function fcSameAsModel(D) { var C = fcGenerate(D.fcModel, { id: 'x', kind: 'flow
 function fcPanelDiagram(D) {
   var h = '<div class="field"><label for="fc-th">Tampilan</label><select class="in" id="fc-th" data-f="fctheme">' + Object.keys(FC_THEMES).map(function (k) { return '<option value="' + k + '"' + (((D.fcTheme || 'slate') === k) ? ' selected' : '') + '>' + FC_THEMES[k].name + '</option>'; }).join('') + '</select></div>';
   if (D.fcModel) h += '<button class="btn block" data-act="fcedit">Ubah data & buat ulang…</button>';
-  h += '<button class="btn block" data-act="fctidy">Rapikan flowchart</button><button class="btn block" data-act="fcfit">Pas-kan semua simbol dengan teksnya</button><button class="btn block" data-act="fcdrawio">Simpan sebagai .drawio</button>';
+  h += '<button class="btn block" data-act="fctidy">Rapikan flowchart</button><button class="btn block" data-act="fcfit">Pas-kan semua simbol dengan teksnya</button><button class="btn block" data-act="fcexport">Ekspor diagram ini (XML / PNG / SVG)…</button>';
   h += '<p class="hint">Tarik panah biru di sisi simbol ke tempat kosong untuk membuat simbol berikutnya yang langsung tersambung. Garis dari Decision otomatis diberi label Ya lalu Tidak.</p>';
   return h;
 }
@@ -13548,8 +13656,8 @@ function fcDrawioXml(list) {
 function fcSaveDrawio(D) {
   var list = D ? [D] : doc.diagrams.filter(isFc);
   if (!list.length) { toast('Belum ada flowchart.'); return; }
-  var x = fcDrawioXml(list), nm = (list.length === 1 ? list[0].name : (doc.name || 'flowchart')) .replace(/[^\w\-. ]+/g, '_') + '.drawio';
-  saveFile(nm, new Blob([x], { type: 'application/xml' }), true).then(function (r) { if (r === 'ok') toast(list.length + ' flowchart disimpan ke ' + nm + '. Buka di app.diagrams.net (draw.io) → File → Open.'); else if (r !== 'declined') toast('Gagal menyimpan ' + nm + '.'); });
+  var x = fcDrawioXml(list), nm = (list.length === 1 && D ? list[0].name : (doc.name || 'flowchart')).replace(/[^\w\-. ]+/g, '_') + '.drawio';
+  saveFile(nm, new Blob([x], { type: 'application/xml' }), true).then(function (r) { if (r === 'ok') toast(list.length + ' flowchart disimpan ke ' + nm + '. Bisa dibuka lagi di Alir (Berkas → Buka) atau di diagrams.net.'); else if (r !== 'declined') toast('Gagal menyimpan ' + nm + '.'); });
 }
 /* impor .drawio buatan draw.io/Alir: simbol flowchart dikenali dari gaya shape */
 function fcDrawioToDiagrams(text) {
@@ -13558,7 +13666,7 @@ function fcDrawioToDiagrams(text) {
   Array.prototype.forEach.call(X.getElementsByTagName('diagram'), function (dg, di) {
     var model = dg.getElementsByTagName('mxGraphModel')[0];
     if (!model) { var raw = (dg.textContent || '').trim(); if (raw) throw new Error('Halaman "' + (dg.getAttribute('name') || di + 1) + '" tersimpan terkompresi. Di draw.io: File → Properties → matikan "Compressed", lalu simpan ulang.'); return; }
-    var D = { id: uid('d'), kind: 'flowchart', name: dg.getAttribute('name') || 'Flowchart ' + (di + 1), pkg: doc.packages[0].id, parent: null, elements: [], flows: [] }, map = {};
+    var D = { id: uid('d'), kind: 'flowchart', name: dg.getAttribute('name') || 'Flowchart ' + (di + 1), pkg: (doc.packages && doc.packages[0] ? doc.packages[0].id : 'p1'), parent: null, elements: [], flows: [] }, map = {};
     var cells = Array.prototype.slice.call(model.getElementsByTagName('mxCell'));
     cells.forEach(function (c) {
       if (c.getAttribute('vertex') !== '1') return;
@@ -13594,6 +13702,96 @@ function repFlow(D) {
 function xFcExplain(D) {
   var E = D.elements.filter(isFcEl), dec = E.filter(function (e) { return e.type === 'fdec'; }), prep = E.find(function (e) { return e.type === 'fprep'; });
   return 'Flowchart "' + D.name + '" berisi ' + E.length + ' simbol' + (prep ? ', diawali Preparation (' + String(prep.name).replace(/\r?\n/g, '; ') + ')' : '') + (dec.length ? ', dengan ' + dec.length + ' keputusan: ' + dec.map(function (e) { return e.name; }).join(', ') : '') + '. Dibaca dari Start ke End mengikuti panah; cabang Ya/Tidak dari keputusan kembali ke langkah input bila data belum sesuai.';
+}
+
+/* ===================== v63: Flowchart sebagai mode sendiri (DFD | UML | Flowchart) =====================
+   Proyek flowchart memakai mesin diagram UML (doc.kind 'ea') dengan penanda doc.fc, disimpan di localStorage LS_FC,
+   tidak punya Ekspor ke EA: Simpan = satu berkas .drawio berisi semua flowchart; Ekspor = XML (.drawio) / PNG / SVG / PDF. */
+function blankFc(name) {
+  var d = blankEa(name || 'Flowchart', 'flowchart'); d.fc = true; d.name = name || 'Flowchart';
+  d.packages[0].name = d.name; d.diagrams[0].name = 'Flowchart 1';
+  return d;
+}
+/* proyek flowchart yang tersimpan (atau baru) — dipakai saat membuat flowchart dari mode UML */
+function fcStore() { var s = storedDoc(LS_FC); return s ? { doc: normEa(s.doc), active: s.active } : { doc: normEa(blankFc('Flowchart')), active: null, fresh: true }; }
+function fcStoreSave(d, act) { try { localStorage.setItem(LS_FC, JSON.stringify({ doc: d, active: act || null, t: Date.now() })); return true; } catch (x) { return false; } }
+/* v62 menaruh flowchart di dalam proyek UML: pindahkan ke proyek Flowchart (sekali, saat proyek UML dibuka) */
+function fcMigrate(d) {
+  if (!d || d.fc || !d.diagrams) return 0;
+  var mv = d.diagrams.filter(function (x) { return x.kind === 'flowchart'; }); if (!mv.length) return 0;
+  if (mv.length === d.diagrams.length) { d.fc = true; return 0; }
+  var S = fcStore(), F = S.doc;
+  if (S.fresh) F.diagrams = [];
+  mv.forEach(function (D) { D.pkg = F.packages[0].id; if (!F.diagrams.some(function (x) { return x.id === D.id; })) F.diagrams.push(D); else { var c = clone(D); c.id = uid('d'); F.diagrams.push(c); } });
+  d.diagrams = d.diagrams.filter(function (x) { return x.kind !== 'flowchart'; });
+  fcStoreSave(F, S.active || F.diagrams[0].id);
+  if (active && !d.diagrams.some(function (x) { return x.id === active; })) active = d.diagrams[0].id;
+  setTimeout(function () { toast(mv.length + ' flowchart dipindah dari proyek UML ke mode Flowchart (klik FLOW di kiri atas). Flowchart tidak ikut ekspor EA.'); }, 400);
+  return mv.length;
+}
+/* sumber Activity/Sequence Diagram: proyek UML (saat di mode Flowchart) atau proyek yang dibuka */
+function fcSrcDoc() { if (!isFcDoc()) return doc; var s = storedDoc(LS_EA); return s ? s.doc : null; }
+/* hasil dari mode UML dikirim ke proyek Flowchart lalu pindah ke sana */
+function fcSendToFc(models) {
+  var S = fcStore(), F = S.doc, made = [];
+  if (S.fresh) F.diagrams = [];
+  models.forEach(function (M) { var D = fcGenerate(M, { id: uid('d'), kind: 'flowchart', name: M.title, pkg: F.packages[0].id, parent: null, elements: [], flows: [] }); D.name = M.title; D.pkg = F.packages[0].id; F.diagrams.push(D); made.push(D); });
+  if (!made.length) return;
+  F.diagrams = F.diagrams.filter(function (d) { return d.elements.length || !/^Flowchart \d+$/.test(d.name || ''); });
+  persistNow();
+  useDoc(F, made[0].id, made.length + ' flowchart dibuat di mode Flowchart. Proyek UML tetap tersimpan (klik UML di kiri atas untuk kembali).');
+  made.forEach(function (D) { views[D.id] = { x: 0, y: 0, k: 1, fresh: true }; }); fit();
+}
+/* jendela Ekspor mode Flowchart */
+function fcExportModal() {
+  var D = cur(), list = doc.diagrams.filter(isFc), one = isFc(D);
+  var row = function (act, t, d) { return '<button class="btn block fcx" data-x="' + act + '"><b>' + t + '</b><br><span class="hint">' + d + '</span></button>'; };
+  var body = '<p class="hint">Flowchart tidak dibuka di Enterprise Architect. Pilih bentuk berkasnya:</p>' +
+    '<p class="st-sec">Diagram ini' + (one ? ' — ' + esc(D.name) : '') + '</p>' +
+    row('png', 'Gambar PNG', 'Untuk laporan / Word / Google Docs.') + row('svg', 'Gambar SVG', 'Tajam di ukuran berapa pun.') + row('one', 'XML (.drawio)', 'Bisa dibuka & diedit lagi di Alir atau di diagrams.net.') +
+    '<p class="st-sec">Semua (' + list.length + ' flowchart)</p>' +
+    row('all', 'XML (.drawio) semua', 'Satu berkas, tiap flowchart jadi satu halaman (sama dengan Simpan).') + row('pdf', 'PDF semua', 'Satu flowchart per halaman.') + row('allpng', 'PNG semua (ZIP)', 'Satu gambar per flowchart.');
+  modal('Ekspor Flowchart', body, '<button class="btn" data-close>Tutup</button>', function (s, close) {
+    s.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-x]'); if (!b) return; var x = b.dataset.x; close();
+      if (x === 'png') run('png'); else if (x === 'svg') run('svg'); else if (x === 'pdf') run('pdf'); else if (x === 'allpng') run('allpng');
+      else if (x === 'one') fcSaveDrawio(one ? D : null); else fcSaveDrawio(null);
+    });
+  });
+}
+
+/* v63: panah biru di sisi simbol (seperti draw.io, tapi lebih pintar):
+   klik panah → bila ada simbol di arah itu, langsung disambung (tanpa menu); bila kosong, simbol baru dibuat di sana lalu disambung. */
+function fcQuickClick(from, side) {
+  var D = cur(); if (!isFc(D)) return false;
+  var A = elOf(D, from); if (!A || !isFcEl(A)) return false;
+  var R = rect(A), vert = side === 's' || side === 'n', best = null;
+  D.elements.forEach(function (e) {
+    if (e.id === from || !isFcEl(e)) return;
+    var Q = rect(e), gap, ov;
+    if (vert) { ov = Math.min(R.r, Q.r) - Math.max(R.l, Q.l); gap = side === 's' ? Q.t - R.b : R.t - Q.b; }
+    else { ov = Math.min(R.b, Q.b) - Math.max(R.t, Q.t); gap = side === 'e' ? Q.l - R.r : R.l - Q.r; }
+    if (ov < Math.min(16, (vert ? Math.min(R.r - R.l, Q.r - Q.l) : Math.min(R.b - R.t, Q.b - Q.t)) / 3) || gap < -2 || gap > 420) return;
+    var d = gap + Math.abs(vert ? Q.cx - R.cx : Q.cy - R.cy) * .5;
+    if (!best || d < best.d) best = { e: e, d: d };
+  });
+  if (best) {
+    var ex = D.flows.find(function (f) { return f.from === from && f.to === best.e.id; });
+    if (ex) { sel = new Set([ex.id]); draw(); panel(); syncBar(); toast('"' + (A.name || TT[A.type].label) + '" sudah tersambung ke "' + (best.e.name || TT[best.e.type].label) + '".'); return true; }
+    createFlow(from, best.e.id, { sa: { s: side, p: .5 }, kind: 'fline' });
+    return true;
+  }
+  /* kosong: buat simbol baru di arah itu (keputusan/terminator → proses; selain itu jenis yang sama) */
+  var type = A.type === 'fterm' || A.type === 'fdec' || A.type === 'fdb' || A.type === 'fprep' ? 'fproc' : A.type, t = TT[type], w = t.size[0], h = t.size[1];
+  var cx = R.cx + NRM[side][0] * ((R.r - R.l) / 2 + 60 + w / 2), cy = R.cy + NRM[side][1] * ((R.b - R.t) / 2 + 40 + h / 2);
+  var o = { id: uid('e'), type: type, name: '', x: Math.round(cx - w / 2), y: Math.round(cy - h / 2), w: w, h: h, style: {} }, fid;
+  mutate(function () {
+    D.elements.push(o);
+    var f = { id: uid('f'), kind: 'fline', from: from, to: o.id, name: '', bends: [], style: {}, sa: { s: side, p: .5 } }; D.flows.push(f); fcAutoLabel(D, f); fid = f.id;
+    sel = new Set([o.id]);
+  });
+  void fid; startRename(o.id);
+  return true;
 }
 
 
@@ -13875,7 +14073,7 @@ function overlay(D, routes, v) {
       s += '<rect class="handle" data-h="' + h[0] + '" style="stroke-width:' + sw + 'px;cursor:' + h[3] + '" x="' + (h[1] - hs) + '" y="' + (h[2] - hs) + '" width="' + hs * 2 + '" height="' + hs * 2 + '"/>';
     });
     var f = flOf(D, id), r = f && routes.get(id);
-    if (r && !(f.kind === 'smsg' || f.kind === 'clink')) s += lnHandles(f, r, k);
+    if (r && !(f.kind === 'smsg' || (f.kind === 'clink' && f.from === f.to))) s += lnHandles(f, r, k);
     else if (false) { /* pegangan lama DFD, diganti sistem garis seperti EA */
       var P = r.pts, ortho = fs(f).route > 0, hb = 3.6 / k;
       if (ortho) {
@@ -14339,7 +14537,10 @@ function dropDiagram(id) {
 }
 function delSel() {
   if (!sel.size) return;
-  var D = cur(), n = 0, lk = D.elements.filter(function (e) { return sel.has(e.id) && e.locked; });
+  var D = cur(), n = 0, cmN = 0;
+  /* Collaboration: label pesan terpilih + Delete = hapus pesan itu saja (seperti EA), bukan seluruh link */
+  if (!isDfd() && D.kind === 'comm' && sel.size === 1) { var f1 = flOf(D, Array.from(sel)[0]); if (f1 && f1.kind === 'clink' && cmSel && (f1.msgs || []).some(function (m) { return m.id === cmSel; })) { cmDelMsg(D, f1, cmSel); return; } }
+  var lk = D.elements.filter(function (e) { return sel.has(e.id) && e.locked; });
   if (lk.length) { lk.forEach(function (e) { sel.delete(e.id); }); toast(lk.length + ' objek terkunci tidak dihapus. Buka kuncinya dulu kalau memang mau dihapus.'); if (!sel.size) { draw(); panel(); syncBar(); return; } }
   var gw1 = sel.size === 1 && D.elements.find(function (e) { return sel.has(e.id) && (e.type === 'gateway' || e.type === 'decision' || e.type === 'merge'); });
   if (gw1 && D.flows.some(function (f) { return f.to === gw1.id; }) && D.flows.some(function (f) { return f.from === gw1.id; })) setTimeout(function () { toast('Gateway dihapus beserta garisnya. Mau garisnya tetap tersambung? Ctrl+Z lalu klik kanan gateway → Hapus & sambungkan garisnya.'); }, 50);
@@ -14347,10 +14548,12 @@ function delSel() {
     var rm = new Set(sel);
     D.elements.forEach(function (e) { if (rm.has(e.id)) { var c = childOf(D, e); if (c) { dropDiagram(c.id); n++; } } });
     D.elements = D.elements.filter(function (e) { return !rm.has(e.id); });
-    D.flows = D.flows.filter(function (f) { return !rm.has(f.id) && !rm.has(f.from) && !rm.has(f.to); });
+    D.flows = D.flows.filter(function (f) { var gone = rm.has(f.id) || rm.has(f.from) || rm.has(f.to); if (gone && f.kind === 'clink') cmN += (f.msgs || []).length; return !gone; });
+    if (cmN && D.kind === 'comm') cmCompact(D);
     sel.clear();
   });
   if (n) toast('Dekomposisi proses yang dihapus ikut terhapus. Ctrl+Z untuk membatalkan.');
+  if (cmN) { cmSel = null; toast(cmN + ' pesan di link yang dihapus ikut terhapus, nomor pesan lain dirapatkan. Ctrl+Z untuk membatalkan. (Untuk menghapus satu pesan saja: klik labelnya lalu Delete.)'); }
 }
 function removeDiagram(id) {
   var D = diag(id); if (!D) return;
@@ -14850,7 +15053,7 @@ function arrowKey(a) { return a.s && a.t ? 'st' : a.c ? 'c' : a.s ? 's' : a.t ? 
 /* ---------- bilah alat ---------- */
 function buildToolbar() {
   $('#toolbar').innerHTML =
-    '<div class="tg"><button class="tb" data-act="start" title="Halaman mulai: pilih DFD, Activity, Use Case, atau BPMN" aria-label="Halaman mulai">' + ico('home') + '</button><button class="tb" data-act="open" title="Buka berkas (Ctrl+O)" aria-label="Buka">' + ico('open') + '</button>' + (isDfd() ? '<button class="tb pri" data-act="' + (FSA ? 'save' : 'savepam') + '" title="' + (FSA ? 'Simpan ke berkas .pam yang dibuka (Ctrl+S). Simpan sebagai: Ctrl+Shift+S' : 'Simpan sebagai .pam untuk PowerDesigner (Ctrl+S)') + '">' + ico('save') + ' Simpan .pam</button>' : (FSA ? '<button class="tb" data-act="save" title="Simpan proyek ke berkas .alir yang dibuka, seperti Word (Ctrl+S). Simpan sebagai: Ctrl+Shift+S" aria-label="Simpan">' + ico('save') + '<span class="tbt"> Simpan</span></button>' : '') + '<button class="tb pri" data-act="exportea" title="Ekspor untuk dibuka di Enterprise Architect (' + (FSA ? 'Ctrl+E' : 'Ctrl+S') + ')">' + ico('save') + ' Ekspor ke EA</button>') + '<button class="tb" data-act="copyimg" title="Salin diagram sebagai gambar HD, lalu tempel (Ctrl+V) di Google Docs atau Word. Pintasan: Ctrl+Alt+C. Ctrl+C pada objek terpilih juga ikut menyalin gambarnya." aria-label="Salin gambar HD">' + ico('copy') + '<span class="tbt"> Salin gambar</span></button></div>' +
+    '<div class="tg"><button class="tb" data-act="start" title="Halaman mulai: pilih DFD, Activity, Use Case, atau BPMN" aria-label="Halaman mulai">' + ico('home') + '</button><button class="tb" data-act="open" title="Buka berkas (Ctrl+O)" aria-label="Buka">' + ico('open') + '</button>' + (isFcDoc() ? '<button class="tb" data-act="fcsave" title="Simpan semua flowchart ke satu berkas .drawio (Ctrl+S)" aria-label="Simpan">' + ico('save') + '<span class="tbt"> Simpan</span></button><button class="tb pri" data-act="fcexport" title="Ekspor XML (.drawio), PNG, SVG, atau PDF (Ctrl+E)">' + ico('save') + ' Ekspor</button>' : isDfd() ? '<button class="tb pri" data-act="' + (FSA ? 'save' : 'savepam') + '" title="' + (FSA ? 'Simpan ke berkas .pam yang dibuka (Ctrl+S). Simpan sebagai: Ctrl+Shift+S' : 'Simpan sebagai .pam untuk PowerDesigner (Ctrl+S)') + '">' + ico('save') + ' Simpan .pam</button>' : (FSA ? '<button class="tb" data-act="save" title="Simpan proyek ke berkas .alir yang dibuka, seperti Word (Ctrl+S). Simpan sebagai: Ctrl+Shift+S" aria-label="Simpan">' + ico('save') + '<span class="tbt"> Simpan</span></button>' : '') + '<button class="tb pri" data-act="exportea" title="Ekspor untuk dibuka di Enterprise Architect (' + (FSA ? 'Ctrl+E' : 'Ctrl+S') + ')">' + ico('save') + ' Ekspor ke EA</button>') + '<button class="tb" data-act="copyimg" title="Salin diagram sebagai gambar HD, lalu tempel (Ctrl+V) di Google Docs atau Word. Pintasan: Ctrl+Alt+C. Ctrl+C pada objek terpilih juga ikut menyalin gambarnya." aria-label="Salin gambar HD">' + ico('copy') + '<span class="tbt"> Salin gambar</span></button></div>' +
     '<div class="vsep"></div><div class="tg"><button class="tb" data-act="undo" id="bUndo" title="Urungkan (Ctrl+Z)" aria-label="Urungkan">' + ico('undo') + '</button><button class="tb" data-act="redo" id="bRedo" title="Ulangi (Ctrl+Y)" aria-label="Ulangi">' + ico('redo') + '</button></div>' +
     '<div class="vsep"></div><div class="tg"><button class="tb" data-act="cut" data-need="1" title="Potong (Ctrl+X)" aria-label="Potong">' + ico('cut') + '</button><button class="tb" data-act="copy" data-need="1" title="Salin (Ctrl+C)" aria-label="Salin">' + ico('copy') + '</button><button class="tb" data-act="paste" id="bPaste" title="Tempel (Ctrl+V)" aria-label="Tempel">' + ico('paste') + '</button><button class="tb" data-act="del" data-need="1" title="Hapus (Delete)" aria-label="Hapus">' + ico('trash') + '</button></div>' +
     '<div class="vsep"></div><div class="tg"><span class="tlabel">Format</span>' +
@@ -14928,8 +15131,10 @@ function item(label, act, key, opt) { return { l: label, a: act, k: key || '', o
 var HR = { hr: 1 };
 function menuItems(name) {
   var D = cur(), one = selEls().length === 1 ? selEls()[0] : null, proc = one && one.type === 'process' ? one : null, has = sel.size > 0, nE = selEls().length, f = selFlows()[0], st = curStyleOf();
-  if (name === 'file' && !isDfd()) return [item('Halaman mulai…', 'start'), item('Proyek UML baru (kosong)…', 'newuml'), item('DFD baru (kosong)…', 'new'), item('Buka .eap / .xml / .alir / .json…', 'open', 'Ctrl+O')].concat(FSA ? [item('Simpan' + (FH.h ? ' ke ' + FH.name : ' proyek (.alir)'), 'save', 'Ctrl+S'), item('Simpan sebagai…', 'saveas', 'Ctrl+Shift+S')] : []).concat([ item('Buat diagram dari skenario (.docx / tabel)…', 'scen'), HR, item('Jelaskan diagram ini (tanya jawab)…', 'explain', 'F3'), item('Teks untuk laporan (narasi & tabel)…', 'report'), item('Bagikan lewat link…', 'share'), item('Riwayat versi…', 'hist'), HR, item('Ekspor ke Enterprise Architect…', 'exportea', FSA ? 'Ctrl+E' : 'Ctrl+S'), item('Simpan proyek Alir (.json)', 'saveproj'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Gambar untuk laporan (pas lebar A4 / tabel)…', 'repimg'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar JPG', 'jpg'), item('Ekspor gambar SVG', 'svg'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), item('Simpan semua flowchart (.drawio)', 'fcdrawioall', '', { dis: !doc.diagrams.some(function (x) { return x.kind === 'flowchart'; }) }), HR, item('Preferensi tampilan…', 'dispref')]);
-  if (name === 'dict' && !isDfd()) return [{ hd: 'Diagram baru' }, item('Activity Diagram', 'newdiag:activity'), item('Use Case Diagram', 'newdiag:usecase'), item('BPMN (Business Process)', 'newdiag:bpmn'), item('Sequence Diagram', 'newdiag:sequence'), item('Collaboration Diagram', 'newdiag:comm'), item('Flowchart', 'newdiag:flowchart'), item('Dari skenario use case (tabel / .docx)…', 'scen'), item('Collaboration dari Sequence (Transform)…', 'cmbatch'), item('Flowchart dari Activity / skenario…', 'fcbatch'), HR, item('Jalankan alur ▶', 'sim', '', { dis: !(D.kind === 'activity' || D.kind === 'bpmn') }), item('Jelaskan diagram ini…', 'explain', 'F3'), item('Teks untuk laporan…', 'report'), HR, item('Ganti nama diagram…', 'renamediag'), item('Hapus diagram ini', 'deldiag', '', { dis: doc.diagrams.length < 2 }), item('Paket (folder) baru', 'newpkg'), HR, item('Periksa diagram', 'check', 'F4')];
+  if (name === 'file' && isFcDoc()) return [item('Halaman mulai…', 'start'), item('Flowchart baru (kosong)…', 'newfc'), item('Proyek UML baru (kosong)…', 'newuml'), item('DFD baru (kosong)…', 'new'), item('Buka .drawio / .xml / .alir…', 'open', 'Ctrl+O'), item('Simpan semua (.drawio)', 'fcsave', 'Ctrl+S'), HR, item('Flowchart dari skenario (.docx / tabel)…', 'scen'), item('Flowchart dari Activity Diagram…', 'fcbatch'), HR, item('Jelaskan diagram ini (tanya jawab)…', 'explain', 'F3'), item('Teks untuk laporan (narasi & tabel)…', 'report'), item('Bagikan lewat link…', 'share'), item('Riwayat versi…', 'hist'), HR, item('Ekspor (XML / PNG / SVG / PDF)…', 'fcexport', 'Ctrl+E'), item('Simpan proyek Alir (.json)', 'saveproj'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Gambar untuk laporan (pas lebar A4 / tabel)…', 'repimg'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar SVG', 'svg'), item('Ekspor XML (.drawio) diagram ini', 'fcdrawio'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Preferensi tampilan…', 'dispref')];
+  if (name === 'file' && !isDfd()) return [item('Halaman mulai…', 'start'), item('Proyek UML baru (kosong)…', 'newuml'), item('Flowchart baru (kosong)…', 'newfc'), item('DFD baru (kosong)…', 'new'), item('Buka .eap / .xml / .alir / .json…', 'open', 'Ctrl+O')].concat(FSA ? [item('Simpan' + (FH.h ? ' ke ' + FH.name : ' proyek (.alir)'), 'save', 'Ctrl+S'), item('Simpan sebagai…', 'saveas', 'Ctrl+Shift+S')] : []).concat([ item('Buat diagram dari skenario (.docx / tabel)…', 'scen'), HR, item('Jelaskan diagram ini (tanya jawab)…', 'explain', 'F3'), item('Teks untuk laporan (narasi & tabel)…', 'report'), item('Bagikan lewat link…', 'share'), item('Riwayat versi…', 'hist'), HR, item('Ekspor ke Enterprise Architect…', 'exportea', FSA ? 'Ctrl+E' : 'Ctrl+S'), item('Simpan proyek Alir (.json)', 'saveproj'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Gambar untuk laporan (pas lebar A4 / tabel)…', 'repimg'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar JPG', 'jpg'), item('Ekspor gambar SVG', 'svg'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Preferensi tampilan…', 'dispref')]);
+  if (name === 'dict' && isFcDoc()) return [{ hd: 'Flowchart baru' }, item('Flowchart kosong', 'newdiag:flowchart'), item('Dari Activity Diagram (proyek UML)…', 'fcbatch'), item('Dari skenario use case (tabel / .docx)…', 'scen'), HR, item('Jelaskan diagram ini…', 'explain', 'F3'), item('Teks untuk laporan…', 'report'), HR, item('Ganti nama diagram…', 'renamediag'), item('Hapus diagram ini', 'deldiag', '', { dis: doc.diagrams.length < 2 }), item('Paket (folder) baru', 'newpkg'), HR, item('Periksa diagram', 'check', 'F4')];
+  if (name === 'dict' && !isDfd()) return [{ hd: 'Diagram baru' }, item('Activity Diagram', 'newdiag:activity'), item('Use Case Diagram', 'newdiag:usecase'), item('BPMN (Business Process)', 'newdiag:bpmn'), item('Sequence Diagram', 'newdiag:sequence'), item('Collaboration Diagram', 'newdiag:comm'), item('Dari skenario use case (tabel / .docx)…', 'scen'), item('Collaboration dari Sequence (Transform)…', 'cmbatch'), item('Flowchart dari Activity Diagram (ke mode Flowchart)…', 'fcbatch'), HR, item('Jalankan alur ▶', 'sim', '', { dis: !(D.kind === 'activity' || D.kind === 'bpmn') }), item('Jelaskan diagram ini…', 'explain', 'F3'), item('Teks untuk laporan…', 'report'), HR, item('Ganti nama diagram…', 'renamediag'), item('Hapus diagram ini', 'deldiag', '', { dis: doc.diagrams.length < 2 }), item('Paket (folder) baru', 'newpkg'), HR, item('Periksa diagram', 'check', 'F4')];
   if (name === 'file') return [item('Halaman mulai…', 'start'), item('DFD baru (kosong)…', 'new'), item('Proyek UML baru (kosong)…', 'newuml'), item('Buka .pam / .alir / .json / .zip…', 'open', 'Ctrl+O'), item('Buat DFD dari skenario (.docx / tabel)…', 'dfdscen')].concat(FSA ? [item('Simpan' + (FH.h ? ' ke ' + FH.name : ''), 'save', 'Ctrl+S'), item('Simpan sebagai…', 'saveas', 'Ctrl+Shift+S')] : []).concat([HR, item('Jelaskan diagram ini (tanya jawab)…', 'explain', 'F3'), item('Teks untuk laporan (tabel alur data)…', 'report'), item('Bagikan lewat link…', 'share'), item('Riwayat versi…', 'hist'), HR, item('Simpan sebagai .pam', 'savepam', FSA ? '' : 'Ctrl+S'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Gambar untuk laporan (pas lebar A4 / tabel)…', 'repimg'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar JPG', 'jpg'), item('Ekspor gambar SVG', 'svg'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Opsi model…', 'modelopt'), item('Preferensi tampilan…', 'dispref')]);
   if (name === 'edit') return [item('Urungkan', 'undo', 'Ctrl+Z', { dis: !undoS.length }), item('Ulangi', 'redo', 'Ctrl+Y', { dis: !redoS.length }), HR, item('Potong', 'cut', 'Ctrl+X', { dis: !has }), item('Salin', 'copy', 'Ctrl+C', { dis: !has }), item('Tempel', 'paste', 'Ctrl+V', { dis: !canPaste() }), item('Hapus', 'del', 'Del', { dis: !has }), HR, item('Pilih simbol terhubung', 'selconn', '', { dis: !has }), item('Pilih semua', 'selall', 'Ctrl+A'), item('Pilih beberapa (klik satu per satu)', 'multipick', '', { ck: multiPick }), item('Pilih semua yang sejenis', 'selsame', '', { dis: !has }), item('Cari elemen…', 'find', 'Ctrl+F'), HR, item('Kunci / buka kunci posisi', 'lock', '', { dis: !nE }), item('Kelompokkan', 'group', 'Ctrl+G', { dis: nE < 2 }), item('Pisahkan kelompok', 'ungroup', 'Ctrl+Shift+G', { dis: !nE }), HR, item('Duplikat', 'dup', 'Ctrl+D', { dis: !has }), item('Ubah nama', 'rename', 'F2', { dis: sel.size !== 1 })];
   if (name === 'dict') return [item('Properti model…', 'modelopt'), { hd: 'Sub-proses' }, item(proc && childOf(D, proc) ? 'Buka diagram turunan' : 'Dekomposisi proses terpilih', 'decomp', 'Alt+↓', { dis: !proc }), item('Naik satu level', 'up', 'Alt+↑', { dis: !D.parent }), item('Hapus dekomposisi', 'undecomp', '', { dis: !(proc && childOf(D, proc)) }), item('Pohon proses…', 'tree'), HR, item('Daftar objek…', 'objlist'), item('Urutkan ulang nomor objek', 'renum'), item('Auto-balance alur', 'autobal', '', { dis: !D.parent }), item('Tambah konektor off-page', 'offadd'), item('Buat DFD dari skenario use case…', 'dfdscen'), item('Migrasikan alur terpilih ke induk', 'migrate', '', { dis: !D.parent || !f }), HR, item('Periksa model…', 'check', 'F4')];
@@ -15000,8 +15205,14 @@ function contextMenu(e, id) {
       if (o.type) { if (!isContainer(o)) items.push(item('Sesuaikan dengan teks', 'adjust', 'Ctrl+J'), item('Ukuran normal', 'normsize')); if (o.type === 'partition') items.push(item(o.horiz ? 'Jadikan partition tegak' : 'Jadikan partition mendatar', 'porient')); if (o.type === 'partition' || o.type === 'lane') items.push(item('Rapatkan semua ' + (o.type === 'lane' ? 'lane' : 'partition'), 'dockall'), HR); items.push(item('Warna garis…', 'pop:stroke'), item('Warna isi…', 'pop:fill'), item('Warna teks…', 'pop:text')); }
       else if (o.kind === 'clink') {
         var la = elOf(D, o.from) || {}, lb = elOf(D, o.to) || {}; sel = new Set([o.id]);
+        var lbm = e.target && e.target.closest && e.target.closest('[data-cmm]'); if (lbm) cmSel = lbm.dataset.cmm;
+        var pm = lbm && (o.msgs || []).find(function (m) { return m.id === lbm.dataset.cmm; });
+        if (pm && pm.pos) items.push(item('Kembalikan posisi label ini', 'cmlabone'), HR);
         items.push({ hd: 'Pesan' }, item(o.from === o.to ? 'Tambah pesan' : 'Tambah pesan ' + (la.name || '') + ' → ' + (lb.name || ''), 'cmadd:0')); if (o.from !== o.to) items.push(item('Tambah pesan ' + (lb.name || '') + ' → ' + (la.name || ''), 'cmadd:1'));
-        items.push(item('Nomori ulang semua pesan', 'cmrenum'), item('Rapikan diagram', 'cmtidy'));
+        items.push(item('Nomori ulang semua pesan', 'cmrenum'));
+        if ((o.msgs || []).some(function (m) { return m.pos; })) items.push(item('Kembalikan posisi semua label link ini', 'cmlabreset'));
+        if (o.from !== o.to) { items.push({ hd: 'Bentuk garis' }); routeNames().forEach(function (r, i) { items.push(item(r, 'route:' + i, '', { ck: fs(o).route === i })); }); items.push(item('Luruskan (hapus titik belok)', 'cmstraight'), item('Warna garis…', 'pop:stroke')); }
+        items.push(HR, item('Rapikan diagram', 'cmtidy'));
       }
       else {
         var ks = linkKinds(elOf(D, o.from), elOf(D, o.to), D.kind); if (ks.indexOf(o.kind) < 0) ks.unshift(o.kind);
@@ -15055,7 +15266,10 @@ function run(a, btn) {
   if (a === 'cmfromseq') { cmTransformCmd(D.id); return; }
   if (a === 'fcbatch') { fcBatchModal(); return; }
   if (a === 'fcfromad') { fcFromAdCmd(D.id); return; }
-  if (a === 'fcdrawioall') { fcSaveDrawio(null); return; }
+  if (a === 'fcdrawioall' || a === 'fcsave' || (isFcDoc() && (a === 'save' || a === 'saveas'))) { fcSaveDrawio(null); return; }
+  if (a === 'fcexport' || (isFcDoc() && a === 'exportea')) { fcExportModal(); return; }
+  if (a === 'newfc') { newBlank('fc'); return; }
+  if (a === 'fcdrawio' && isFcDoc()) { fcSaveDrawio(D.kind === 'flowchart' ? D : null); return; }
   if (/^theme:(light|dark|auto)$/.test(a)) { setTheme(a.slice(6)); return; }
   var qm = /^qconn:(.*)$/.exec(a);
   if (qm && !isDfd()) { if (qcPending) { var qp = qcPending; setTimeout(function () { var r0 = cv.getBoundingClientRect(); eaKindMenu(qp.from, qm[1], qp.side, lastMenuXY.x || r0.left + 100, lastMenuXY.y || r0.top + 100); }, 0); } return; }
@@ -15078,7 +15292,7 @@ function run(a, btn) {
   }
   switch (a) {
     case 'start': startPage(); return;
-    case 'newdiag': (function () { var r0 = btn && btn.getBoundingClientRect ? btn.getBoundingClientRect() : { left: 200, bottom: 120 }; renderMenu([{ hd: 'Diagram baru' }, item('Activity Diagram', 'newdiag:activity'), item('Use Case Diagram', 'newdiag:usecase'), item('BPMN (Business Process)', 'newdiag:bpmn'), item('Sequence Diagram', 'newdiag:sequence'), item('Collaboration Diagram', 'newdiag:comm'), item('Flowchart', 'newdiag:flowchart'), HR, item('Collaboration dari Sequence…', 'cmbatch'), item('Flowchart dari Activity / skenario…', 'fcbatch')], r0.left, r0.bottom + 4); })(); return;
+    case 'newdiag': (function () { var r0 = btn && btn.getBoundingClientRect ? btn.getBoundingClientRect() : { left: 200, bottom: 120 }; renderMenu(isFcDoc() ? [{ hd: 'Flowchart baru' }, item('Flowchart kosong', 'newdiag:flowchart'), item('Dari Activity Diagram (proyek UML)…', 'fcbatch'), item('Dari skenario use case…', 'scen')] : [{ hd: 'Diagram baru' }, item('Activity Diagram', 'newdiag:activity'), item('Use Case Diagram', 'newdiag:usecase'), item('BPMN (Business Process)', 'newdiag:bpmn'), item('Sequence Diagram', 'newdiag:sequence'), item('Collaboration Diagram', 'newdiag:comm'), HR, item('Collaboration dari Sequence…', 'cmbatch'), item('Flowchart dari Activity (ke mode Flowchart)…', 'fcbatch')], r0.left, r0.bottom + 4); })(); return;
     case 'newpkg': (function () { var nm0 = 'Paket ' + (doc.packages.length + 1); mutate(function () { doc.packages.push({ id: uid('p'), name: nm0, parent: doc.packages[0].id }); }); toast('Paket "' + nm0 + '" dibuat. Diagram baru akan masuk ke paket diagram yang sedang dibuka.'); })(); return;
     case 'renamediag': renameDiagramModal(); return;
     case 'deldiag': removeDiagram(active); return;
@@ -15574,7 +15788,7 @@ function endPointer(e) {
   if (d.t === 'qc') {
     if (!isDfd() && d.moved) { draw(); var oe = d.over && elOf(cur(), d.over); if (oe && isContainer(oe) && !linkKinds(elOf(cur(), d.from), oe, cur().kind).length) d.over = null; if (d.over) eaKindMenu(d.from, d.over, d.side, e.clientX, e.clientY); else eaNewElementMenu(d.from, d.side, lastPt, e.clientX, e.clientY); return; }
     if (d.moved) { if (d.over) createFlow(d.from, d.over, { sa: { s: d.side, p: .5 } }); else draw(); }
-    else quickConnectMenu(d.from, d.side, e.clientX, e.clientY);
+    else if (!(!isDfd() && fcQuickClick(d.from, d.side))) quickConnectMenu(d.from, d.side, e.clientX, e.clientY);
     return;
   }
   if (d.t === 'move' && !d.moved && d.unpick) { grpMembers(d.unpick).forEach(function (x) { sel.delete(x); }); panel(); draw(); syncBar(); mpUpdate(); return; }
@@ -15628,7 +15842,7 @@ window.addEventListener('keydown', function (e) {
   /* Ctrl+V tidak dicegah dulu: kalau isi clipboard berupa tabel skenario, jendela Skenario → Activity Diagram yang dibuka */
   if (mod && k === 'v' && !e.shiftKey && !e.altKey) { clearTimeout(pasteT); pasteT = setTimeout(function () { pasteT = 0; if (!pasteLocal()) toast('Belum ada objek Alir yang disalin.'); }, 80); return; }
   if (mod) {
-    var map = { a: 'selall', c: 'copy', x: 'cut', v: 'paste', d: 'dup', y: 'redo', s: FSA ? (e.shiftKey ? 'saveas' : 'save') : isDfd() ? 'savepam' : 'exportea', e: isDfd() ? null : 'exportea', o: 'open', 0: 'fit', j: 'adjust', l: 'tidy', ']': 'front', '[': 'back' };
+    var map = { a: 'selall', c: 'copy', x: 'cut', v: 'paste', d: 'dup', y: 'redo', s: isFcDoc() ? 'fcsave' : FSA ? (e.shiftKey ? 'saveas' : 'save') : isDfd() ? 'savepam' : 'exportea', e: isDfd() ? null : isFcDoc() ? 'fcexport' : 'exportea', o: 'open', 0: 'fit', j: 'adjust', l: 'tidy', ']': 'front', '[': 'back' };
     var act = (k === 'l' && e.shiftKey) ? 'tidyall' : k === 'g' ? (e.shiftKey ? 'ungroup' : 'group') : k === 'f' ? 'find' : k === 'z' ? (e.shiftKey ? 'redo' : 'undo') : (k === '=' || k === '+') ? 'zin' : k === '-' ? 'zout' : map[k];
     if (act) { e.preventDefault(); run(act); }
     return;
@@ -15826,9 +16040,9 @@ function openDrawio(file) {
   file.text().then(function (t) {
     var list; try { list = fcDrawioToDiagrams(t); } catch (err) { toast('Gagal membuka .drawio: ' + (err && err.message ? err.message : 'berkas rusak')); return; }
     if (!list.length) { toast('Tidak ada halaman di ' + file.name + '.'); return; }
-    if (isDfd()) { var d = blankEa(file.name.replace(/\.(drawio|xml)$/i, ''), 'flowchart'); d.diagrams = []; list.forEach(function (D) { D.pkg = d.packages[0].id; d.diagrams.push(D); }); useDoc(normEa(d), null, 'Dibuka: ' + file.name + ' (' + list.length + ' flowchart).'); return; }
-    mutate(function () { list.forEach(function (D) { D.pkg = (cur() && cur().pkg) || doc.packages[0].id; doc.diagrams.push(D); views[D.id] = { x: 0, y: 0, k: 1, fresh: true }; }); active = list[0].id; sel.clear(); });
-    umlToolbox(); toast(list.length + ' flowchart dari ' + file.name + ' ditambahkan ke proyek ini.');
+    /* .drawio = proyek Flowchart (mode FLOW); proyek sebelumnya masuk Riwayat versi */
+    var d = blankFc(file.name.replace(/\.(drawio|xml)$/i, '')); d.diagrams = []; list.forEach(function (D) { D.pkg = d.packages[0].id; d.diagrams.push(D); });
+    useDoc(normEa(d), null, 'Dibuka: ' + file.name + ' (' + list.length + ' flowchart).');
   });
 }
 function openFile(file) {
@@ -16023,7 +16237,7 @@ var HELP = {
     '<h4>Panel kanan</h4><ul><li><b>Tidak memilih apa pun:</b> ringkasan diagram, Pemeriksaan, dan Pohon proses.</li><li><b>Satu objek:</b> nama, kode, nomor, dekomposisi, dan daftar alur yang terhubung.</li><li><b>Satu alur:</b> nama, arah, bentuk garis, Balik arah, Rapikan garis.</li><li><b>Banyak objek:</b> ratakan dan sebar.</li></ul>' +
     '<h4>Menyimpan</h4><ul><li>Pekerjaan tersimpan otomatis di browser ini, tapi tetap simpan berkas sebagai cadangan.</li>' +
     '<li><b>Simpan .pam</b>: berkas yang dibuka di PowerDesigner dan bisa dibuka lagi di Alir (DFD selalu disimpan sebagai .pam). Untuk dikirim ke teman tanpa berkas: Berkas → Bagikan lewat link.</li>' +
-    '<li><b>Ke Google Docs / Word</b>: klik <b>Salin gambar</b> di bilah atas (atau Ctrl+Alt+C), lalu Ctrl+V di dokumen. Gambarnya HD (4x), tetap tajam saat diperbesar, lengkap dengan bingkai dan nama diagram seperti hasil ekspor. Ctrl+C pada objek terpilih juga langsung bisa ditempel sebagai gambar.</li><li><b>Pindah ke tab / browser lain</b> (mis. Chrome → Firefox): pilih objek, Ctrl+C, lalu Ctrl+V di Alir yang lain. Klik kanan diagram → Salin diagram juga bisa. Yang masuk clipboard tetap gambar (di Docs/Word tertempel gambar, bukan teks); data objeknya tersimpan tak terlihat di dalam gambar itu.</li><li><b>DFD | UML</b> di kiri atas: pindah ke proyek DFD atau UML terakhirmu (keduanya tersimpan terpisah). Proyek kosong: Berkas → DFD baru / Proyek UML baru.</li><li>Untuk laporan: Berkas → <b>Ekspor semua ke PDF</b> (satu diagram per halaman) atau <b>Ekspor semua ke PNG (ZIP)</b>.</li></ul>',
+    '<li><b>Ke Google Docs / Word</b>: klik <b>Salin gambar</b> di bilah atas (atau Ctrl+Alt+C), lalu Ctrl+V di dokumen. Gambarnya HD (4x), tetap tajam saat diperbesar, lengkap dengan bingkai dan nama diagram seperti hasil ekspor. Ctrl+C pada objek terpilih juga langsung bisa ditempel sebagai gambar.</li><li><b>Pindah ke tab / browser lain</b> (mis. Chrome → Firefox): pilih objek, Ctrl+C, lalu Ctrl+V di Alir yang lain. Klik kanan diagram → Salin diagram juga bisa. Yang masuk clipboard tetap gambar (di Docs/Word tertempel gambar, bukan teks); data objeknya tersimpan tak terlihat di dalam gambar itu.</li><li><b>DFD | UML | FLOW</b> di kiri atas: pindah ke proyek DFD, UML, atau Flowchart terakhirmu (ketiganya tersimpan terpisah). Flowchart tidak diekspor ke EA: Simpan = berkas .drawio, Ekspor = XML / PNG / SVG / PDF. Proyek kosong: Berkas → DFD baru / Proyek UML baru / Flowchart baru.</li><li>Untuk laporan: Berkas → <b>Ekspor semua ke PDF</b> (satu diagram per halaman) atau <b>Ekspor semua ke PNG (ZIP)</b>.</li></ul>',
   cek: '<p>Pemeriksaan berjalan otomatis setiap ada perubahan. Ringkasannya selalu tampil di kanan atas, dan detailnya di panel kanan (klik area kosong) atau lewat <kbd>F4</kbd>. Klik satu baris untuk langsung menuju objeknya.</p>' +
     '<table><tr><td><span class="sw3" style="background:var(--bad)"></span><b>Merah: salah</b></td><td>Melanggar aturan DFD dan sebaiknya diperbaiki. Contoh: alur dari entitas langsung ke data store tanpa lewat proses, proses tanpa input atau output, level turunan tidak seimbang dengan induknya.</td></tr>' +
     '<tr><td><span class="sw3" style="background:var(--warn)"></span><b>Kuning: peringatan</b></td><td>Boleh, tapi perlu dicek. Contoh: alur belum diberi nama, data store hanya diisi tapi tidak pernah dibaca, entitas belum terhubung, nama proses dipakai dua kali.</td></tr>' +
@@ -16044,7 +16258,7 @@ var HELP = {
     '<li>Garis dirapikan otomatis setiap ada perubahan. Garis yang kamu atur sendiri tidak diubah. Matikan lewat Susun → Rapikan otomatis.</li></ul><h4>Mengatur garis (seperti EA)</h4><ul><li><b>Seret garisnya langsung</b> ke mana saja: naik-turun dan kiri-kanan sekaligus. Tahan <b>Shift</b> untuk mengunci ke satu arah. Berlaku juga di DFD. Kalau ruas di ujung digeser keluar dari objek, tikungan kecil dibuat sendiri; kalau dikembalikan, garis lurus lagi.</li><li>Garis <b>Direct</b> yang lurus digeser sejajar (naik-turun atau kiri-kanan), ujungnya ikut menyusuri tepi objek seperti di EA. Tahan Alt sambil menyeret untuk membuat tikungan.</li><li><b>Label bisa digeser</b>: nama decision, merge, gateway, initial/final, nama garis, [guard], dan «include». Saat dipilih muncul kotak dan garis bantu putus-putus seperti EA. Label ikut bergerak bersama objek atau garisnya, dan posisinya ikut terbawa ke EA. Klik kanan → Kembalikan posisi label untuk mengembalikannya.</li><li><b>Ctrl+klik</b> di garis menambah titik (kotak kecil). Seret titiknya untuk membuat tikungan. Ctrl+klik titiknya untuk menghapus.</li><li>Kotak di <b>ujung garis</b> bisa digeser menyusuri tepi objek. Tarik menjauh dari objek untuk memindah sambungan ke objek lain; lepas di tempat kosong untuk membatalkan.</li><li>Bentuk garis sama seperti EA: Direct / Custom Line, Orthogonal - Square, Orthogonal - Rounded, Tree Style (vertikal/horizontal), dan Lateral (vertikal/horizontal). Pilih di panel kanan atau klik kanan garis.</li><li>Garis yang bersilangan diberi lompatan kecil seperti EA (bisa dimatikan di Format → Preferensi tampilan).</li><li>Tarik panah biru ke tempat kosong: elemen baru muncul tepat di titik kamu melepasnya.</li></ul>' +
     '<h4>Project Browser</h4><ul><li><b>Klik kanan diagram</b>: ganti nama, duplikat beserta isinya, salin/tempel, pindah ke paket lain, pindah urutan, ekspor PNG, hapus. <b>Klik kanan paket</b>: ganti nama, tambah diagram/paket di dalamnya, duplikat/salin/tempel paket beserta isinya, pindah ke paket lain, hapus.</li><li>Seret diagram ke paket untuk memindahkannya; seret paket ke paket lain untuk menjadikannya sub-paket. Klik dua kali untuk ganti nama.</li></ul>' +
     '<h4>Dari skenario use case</h4><ul><li>Salin tabel skenario (kolom Aktor dan Sistem, Normal Flow, Alternative Flow) dari Google Docs atau Word, lalu tekan <b>Ctrl+V di kanvas</b>. Bisa juga buka berkas <b>.docx</b> laporan (Berkas → Buat diagram dari skenario). Tiap use case langsung jadi Activity Diagram: partition aktor dan sistem, initial, aktivitas, decision Ya/Tidak untuk alur alternatif, dan final.</li><li>Nomor langkah di alur alternatif menentukan letak decision. Kalau langkah terakhirnya sama dengan langkah di Normal Flow (misalnya kembali ke form), garisnya dikembalikan ke langkah itu.</li><li>Bisa sekaligus membuat Use Case Diagram dari semua skenario.</li></ul><h4>Fitur pembantu tugas</h4><ul><li><b>Simpan seperti Word</b> (Chrome/Edge di laptop): buka berkas lewat Alir, lalu <b>Ctrl+S</b> langsung menimpa berkas itu (.pam untuk DFD, .alir untuk proyek UML). Ctrl+Shift+S = Simpan sebagai. Ekspor ke EA pindah ke Ctrl+E. Pasang Alir sebagai aplikasi (ikon pasang di kolom alamat) supaya berkas .alir / .pam / .eap bisa dibuka dengan klik dua kali.</li><li><b>Tanya diagram</b> (F3, menu Diagram, atau klik kanan objek → Jelaskan objek ini): panel yang bisa digeser dan diubah ukurannya, jadi diagram tetap kelihatan. Klik nama objek di jawaban untuk menunjuknya di diagram. Ngobrol tentang diagram dengan bahasa santai. Alir menjelaskan alur seperti bercerita, menjawab <i>kalau datanya kosong gimana?</i>, <i>kenapa ada validasi?</i> (plus kalimat yang bisa dipakai saat ditanya penguji), <i>terus abis itu?</i>, <i>emang iya?</i> (ditunjukkan buktinya), konsep seperti <i>trigger</i>, <i>include vs extend</i>, <i>DFD level 1</i>, sampai <i>bikinin skenario dong</i>. Semua jawaban diambil dari diagram dan konsep umum, tanpa AI; kalau sesuatu tidak ada di diagram, Alir bilang tidak ada.</li><li><b>Teks untuk laporan</b> (Berkas): tabel skenario Aktor/Sistem dan narasi bernomor disusun dari activity diagram, tabel alur data dari DFD, tabel aktor dan use case dari use case diagram. Klik Salin lalu tempel di Google Docs/Word.</li><li><b>Jalankan alur ▶</b> (menu Diagram atau klik kanan kanvas): titik biru berjalan mengikuti alur; di decision kamu memilih cabangnya. Spasi = lanjut, Esc = berhenti. Cocok untuk presentasi dan menemukan alur buntu.</li><li><b>Bagikan lewat link</b> (Berkas): seluruh diagram dimasukkan ke dalam link, kirim lewat WhatsApp. Penerima mendapat salinannya sendiri.</li><li><b>Riwayat versi</b> (Berkas): salinan otomatis saat dibuka, tiap 10 menit, dan sebelum membuka berkas lain. Bisa dipulihkan atau diunduh.</li><li><b>Use case ↔ Activity</b>: klik dua kali use case yang punya activity diagram untuk membukanya (ada tanda ∞ kecil). Klik kanan use case → Buat Activity Diagram.</li></ul><h4>Merapikan tata letak</h4><ul><li><b>Susun → Rapikan tata letak</b> (Ctrl+Shift+K) memindah objek supaya seimbang: di Activity, alur utama lurus di tengah lane, pindah lane dibuat sebaris, cabang di samping, garis kembali lewat sisi luar. Di DFD, proses di tengah, data store di bawah prosesnya, entitas kiri-kanan, ukuran objek proporsional. Bisa dibatalkan dengan Ctrl+Z.</li><li>Klik kanan objek → <b>Pilih semua alurnya</b> untuk memilih semua garis masuk dan keluar objek itu (lalu ganti warna, pola, atau Ctrl+L untuk merapikan garis itu saja). <b>Warnai alurnya sesuai warna objek</b> mewarnai garisnya sekaligus. Format → Warnai semua alur sesuai entitas melakukannya untuk semua entitas.</li></ul><h4>Swimlane, pool, dan batas sistem</h4><ul><li>Seperti di EA, tiap <b>partition</b> (swimlane) adalah elemen sendiri, bukan satu tabel. Klik di dekat partition lain untuk menaruh partition baru menempel di sampingnya.</li><li>Saat digeser atau diubah ukurannya, tepinya <b>menempel otomatis</b> ke partition lain (seperti opsi Dockable di EA). Tahan Alt untuk mematikan.</li><li>Klik kanan partition → <b>Rapatkan semua partition</b> untuk menjejerkan tanpa celah dan menyamakan tingginya. Klik kanan → Jadikan mendatar/tegak untuk mengubah arah.</li><li>Lane yang ditaruh di dalam pool otomatis menyesuaikan lebar pool.</li><li>Geser bingkai lewat <b>judul atau tepinya</b>. Isi di dalamnya ikut berpindah.</li></ul>' +
-    '<h4>Ke Enterprise Architect</h4><ul><li><b>Buka .eap</b>: Berkas → Buka. Activity, Use Case, dan BPMN dibaca, diagram jenis lain dilewati.</li><li><b>Ekspor ke EA</b> (Ctrl+S) membuat berkas .xml (XMI) untuk diimpor ke EA. Langkahnya ditampilkan di jendela ekspor.</li><li><b>Ke Google Docs / Word</b>: klik <b>Salin gambar</b> di bilah atas (atau Ctrl+Alt+C), lalu Ctrl+V di dokumen. Gambarnya HD (4x), tetap tajam saat diperbesar, lengkap dengan bingkai dan nama diagram seperti hasil ekspor. Ctrl+C pada objek terpilih juga langsung bisa ditempel sebagai gambar.</li><li><b>Pindah ke tab / browser lain</b> (mis. Chrome → Firefox): pilih objek, Ctrl+C, lalu Ctrl+V di Alir yang lain. Klik kanan diagram → Salin diagram juga bisa. Yang masuk clipboard tetap gambar (di Docs/Word tertempel gambar, bukan teks); data objeknya tersimpan tak terlihat di dalam gambar itu.</li><li><b>DFD | UML</b> di kiri atas: pindah ke proyek DFD atau UML terakhirmu (keduanya tersimpan terpisah). Proyek kosong: Berkas → DFD baru / Proyek UML baru.</li><li>Untuk laporan: Berkas → Ekspor semua ke PDF atau PNG.</li></ul>',
+    '<h4>Ke Enterprise Architect</h4><ul><li><b>Buka .eap</b>: Berkas → Buka. Activity, Use Case, dan BPMN dibaca, diagram jenis lain dilewati.</li><li><b>Ekspor ke EA</b> (Ctrl+S) membuat berkas .xml (XMI) untuk diimpor ke EA. Langkahnya ditampilkan di jendela ekspor.</li><li><b>Ke Google Docs / Word</b>: klik <b>Salin gambar</b> di bilah atas (atau Ctrl+Alt+C), lalu Ctrl+V di dokumen. Gambarnya HD (4x), tetap tajam saat diperbesar, lengkap dengan bingkai dan nama diagram seperti hasil ekspor. Ctrl+C pada objek terpilih juga langsung bisa ditempel sebagai gambar.</li><li><b>Pindah ke tab / browser lain</b> (mis. Chrome → Firefox): pilih objek, Ctrl+C, lalu Ctrl+V di Alir yang lain. Klik kanan diagram → Salin diagram juga bisa. Yang masuk clipboard tetap gambar (di Docs/Word tertempel gambar, bukan teks); data objeknya tersimpan tak terlihat di dalam gambar itu.</li><li><b>DFD | UML | FLOW</b> di kiri atas: pindah ke proyek DFD, UML, atau Flowchart terakhirmu (ketiganya tersimpan terpisah). Flowchart tidak diekspor ke EA: Simpan = berkas .drawio, Ekspor = XML / PNG / SVG / PDF. Proyek kosong: Berkas → DFD baru / Proyek UML baru / Flowchart baru.</li><li>Untuk laporan: Berkas → Ekspor semua ke PDF atau PNG.</li></ul>',
   tentang: '<p><b>Alir</b> adalah editor diagram di browser: DFD yang bisa membuka dan menyimpan berkas <b>.pam</b> PowerDesigner 6, serta Activity, Use Case, dan BPMN yang bisa membuka <b>.eap</b> dan mengekspor ke Enterprise Architect.</p><p><b>Jangan jadikan Alir sebagai patokan.</b> Alir bukan produk resmi PowerDesigner, SAP, atau Sparx Systems. Selalu buka hasil akhir di aplikasi aslinya sebelum dikumpulkan.</p><p>Semua data tersimpan di browser masing-masing pengguna. Tidak ada yang dikirim ke server.</p>'
 };
 function helpModal(tab) {
@@ -16068,8 +16282,8 @@ if (window.ResizeObserver) new ResizeObserver(function () { if (view().fresh) fi
 /* ---------- mulai ---------- */
 (function init() {
   var mode = 'dfd'; try { mode = localStorage.getItem('alir-mode') || 'dfd'; } catch (x) { mode = 'dfd'; }
-  var loaded = storedDoc(mode === 'ea' ? LS_EA : LS) || storedDoc(LS) || storedDoc(LS_EA), first = !storedDoc(LS) && !storedDoc(LS_EA);
-  if (loaded) { doc = loaded.doc.kind === 'ea' ? normEa(loaded.doc) : normDoc(loaded.doc); active = loaded.active; }
+  var loaded = storedDoc(mode === 'ea' ? LS_EA : mode === 'fc' ? LS_FC : LS) || storedDoc(LS) || storedDoc(LS_EA) || storedDoc(LS_FC), first = !storedDoc(LS) && !storedDoc(LS_EA) && !storedDoc(LS_FC);
+  if (loaded) { doc = loaded.doc.kind === 'ea' ? normEa(loaded.doc) : normDoc(loaded.doc); active = loaded.active; if (!isDfd()) fcMigrate(doc); }
   else { doc = normDoc(SAMPLE ? clone(SAMPLE) : blankDoc()); active = doc.diagrams[0].id; }
   if (isDfd()) pinImported();
   bumpSeq(); fixActive(); modeUI(); setTool('select'); tabs(); panel(); status(); syncBar();
