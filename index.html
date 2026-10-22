@@ -12249,6 +12249,8 @@ function cmNormalize(D) {
       delete m.pos;
     });
     if (f.loop && !(isFinite(f.loop.l) && isFinite(f.loop.t) && isFinite(f.loop.r) && isFinite(f.loop.b))) delete f.loop;
+    /* loop lama (v64 awal boleh lepas bebas) → batas EA */
+    if (f.loop && f.from === f.to && elOf(D, f.from)) { var lq = cmLoopFix(elOf(D, f.from), f.loop); if (lq.l !== f.loop.l || lq.r !== f.loop.r || lq.t !== f.loop.t || lq.b !== f.loop.b) f.loop = lq; }
   });
 }
 
@@ -12292,15 +12294,53 @@ function cmLoopDefault(A) {
 }
 function cmLoopC(A) { return { x: Math.floor(A.x + A.w / 2), y: Math.floor(A.y + A.h / 2) }; }
 function cmLoopBox(A, f) { var c = cmLoopC(A), q = f.loop || cmLoopDefault(A); return { l: c.x + q.l, t: c.y + q.t, r: c.x + q.r, b: c.y + q.b }; }
-/* jalur loop: dari objek naik, menyeberang, turun, lalu kembali ke objek; bila kotak lepas dari objek, sudut dekat objek dibiarkan terbuka ±3 px */
+/* jalur loop seperti EA: kotak loop (SCTR) dikurangi bagian yang masuk kotak objek, digambar berlawanan jarum jam
+   mulai dari titik keluar kotak objek. Kotak menempel penuh ke objek = kotak hampir utuh; bila sisi dekatnya hanya
+   menyentuh tepi kotak objek, tampak celah (bolong) di antara loop dan objek. */
+function cmLoopClip(a, b, O) {
+  var lo, hi, t0, t1;
+  if (Math.abs(a.y - b.y) < 1e-9) { if (a.y < O.t || a.y > O.b || Math.abs(b.x - a.x) < 1e-9) return null; t0 = (O.l - a.x) / (b.x - a.x); t1 = (O.r - a.x) / (b.x - a.x); }
+  else { if (a.x < O.l || a.x > O.r || Math.abs(b.y - a.y) < 1e-9) return null; t0 = (O.t - a.y) / (b.y - a.y); t1 = (O.b - a.y) / (b.y - a.y); }
+  lo = Math.max(0, Math.min(t0, t1)); hi = Math.min(1, Math.max(t0, t1));
+  return hi > lo + 1e-9 ? [lo, hi] : null;
+}
+/* kotak objek menurut EA (tepi bawah 1 px di dalam, dicek di EA 12) */
+function cmLoopObj(A) { var O = rect(A); O.b -= 1; return O; }
 function cmLoopPath(A, f) {
-  var B = cmLoopBox(A, f), c = cmCenter(A), right = (B.l + B.r) / 2 >= c.x, near = right ? B.l : B.r, far = right ? B.r : B.l, s = right ? 1 : -1;
-  var yTop = cmObjTopAt(A, near), xEnd = cmObjSideAt(A, B.b, right), P = [];
-  var attachS = yTop != null && yTop > B.t + 2, attachE = xEnd != null && (right ? xEnd > near + 2 && xEnd < far : xEnd < near - 2 && xEnd > far);
-  P.push({ x: near, y: attachS ? yTop : B.b - 3 });
-  P.push({ x: near, y: B.t }); P.push({ x: far, y: B.t }); P.push({ x: far, y: B.b });
-  P.push({ x: attachE ? xEnd : near + s * 3, y: B.b });
-  return { pts: P, box: B, side: right ? 'r' : 'l', ref: { x: rect(A).r + 14, y: rect(A).t + 17 } };
+  var B = cmLoopBox(A, f), O = cmLoopObj(A), C = [{ x: B.r, y: B.b }, { x: B.r, y: B.t }, { x: B.l, y: B.t }, { x: B.l, y: B.b }];
+  function at(s) { var i = Math.floor(s) % 4, t = s - Math.floor(s), a = C[i], b = C[(i + 1) % 4]; return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }; }
+  var iv = [];
+  for (var i = 0; i < 4; i++) { var t = cmLoopClip(C[i], C[(i + 1) % 4], O); if (t) iv.push([i + t[0], i + t[1]]); }
+  iv.sort(function (a, b) { return a[0] - b[0]; });
+  var mg = [];
+  iv.forEach(function (v) { var L = mg[mg.length - 1]; if (L && v[0] <= L[1] + 1e-6) L[1] = Math.max(L[1], v[1]); else mg.push(v.slice()); });
+  if (mg.length > 1 && mg[0][0] <= 1e-6 && mg[mg.length - 1][1] >= 4 - 1e-6) { var w = mg.pop(); mg[0] = [w[0] - 4, mg[0][1]]; }
+  var P = [], s0, s1;
+  if (!mg.length) { s0 = 0; s1 = 4; }
+  else if (mg.length === 1 && mg[0][1] - mg[0][0] >= 4 - 1e-6) { s0 = 0; s1 = 0; }
+  else { var gb = -1; for (var k = 0; k < mg.length; k++) { var a0 = mg[k][1], a1 = k + 1 < mg.length ? mg[k + 1][0] : mg[0][0] + 4; if (a1 - a0 > gb) { gb = a1 - a0; s0 = a0; s1 = a1; } } }
+  if (s1 > s0) { P.push(at(s0)); for (var c = Math.floor(s0) + 1; c < s1 - 1e-6; c++) P.push(C[c % 4]); P.push(at(s1)); }
+  else P = [C[0], C[1]];
+  var side = B.r > O.r ? 'r' : B.l < O.l ? 'l' : (B.l + B.r) / 2 >= (O.l + O.r) / 2 ? 'r' : 'l';
+  var e0 = P[0], edge = Math.abs(e0.y - O.t) < .5 ? 1 : Math.abs(e0.x - O.r) < .5 ? 2 : Math.abs(e0.y - O.b) < .5 ? 3 : 4;
+  P.box = B;
+  return { pts: P, box: B, side: side, edge: edge, ref: { x: O.r + 14, y: O.t + 17 } };
+}
+/* batas kotak loop seperti EA: tetap beririsan ≥1 px dengan kotak objek dan tidak menyeberangi objek.
+   Saat diseret menjauh, sisi dekatnya tertahan di tepi objek (kotak memanjang); q0 = kotak sebelum diseret (penentu sisi). */
+function cmLoopFix(A, q, q0) {
+  var c = cmLoopC(A), O = cmLoopObj(A);
+  function abs(v) { return { l: c.x + Math.min(v.l, v.r), r: c.x + Math.max(v.l, v.r), t: c.y + Math.min(v.t, v.b), b: c.y + Math.max(v.t, v.b) }; }
+  var R = abs(q), R0 = q0 ? abs(q0) : null;
+  function ax(lo, hi, Olo, Ohi, lo0, hi0) {
+    if (lo < Olo && hi > Ohi) { var toHi = R0 && (hi0 > Ohi) !== (lo0 < Olo) ? hi0 > Ohi : (lo + hi) / 2 >= (Olo + Ohi) / 2; if (toHi) lo = Olo + 1; else hi = Ohi - 1; }
+    if (hi > Ohi) lo = Math.min(lo, Ohi - 1); else if (lo < Olo) hi = Math.max(hi, Olo + 1);
+    return [lo, hi];
+  }
+  var X = ax(R.l, R.r, O.l, O.r, R0 && R0.l, R0 && R0.r), Y = ax(R.t, R.b, O.t, O.b, R0 && R0.t, R0 && R0.b);
+  if (X[1] - X[0] < 8) X[1] = X[0] + 8; if (Y[1] - Y[0] < 8) Y[1] = Y[0] + 8;
+  if (X[0] >= O.l && X[1] <= O.r && Y[0] >= O.t && Y[1] <= O.b) return q0 ? Object.assign({}, q0) : cmLoopDefault(A);
+  return { l: Math.round(X[0] - c.x), r: Math.round(X[1] - c.x), t: Math.round(Y[0] - c.y), b: Math.round(Y[1] - c.y) };
 }
 /* arah putar pesan loop: berlawanan jarum jam (EA) — +1 bila urutan titik jalur sudah berlawanan jarum jam */
 function cmLoopSign(P) { var a = 0; for (var i = 0; i < P.length; i++) { var p = P[i], q = P[(i + 1) % P.length]; a += p.x * q.y - q.x * p.y; } return a < 0 ? 1 : -1; }
@@ -12317,10 +12357,35 @@ function cmNearSeg(P, q) {
   }
   return best || { i: 0, d: 0, p: P[0], u: { x: 1, y: 0 } };
 }
+/* ruas loop untuk label seperti EA 12 (diuji dengan ±1500 letak label):
+   - di dalam kotak loop: sisi kotak terdekat menurut jarak ternormalisasi (dibagi setengah lebar/tinggi);
+   - di luar: ruas terdekat; bila dua ruas sama dekat di satu sudut: sudut kanan → ruas datar,
+     sudut kiri bawah → ruas tegak, sudut kiri atas → ruas pertama jalur (EA memakai ruas awal). */
+function cmLoopSeg(P, B, q) {
+  if (q.x > B.l && q.x < B.r && q.y > B.t && q.y < B.b) {
+    var nx = (q.x - (B.l + B.r) / 2) / ((B.r - B.l) / 2), ny = (q.y - (B.t + B.b) / 2) / ((B.b - B.t) / 2), side = Math.abs(nx) >= Math.abs(ny) ? (nx >= 0 ? 'r' : 'l') : (ny > 0 ? 'b' : 't'), Q = [];
+    for (var j = 0; j + 1 < P.length; j++) {
+      var a = P[j], b = P[j + 1], v = Math.abs(a.x - b.x) < .01, h = Math.abs(a.y - b.y) < .01;
+      if ((side === 'r' && v && Math.abs(a.x - B.r) < .6) || (side === 'l' && v && Math.abs(a.x - B.l) < .6) || (side === 't' && h && Math.abs(a.y - B.t) < .6) || (side === 'b' && h && Math.abs(a.y - B.b) < .6)) Q.push(j);
+    }
+    if (Q.length) { var bs = null; Q.forEach(function (j) { var r = cmNearSeg([P[j], P[j + 1]], q); if (!bs || r.d < bs.d) { r.i = j; bs = r; } }); return bs; }
+  }
+  var all = [];
+  for (var i = 0; i + 1 < P.length; i++) { var r = cmNearSeg([P[i], P[i + 1]], q); if (P[i].x !== P[i + 1].x || P[i].y !== P[i + 1].y) { r.i = i; all.push(r); } }
+  if (!all.length) return cmNearSeg(P, q);
+  var m = Math.min.apply(null, all.map(function (r) { return r.d; })), b0 = all.filter(function (r) { return r.d === m; })[0], T = all.filter(function (r) { return r.d <= m + .5 && Math.abs(r.p.x - b0.p.x) < .6 && Math.abs(r.p.y - b0.p.y) < .6; });
+  if (T.length < 2) return T[0];
+  var c = T[0].p, hz = T.filter(function (r) { return Math.abs(r.u.y) < .01; }), vt = T.filter(function (r) { return Math.abs(r.u.x) < .01; });
+  if (Math.abs(c.x - B.r) < .6) return (hz[0] || T[0]);
+  if (Math.abs(c.y - B.t) > .6) return (vt[0] || T[0]);
+  var f = cmNearSeg([P[0], P[1]], q); f.i = 0; return f;
+}
 /* label pesan di titik tengah teks C. P = titik jalur link (urut dari f.from ke f.to; loop: lihat cmLoopPath) */
 function cmLabelAt(f, m, P, C, F, loopSign) {
-  var text = cmMsgText(m), w = textW(text, F.fc), h2 = F.fpx * .62, seg = cmNearSeg(P, C), sg = loopSign || (m.rev ? -1 : 1);
+  var text = cmMsgText(m), w = textW(text, F.fc), h2 = F.fpx * .62, seg = P.box ? cmLoopSeg(P, P.box, C) : cmNearSeg(P, C), sg = loopSign || (m.rev ? -1 : 1);
   var d = { x: seg.u.x * sg, y: seg.u.y * sg }, horiz = Math.abs(d.x) >= Math.abs(d.y), right = horiz ? d.x > 0 : d.y > 0;
+  /* panah tegak diletakkan di sisi teks yang menghadap garisnya (seperti EA) */
+  if (!horiz && Math.abs(d.x) < .01 && Math.abs(seg.p.x - C.x) > .5) right = seg.p.x > C.x;
   var reach = CMK.GAP + CMK.ARW / 2 * Math.abs(d.x), ax = right ? C.x + w / 2 + reach : C.x - w / 2 - reach, ay = C.y, A2 = CMK.ARW / 2;
   var arw = { x1: ax - d.x * A2, y1: ay - d.y * A2, x2: ax + d.x * A2, y2: ay + d.y * A2 };
   var tb = { l: C.x - w / 2, r: C.x + w / 2, t: C.y - h2, b: C.y + h2 };
@@ -12553,7 +12618,7 @@ function cmFlowMarkup(f, r, on, markers) {
     var hl = on && cmIsSel(f, q.m), a = q.arw, b = q.box;
     s += '<g class="cmlab" data-cmm="' + esc(q.m.id) + '">';
     if (hl) {
-      var mx = (a.x1 + a.x2) / 2, my = (a.y1 + a.y2) / 2, np = cmNearSeg(r.pts, { x: mx, y: my }).p;
+      var mx = (a.x1 + a.x2) / 2, my = (a.y1 + a.y2) / 2, np = cmNearSeg([r.pts[q.seg.i] || r.pts[0], r.pts[q.seg.i + 1] || r.pts[r.pts.length - 1]], { x: mx, y: my }).p;
       s += '<path d="M' + mx.toFixed(1) + ' ' + my.toFixed(1) + 'L' + np.x.toFixed(1) + ' ' + np.y.toFixed(1) + '" stroke="#2F6FDB" stroke-dasharray="3 3" fill="none" pointer-events="none"/><circle cx="' + np.x.toFixed(1) + '" cy="' + np.y.toFixed(1) + '" r="2.5" fill="#2F6FDB" pointer-events="none"/>';
     }
     s += '<rect x="' + (b.l - 3).toFixed(1) + '" y="' + (b.t - 2).toFixed(1) + '" width="' + (b.r - b.l + 6).toFixed(1) + '" height="' + (b.b - b.t + 4).toFixed(1) + '" fill="' + (hl ? 'rgba(47,111,219,.14)' : 'transparent') + '"' + (hl ? ' stroke="#2F6FDB"' : '') + ' pointer-events="all"/>' +
@@ -12949,10 +13014,14 @@ function cmDelLabels(D, L) {
   modal('Hapus ' + L.length + ' pesan?', '<p>' + L.map(function (q) { return '<b>' + esc(q.m.num || '') + '</b> ' + esc(sqLabel({ name: q.m.name, args: q.m.args, ret: q.m.ret })); }).join('<br>') + '</p><p class="hint">Garis link tetap ada. Bisa dibatalkan dengan Ctrl+Z.</p>', '<button class="btn" data-close>Batal</button><button class="btn danger" data-ok>Hapus</button>', function (s2, close) { $('[data-ok]', s2).addEventListener('click', function () { close(); go(); }); });
 }
 /* geser label terpilih (panah keyboard) */
+/* bagian geseran titik acuan label yang sudah ikut terbawa objek yang digeser (loop: 1; satu ujung: ½; dua ujung: 1) */
+function cmRefShare(f, ms) { return f.from === f.to ? (ms.has(f.from) ? 1 : 0) : (ms.has(f.from) ? .5 : 0) + (ms.has(f.to) ? .5 : 0); }
 function cmNudge(dx, dy) {
-  var D = cur(); if (!isComm(D) || selEls().length) return false;
+  var D = cur(); if (!isComm(D)) return false;
   var L = cmSelLabels(D); if (!L.length) return false;
-  mutate(function () { L.forEach(function (q) { q.m.lp = { x: q.m.lp.x + dx, y: q.m.lp.y + dy }; }); });
+  var E = selEls().filter(function (e) { return !e.locked; }), ms = new Set(E.map(function (e) { return e.id; }));
+  /* label terpilih ikut bergeser penuh bersama objek terpilih */
+  mutate(function () { if (E.length) moveEls(E, dx, dy); L.forEach(function (q) { var k = 1 - cmRefShare(q.f, ms); q.m.lp = { x: q.m.lp.x + dx * k, y: q.m.lp.y + dy * k }; }); });
   return true;
 }
 /* klik label pesan: pilih (Ctrl/Shift = tambah/kurangi), seret = pindah semua label terpilih; klik dua kali = kolom nama di panel.
@@ -12967,19 +13036,19 @@ function cmDown(e, D, p, gid) {
       var q = Object.assign({}, q0);
       if (/w/.test(side)) q.l = Math.min(q0.r - 16, q0.l + dx); if (/e/.test(side)) q.r = Math.max(q0.l + 16, q0.r + dx);
       if (/n/.test(side)) q.t = Math.min(q0.b - 12, q0.t + dy); if (/s/.test(side)) q.b = Math.max(q0.t + 12, q0.b + dy);
-      lf.loop = { l: Math.round(q.l), t: Math.round(q.t), r: Math.round(q.r), b: Math.round(q.b) };
+      lf.loop = cmLoopFix(LA, { l: Math.round(q.l), t: Math.round(q.t), r: Math.round(q.r), b: Math.round(q.b) }, q0);
     });
     return true;
   }
   var lb = e.target.closest && e.target.closest('[data-cmm]');
   if (!lb) {
     var gf = gid && flOf(D, gid);
-    if (!add) cmSelSet.clear();
-    /* garis loop: pilih lalu seret untuk memindahnya (kanan, kiri, atas, atau lepas dari objek) */
+    if (!add && !(gid && sel.has(gid) && elOf(D, gid))) cmSelSet.clear();
+    /* garis loop: pilih lalu seret untuk memindahnya; batas seperti EA lewat cmLoopFix */
     if (gf && gf.kind === 'clink' && gf.from === gf.to && !add) {
       var A0 = elOf(D, gf.from); sel = new Set([gf.id]); cmSel = null; panel(); draw(); syncBar();
       var b0 = Object.assign({}, gf.loop || cmLoopDefault(A0));
-      cmDrag(p, function (dx, dy, ev) { if (ev.shiftKey) { if (Math.abs(dx) >= Math.abs(dy)) dy = 0; else dx = 0; } gf.loop = { l: Math.round(b0.l + dx), t: Math.round(b0.t + dy), r: Math.round(b0.r + dx), b: Math.round(b0.b + dy) }; });
+      cmDrag(p, function (dx, dy, ev) { if (ev.shiftKey) { if (Math.abs(dx) >= Math.abs(dy)) dy = 0; else dx = 0; } gf.loop = cmLoopFix(A0, { l: Math.round(b0.l + dx), t: Math.round(b0.t + dy), r: Math.round(b0.r + dx), b: Math.round(b0.b + dy) }, b0); });
       return true;
     }
     if (gf && !sel.has(gid)) cmSel = null;
@@ -12995,6 +13064,8 @@ function cmDown(e, D, p, gid) {
   if (!cmIsSel(hit.f, hit.m)) { sel = new Set([hit.f.id]); cmSelSet = new Set([id]); }
   cmSel = id; panel(); draw(); syncBar();
   if (e.detail >= 2) { setTimeout(function () { var n = $('#cm-name'); if (n) { n.focus(); n.select(); } }, 20); return true; }
+  /* pilihan campuran (objek + label): seret label = geser semua yang terpilih */
+  if (Array.from(sel).some(function (x) { return elOf(D, x); })) { beginMoveDrag(D, p, e, null, null); return true; }
   /* seret: semua label terpilih bergerak bersama, jarak antarlabel tetap; tanpa magnet. Shift = kunci mendatar/tegak */
   var L = cmSelLabels(D).map(function (q) { return { m: q.m, x: q.m.lp ? q.m.lp.x : 0, y: q.m.lp ? q.m.lp.y : 0 }; });
   cmDrag(p, function (dx, dy, ev) {
@@ -13035,7 +13106,7 @@ function cmPanelLink(D, f) {
       '<p class="hint">' + esc((elOf(D, ft.a) || {}).name || '') + ' → ' + esc((elOf(D, ft.b) || {}).name || '') + '. Teks di diagram: <b>' + esc(cmMsgText(m)) + '</b></p></div>';
   } else if (ms.length) h += '<p class="hint">Klik salah satu pesan (di daftar atau di diagram) untuk mengubahnya.</p>';
   if (!self) { var st = fs(f); h += '<div class="sec"><h2>Gaya garis</h2><div class="field"><label for="p-route">Bentuk</label><select class="in" id="p-route" data-f="route">' + routeNames().map(function (r, i) { return '<option value="' + i + '"' + (st.route === i ? ' selected' : '') + '>' + r + '</option>'; }).join('') + '</select></div><p class="hint">Seret garisnya, Ctrl+klik untuk menambah/menghapus titik belok, kotak di ujung bisa digeser. Label pesan bisa diseret; Ctrl+klik atau blok untuk memilih beberapa; panah keyboard menggeser 1 px (Shift 10 px).</p><div class="row"><button class="btn" data-act="cmstraight">Luruskan (hapus titik belok)</button><button class="btn" data-act="cmlabreset">Rapikan label di link ini</button></div></div>'; }
-  else h += '<p class="hint">Seret garis loop untuk memindahnya (kanan, kiri, atau atas objek); seret kotak kecil di sudut/sisinya untuk mengubah ukuran.</p><div class="row"><button class="btn" data-act="cmloopreset">Kembalikan loop</button><button class="btn" data-act="cmlabreset">Rapikan label di link ini</button></div>';
+  else h += '<p class="hint">Seret garis loop untuk memindahnya ke sisi mana pun. Sisi yang dekat objek tetap menempel di tepi objek, jadi bila diseret jauh kotaknya memanjang. Seret kotak kecil di sudut/sisinya untuk mengubah ukuran.</p><div class="row"><button class="btn" data-act="cmloopreset">Kembalikan loop</button><button class="btn" data-act="cmlabreset">Rapikan label di link ini</button></div>';
   h += '<button class="btn danger block" data-act="del">Hapus link beserta pesannya</button>';
   return h;
 }
@@ -13185,7 +13256,7 @@ function cmDiagXml(D, duid, ox, oy) {
   var R = cmRouteAll(D), s = '';
   D.flows.forEach(function (f) {
     if (f.kind !== 'clink') return; var A = elOf(D, f.from), B = elOf(D, f.to), r = R.get(f.id); if (!A || !B || !r) return;
-    if (f.from === f.to) { var bx = r.loop.box, g = 'SCTR=1;SCME=1;SX=0;SY=0;EX=0;EY=0;EDGE=1;SCTR.LEFT=' + Math.round(bx.l + ox) + ';SCTR.TOP=' + (-Math.round(bx.t + oy)) + ';SCTR.RIGHT=' + Math.round(bx.r + ox) + ';SCTR.BOTTOM=' + (-Math.round(bx.b + oy)) + ';';
+    if (f.from === f.to) { var bx = r.loop.box, g = 'SCTR=1;SCME=1;SX=0;SY=0;EX=0;EY=0;EDGE=' + (r.loop.edge || 1) + ';SCTR.LEFT=' + Math.round(bx.l + ox) + ';SCTR.TOP=' + (-Math.round(bx.t + oy)) + ';SCTR.RIGHT=' + Math.round(bx.r + ox) + ';SCTR.BOTTOM=' + (-Math.round(bx.b + oy)) + ';';
       s += '\t\t\t\t<UML:DiagramElement geometry="' + g + '$LLB=;LLT=;LMT=;LMB=;LRT=;LRB=;IRHS=;ILHS=;Path=;" subject="' + xid(f.guid) + '" style="Mode=3;EOID=' + duid[B.id] + ';SOID=' + duid[A.id] + ';Color=' + (f.style.stroke ? colorToRef(f.style.stroke) : -1) + ';LWidth=0;Hidden=0;"/>\n'; }
     (r.cm || []).forEach(function (q) {
       var m = q.m, ft = cmFromTo(f, m), E = cmLpToEa(D, f, q), mx = E.sx, my = E.sy, ex = mx + (m.rev ? -5 : 5), ey = my - 95;
@@ -13216,7 +13287,7 @@ function cmImportLinks(D, g, M, idm, n0f) {
     if (c.type !== 'Association' && c.type !== 'Dependency') return;
     var f = { id: 'f' + (++n), kind: 'clink', from: a, to: b, name: '', bends: [], style: {}, guid: c.guid, msgs: [] }, col = colorFromRef(c.color); if (col) f.style.stroke = col;
     /* loop: kotak SCTR.* (sumbu Y EA ke atas) → f.loop relatif pusat objek */
-    if (a === b) { var gq = styleKV(gl.geometry || ''), LE = D.elements.find(function (e) { return e.id === a; }); if (LE && gq['SCTR.LEFT'] != null) { var lcx = Math.floor(LE.x + LE.w / 2), lcy = Math.floor(LE.y + LE.h / 2); f.loop = { l: Math.round(+gq['SCTR.LEFT'] - lcx), t: Math.round(-gq['SCTR.TOP'] - lcy), r: Math.round(+gq['SCTR.RIGHT'] - lcx), b: Math.round(-gq['SCTR.BOTTOM'] - lcy) }; if (!(f.loop.r > f.loop.l + 4 && f.loop.b > f.loop.t + 4)) delete f.loop; } }
+    if (a === b) { var gq = styleKV(gl.geometry || ''), LE = D.elements.find(function (e) { return e.id === a; }); if (LE && gq['SCTR.LEFT'] != null) { var lcx = Math.floor(LE.x + LE.w / 2), lcy = Math.floor(LE.y + LE.h / 2); var x1 = +gq['SCTR.LEFT'] - lcx, x2 = +gq['SCTR.RIGHT'] - lcx, y1 = -gq['SCTR.TOP'] - lcy, y2 = -gq['SCTR.BOTTOM'] - lcy; f.loop = { l: Math.round(Math.min(x1, x2)), t: Math.round(Math.min(y1, y2)), r: Math.round(Math.max(x1, x2)), b: Math.round(Math.max(y1, y2)) }; if (!(f.loop.r > f.loop.l + 4 && f.loop.b > f.loop.t + 4)) delete f.loop; } }
     /* bentuk garis dari EA: titik belok (Path) & gaya (TREE=OS/OR/…); Mode=1 = Direct tanpa titik belok */
     if (a !== b) { var gs = styleKV(gl.style), pts = parsePath(styleKV(gl.geometry).Path); if (String(gs.Mode) === '1') pts = []; f.bends = pts; var rt = ({ OS: 1, OR: 2, V: 3, H: 4, LV: 5, LH: 6 })[(String(gl.style || '').match(/TREE=([A-Z]+)/) || [])[1]]; if (rt) { f.style.route = rt; if (rt >= 3) f.bends = []; } }
     links[gl.cid] = f; links['g:' + c.guid] = f; D.flows.push(f);
@@ -15948,6 +16019,8 @@ function beginMoveDrag(D, p, e, lead, unpick) {
   D.elements.forEach(function (x) { if (ms.has(x.id) && !x.locked) orig[x.id] = { x: x.x, y: x.y }; });
   D.flows.forEach(function (f2) { if (ms.has(f2.from) && ms.has(f2.to) && f2.bends && f2.bends.length) bo[f2.id] = f2.bends.map(function (q) { return { x: q.x, y: q.y }; }); });
   drag = { t: 'move', start: p, sx: e.clientX, sy: e.clientY, moved: false, orig: orig, bo: bo, lead: lead, unpick: unpick };
+  /* collaboration: label terpilih ikut bergeser penuh (sebagian geseran sudah terbawa titik acuan link-nya) */
+  if (!isDfd() && D.kind === 'comm') { var ms2 = new Set(Object.keys(orig)); drag.cmL = cmSelLabels(D).filter(function (q) { return q.m.lp; }).map(function (q) { return { m: q.m, x: q.m.lp.x, y: q.m.lp.y, k: 1 - cmRefShare(q.f, ms2) }; }); }
 }
 cv.addEventListener('pointermove', function (e) {
   if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -15971,6 +16044,7 @@ cv.addEventListener('pointermove', function (e) {
     if (!isDfd() && drag.lead && !e.altKey) { var le = elOf(D, drag.lead), lo = le && drag.orig[le.id]; if (lo && DOCK_T[le.type]) { var sn = dockMove(D, le, { l: lo.x + sdx, t: lo.y + sdy, r: lo.x + sdx + le.w, b: lo.y + sdy + le.h }, drag.orig, 10 / v.k); sdx += sn.dx; sdy += sn.dy; drag.guides = sn.g; } }
     D.elements.forEach(function (x) { var o = drag.orig[x.id]; if (!o) return; x.x = o.x + sdx; x.y = isLL(x) ? o.y : o.y + sdy; });
     D.flows.forEach(function (f) { var b0 = drag.bo[f.id]; if (b0) f.bends = b0.map(function (b) { return { x: b.x + sdx, y: b.y + sdy }; }); });
+    (drag.cmL || []).forEach(function (q) { q.m.lp = { x: Math.round(q.x + sdx * q.k), y: Math.round(q.y + sdy * q.k) }; });
     Object.keys(drag.bo2 || {}).forEach(function (fid) { var f = flOf(D, fid), o = drag.bo2[fid]; if (f) f.bends = shiftStub(f, o.b, o.mov, sdx, sdy, D); });
     draw();
   } else if (drag.t === 'resize') {
