@@ -8395,7 +8395,9 @@ function revUml(push) {
   /* B4: Model (M_Data…) di Sequence ↔ data store di DFD (proyek DFD terakhir di browser ini) */
   var dfdDoc = typeof storedDoc === 'function' ? storedDoc(LS) : null, stores = {};
   if (dfdDoc) dfdDoc.doc.diagrams.forEach(function (D) { D.elements.forEach(function (e) { if (e.type === 'store') stores[revKey(e.name).replace(/^data\s+/, '').replace(/\s+/g, '')] = revClean(e.name); }); });
-  if (Object.keys(stores).length) SD.forEach(function (x) {
+  var mKey = function (e) { return revKey(e.name).replace(/^m_/, '').replace(/^data/, '').replace(/[\s_]+/g, ''); };
+  var sameProj = SD.some(function (x) { return x.D.elements.some(function (e) { return e.type === 'sentity' && mKey(e) && stores[mKey(e)]; }); });
+  if (Object.keys(stores).length && sameProj) SD.forEach(function (x) {
     x.D.elements.forEach(function (e) {
       if (e.type !== 'sentity') return; var b = revKey(e.name).replace(/^m_/, '').replace(/^data/, '').replace(/[\s_]+/g, ''); if (!b || stores[b]) return;
       push({ key: 'mstore|' + x.D.id + '|' + e.id, cat: 'silang', s: 'info', lv: 3, D: x.D, ids: [e.id],
@@ -12037,7 +12039,7 @@ function seqCheck(D, items) {
   var seen = {};
   L.forEach(function (e) { var k = String(e.name || '').trim().toLowerCase(); if (!k) return; if (seen[k]) items.push({ s: 'warn', t: 'Ada dua lifeline bernama "' + e.name + '". Kalau maksudnya objek yang sama, pakai satu lifeline saja.', ids: [seen[k], e.id] }); else seen[k] = e.id; });
   var R = function (e) { return e ? ({ sactor: 'A', sboundary: 'V', scontrol: 'C', sentity: 'M' })[e.type] || '' : ''; };
-  var called = {}, lastVC = null;
+  var called = {}, lastVC = null, hadInput = 0;
   msgs.forEach(function (f, i) {
     var a = byId[f.from], b = byId[f.to]; if (!a || !b) return;
     var n = String(f.name || '').trim(), ra = R(a), rb = R(b), lab = sqLabel(f) || 'pesan ke-' + (i + 1);
@@ -12049,10 +12051,11 @@ function seqCheck(D, items) {
     if (ra === 'V' && rb === 'C' && String(f.args || '').trim()) items.push({ s: 'warn', t: 'Pesan "' + n + '(' + f.args + ')" dari View ke Controller tidak perlu parameter. Tulis ' + n + '() saja; id cukup dibawa di pesan Controller ke Model (mis. getData…(id)).', ids: [f.id] });
     if (ra === 'C' && rb === 'M' && /^update/i.test(n) && !/^updateData/i.test(n)) items.push({ s: 'warn', t: 'Pesan "' + lab + '": format update adalah updateData…(id, atribut yang diubah) atau updateData…(id, $data), mis. updateData' + String(b.name || '').replace(/^M_(Data)?/, '') + '(' + (String(f.args || '').split(',')[0].trim() || 'id') + ', …).', ids: [f.id] });
     if (ra === 'C' && rb === 'M' && /^updateData/i.test(n) && !/,/.test(String(f.args || '')) && !/\$data/i.test(String(f.args || ''))) items.push({ s: 'warn', t: 'Pesan "' + lab + '" belum menyebut data yang diubah. Tulis updateData…(id, atribut) atau updateData…(id, $data).', ids: [f.id] });
-    if (ra === 'C' && rb === 'M' && /^countData/i.test(n) && !String(f.args || '').trim()) items.push({ s: 'warn', t: 'Pesan "' + lab + '" belum berisi atribut yang dicocokkan, mis. countDataAkun(email, password): int.', ids: [f.id] });
+    if (ra === 'A' && rb === 'V' && /^input/i.test(n) && String(f.args || '').trim()) hadInput = 1;
+    if (ra === 'C' && rb === 'M' && /^countData/i.test(n) && !String(f.args || '').trim() && hadInput) items.push({ s: 'warn', t: 'Pesan "' + lab + '" belum berisi atribut yang dicocokkan, mis. countDataAkun(email, password): int.', ids: [f.id] });
     if (ra === 'V' && rb === 'C' && !f.isRet) lastVC = { v: a.id, w: 0 };
     if (ra === 'C' && rb === 'M' && /^(insert|update|delete)/i.test(n) && lastVC) lastVC.w = 1;
-    if (ra === 'C' && rb === 'V' && /^show(?!Message|PopUp|Pesan|Pop)/i.test(n) && lastVC && lastVC.v === b.id && !lastVC.w) items.push({ s: 'warn', t: 'Pesan "' + lab + '" menampilkan lagi halaman "' + b.name + '" yang masih terbuka. Kalau masih di halaman yang sama, tidak perlu show… lagi.', ids: [f.id] });
+    if (ra === 'C' && rb === 'V' && /^show(Hal|Hlmn|Halaman|Form|Beranda|Dashboard|Landing|Page)/i.test(n) && lastVC && lastVC.v === b.id && !lastVC.w) items.push({ s: 'warn', t: 'Pesan "' + lab + '" menampilkan lagi halaman "' + b.name + '" yang masih terbuka. Kalau masih di halaman yang sama, tidak perlu show… lagi.', ids: [f.id] });
     if (ra === 'V' && rb === 'M') items.push({ s: 'bad', t: 'View "' + a.name + '" langsung ke Model "' + b.name + '" (' + lab + '). View harus lewat Controller (C_).', ids: [f.id] });
     if (ra === 'M' && rb && rb !== 'C' && rb !== 'M') items.push({ s: 'bad', t: 'Model "' + a.name + '" mengirim ke ' + (rb === 'V' ? 'View' : 'Aktor') + ' "' + b.name + '" (' + lab + '). Model hanya membalas ke Controller.', ids: [f.id] });
     if (ra === 'C' && rb === 'A') items.push({ s: 'bad', t: 'Controller "' + a.name + '" langsung ke Aktor "' + b.name + '" (' + lab + '). Tampilkan lewat View (V_).', ids: [f.id] });
