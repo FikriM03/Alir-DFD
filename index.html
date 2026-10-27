@@ -16837,7 +16837,7 @@ function exportSVG0(D, ids) {
   }
   var b = (!isDfd() && isSeq(D)) ? sqBBox(D, routes) : bbox(D, routes); if (!b) return null;
   /* diagram UML diberi bingkai seperti gambar dari EA: garis tepi tipis hitam dan tab nama di kiri atas ("act Nama Diagram") */
-  var fr = !isDfdDiagram(D) && doc.prefs.frame !== false, ft = fr ? eaFrameLabel(D) : '';
+  var fr = !isDfdDiagram(D) && D.kind !== 'flowchart' && doc.prefs.frame !== false, ft = fr ? eaFrameLabel(D) : '';
   var m = 24, mt = fr ? 36 : m, sc = sceneMarkup(D, routes, new Set()), W = Math.ceil(b.w + m * 2), H = Math.ceil(b.h + m + mt);
   /* EA 12 memotong gambar sequence 25px dari tepi kotak elemen (35px di atas bila ada bingkai), tanpa ruang bayangan */
   if (!isDfd() && isSeq(D)) { m = 25; mt = fr ? 35 : 25; W = Math.ceil(b.w + m * 2); H = Math.ceil(b.h + m + mt); }
