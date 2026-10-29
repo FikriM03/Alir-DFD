@@ -26,6 +26,65 @@
 .fcopt { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--bd); border-radius: 10px; background: var(--card); }
 .fcopt-h { font-weight: 600; font-size: 12.5px; margin-bottom: 6px; }
 .fcar select.guess { background: rgba(234, 179, 8, .2); border-color: #d4a106; }
+/* v72: jendela Attributes & Operations (Class Diagram) */
+.modal.clmodal { width: min(880px, calc(100vw - 32px)); max-width: none; }
+.clmodal .body { display: flex; flex-direction: column; gap: 12px; }
+.clname { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; }
+.clname label { font-weight: 600; font-size: 12.5px; color: var(--mut); }
+.clmode { display: inline-flex; border: 1px solid var(--bd); border-radius: 999px; padding: 2px; background: var(--panel2); }
+.clmode button { border: 0; background: transparent; border-radius: 999px; padding: 4px 12px; font-size: 12.5px; color: var(--mut); }
+.clmode button.on { background: var(--card); color: var(--fg); box-shadow: 0 1px 2px rgba(0,0,0,.12); font-weight: 600; }
+.clbody { display: grid; grid-template-columns: 1fr; gap: 14px; }
+@media (min-width: 860px) { .clbody { grid-template-columns: 5fr 7fr; } }
+.clsec { border: 1px solid var(--bd); border-radius: var(--r-md); padding: 10px; background: var(--card); min-width: 0; }
+.clhd { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.clhd b { font: 700 13px var(--f-body); }
+.cltab { width: 100%; border-collapse: separate; border-spacing: 0 4px; table-layout: fixed; }
+.cltab th { text-align: left; font: 600 11px var(--f-body); color: var(--mut); text-transform: uppercase; letter-spacing: .04em; padding: 0 4px; }
+.cltab td { padding: 0 2px; vertical-align: middle; }
+.cltab th:first-child, .cltab td:first-child { width: 46px; }
+.cltab th:last-child, .cltab td:last-child { width: 26px; }
+[data-sec="op"] .cltab th:nth-child(3), [data-sec="op"] .cltab td:nth-child(3) { width: 26%; }
+[data-sec="op"] .cltab th:nth-child(4), [data-sec="op"] .cltab td:nth-child(4) { width: 20%; }
+[data-sec="attr"] .cltab th:nth-child(3), [data-sec="attr"] .cltab td:nth-child(3) { width: 34%; }
+.cltab .in { width: 100%; height: 28px; padding: 3px 7px; font: 400 13px var(--f-mono); }
+.cltab select.clv { padding: 2px 2px; font: 700 13px var(--f-mono); text-align: center; }
+.cltab .cldel { width: 24px; height: 24px; font-size: 16px; color: var(--mut); }
+.cltab .cldel:hover { color: var(--bad); }
+.cladd { margin-top: 4px; }
+.cltxt textarea { width: 100%; font: 400 13px/1.55 var(--f-mono); min-height: 240px; }
+.cltip { margin: 0; padding-left: 18px; display: grid; gap: 3px; }
+.cltip li { line-height: 1.45; }
+.clsdl { display: flex; flex-direction: column; gap: 4px; max-height: 240px; overflow: auto; border: 1px solid var(--bd); border-radius: var(--r-sm); padding: 8px 10px; margin: 8px 0; }
+/* panel kanan: ringkasan isi class */
+.clpanel { margin-top: 6px; }
+.clp-h { margin: 8px 0 4px; font-size: 12.5px; }
+.clp-l { list-style: none; margin: 0 0 4px; padding: 0; border: 1px solid var(--bd); border-radius: var(--r-sm); max-height: 180px; overflow: auto; background: var(--card); }
+.clp-l li { font: 400 12px/1.5 var(--f-mono); padding: 2px 8px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.clp-l li + li { border-top: 1px solid var(--bd); }
+.clp-l li:hover { background: var(--panel2); }
+.clp-l li i { font-style: normal; display: inline-block; width: 14px; color: var(--mut); }
+.cldata { margin-top: 10px; display: grid; gap: 4px; }
+/* v73: bagian diciutkan, saran tipe abu-abu, daftar tipe */
+.clbody.one { grid-template-columns: 1fr !important; }
+.clbody.one .clsec.mini { order: 2; }
+.clsec .clwhy { display: none; }
+.clsec.mini { padding: 6px 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--panel2); }
+.clsec.mini .clhd { margin: 0; justify-content: flex-start; }
+.clsec.mini .clfull, .clsec.mini .cltab { display: none; }
+.clsec.mini .clwhy { display: inline; }
+.clsec.mini .cladd { margin: 0; }
+.cltab td.clac { position: relative; }
+.cltab td.clac .in[data-ac="type"] { padding-right: 20px; }
+.clghost { position: absolute; pointer-events: none; white-space: pre; overflow: hidden; border: 1px solid transparent; box-sizing: border-box; }
+.clghost .clg-a { color: transparent; }
+.clghost .clg-b { color: var(--mut); opacity: .75; }
+.clddb { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 16px; height: 20px; border: 0; background: transparent; color: var(--mut); font-size: 10px; padding: 0; cursor: pointer; }
+.clddb:hover { color: var(--fg); }
+.clddm { position: absolute; z-index: 30; max-height: 220px; overflow: auto; background: var(--card); border: 1px solid var(--bd); border-radius: var(--r-sm); box-shadow: 0 6px 18px rgba(0,0,0,.16); padding: 3px; display: flex; flex-direction: column; }
+.clddm button { text-align: left; border: 0; background: transparent; padding: 4px 8px; font: 400 13px var(--f-mono); color: var(--fg); border-radius: 4px; }
+.clddm button:hover, .clddm button.on { background: var(--panel2); }
+
 </style></head><body><title>Alir DFD</title>
 <script>try{var t=localStorage.getItem('alir-theme');if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -864,7 +923,7 @@ html.anim .modesw::before { transition: transform 220ms var(--ease-spring); }
 </style>
 <div id="app">
   <nav id="menubar" aria-label="Menu utama">
-    <div class="brand"><span class="logo" aria-hidden="true"><svg viewBox="0 0 22 22" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2.5"/><rect x="12" y="13" width="7" height="6" rx="1.5"/><path d="M7.5 6H13a2.5 2.5 0 0 1 2.5 2.5V13"/></svg></span><b>Alir</b><span class="modesw" role="group" aria-label="Jenis proyek"><button type="button" data-mode="dfd" aria-pressed="true" title="Data Flow Diagram, berkas .pam (PowerDesigner). Membuka proyek DFD terakhirmu.">DFD</button><button type="button" data-mode="uml" aria-pressed="false" title="Activity, Use Case, BPMN, Sequence, Collaboration; bisa diekspor ke EA. Membuka proyek UML terakhirmu.">UML</button><button type="button" data-mode="fc" aria-pressed="false" title="Flowchart program. Disimpan terpisah, ekspor XML (.drawio), PNG, SVG.">FLOW</button></span></div>
+    <div class="brand"><span class="logo" aria-hidden="true"><svg viewBox="0 0 22 22" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2.5"/><rect x="12" y="13" width="7" height="6" rx="1.5"/><path d="M7.5 6H13a2.5 2.5 0 0 1 2.5 2.5V13"/></svg></span><b>Alir</b><span class="modesw" role="group" aria-label="Jenis proyek"><button type="button" data-mode="dfd" aria-pressed="true" title="Data Flow Diagram, berkas .pam (PowerDesigner). Membuka proyek DFD terakhirmu.">DFD</button><button type="button" data-mode="uml" aria-pressed="false" title="Activity, Use Case, BPMN, Sequence, Collaboration, Class; bisa diekspor ke EA. Membuka proyek UML terakhirmu.">UML</button><button type="button" data-mode="fc" aria-pressed="false" title="Flowchart program. Disimpan terpisah, ekspor XML (.drawio), PNG, SVG.">FLOW</button></span></div>
     <button class="mbtn" data-menu="file" aria-haspopup="true" aria-expanded="false">Berkas</button>
     <button class="mbtn" data-menu="edit" aria-haspopup="true" aria-expanded="false">Edit</button>
     <button class="mbtn" data-menu="dict" aria-haspopup="true" aria-expanded="false">Kamus</button>
@@ -1574,7 +1633,7 @@ function undo() { if (!undoS.length) return; redoS.push(snapshot()); doc = JSON.
 function redo() { if (!redoS.length) return; undoS.push(snapshot()); doc = JSON.parse(redoS.pop()); fixActive(); afterChange(); }
 function syncOffpage() { if (!isDfd()) return; doc.diagrams.forEach(function (D) { D.elements.forEach(function (e) { if (e.type === 'offpage' && !e.loose) { var p = offRef(e); if (p) e.name = p.name; } }); }); }
 var REV_GEN = 0;
-function afterChange() { REV_GEN++; if (doc && !isDfd()) { ucAspectAll(cur()); sqNormalize(cur()); if (typeof railKind !== 'undefined' && railKind !== cur().kind) { if (tool !== 'select' && tool !== 'hand') tool = 'select'; flowFrom = null; umlToolbox(); } } tbAfterChange(); syncOffpage(); if (view().fresh) fit(); scheduleAutoTidy(); persist(); draw(); panel(); tabs(); status(); syncBar(); }
+function afterChange() { REV_GEN++; if (doc && !isDfd()) { ucAspectAll(cur()); sqNormalize(cur()); clsFitAll(cur()); if (typeof railKind !== 'undefined' && railKind !== cur().kind) { if (tool !== 'select' && tool !== 'hand') tool = 'select'; flowFrom = null; umlToolbox(); } } tbAfterChange(); syncOffpage(); if (view().fresh) fit(); scheduleAutoTidy(); persist(); draw(); panel(); tabs(); status(); syncBar(); }
 var atT = 0, atSig = {};
 function geoSig(D) { return D.elements.map(function (e) { return e.id + ':' + Math.round(e.x) + ',' + Math.round(e.y) + ',' + Math.round(e.w) + ',' + Math.round(e.h); }).join('|') + '#' + D.flows.map(function (f) { return f.id + f.from + f.to + (f.manual ? 'm' : '') + (f.kind || ''); }).join('|'); }
 function autoTidyOn() { return doc.prefs.autoTidy != null ? doc.prefs.autoTidy : !isDfd(); }
@@ -2728,7 +2787,7 @@ function umlShape(e, D) {
   else s += '<rect x="' + (e.x - 2) + '" y="' + (e.y - 2) + '" width="' + (e.w + 4) + '" height="' + (e.h + 4) + '" fill="transparent"/>';
   var body = t.draw(e, st);
   if (st.dash && st.dash !== 'solid' && DASHARR[st.dash]) body = body.replace(/stroke="([^"]+)"/, 'stroke="$1" stroke-dasharray="' + DASHARR[st.dash] + '"');
-  if (e.stereo && !t.stereo) body += tblock(['«' + e.stereo + '»'], e.x + e.w / 2, e.y - 7, Object.assign({}, st.font, { b: false }), st.text);
+  if (e.stereo && !t.stereo && e.type !== 'class') body += tblock(['«' + e.stereo + '»'], e.x + e.w / 2, e.y - 7, Object.assign({}, st.font, { b: false }), st.text);
   void D;
   return s + body + (t.container ? '<rect class="bedge" x="' + e.x + '" y="' + e.y + '" width="' + e.w + '" height="' + e.h + '" fill="none" stroke="transparent" stroke-width="7"/>' : '') + '</g>';
 }
@@ -3018,6 +3077,7 @@ function umlPanel() {
       if (D.kind === 'sequence') h += sqPanelEl(D, e);
       if (D.kind === 'comm') h += cmPanelEl(D, e);
       if (D.kind === 'flowchart') h += fcPanelEl(D, e);
+      if (D.kind === 'class') h += clsPanelEl(D, e);
       if (e.type === 'actor') h += '<label class="cbx"><input type="checkbox" data-f="rect"' + (e.rect ? ' checked' : '') + '> Aktor bukan manusia (tampil sebagai kotak)</label>';
       if (e.type === 'task') h += '<label class="cbx"><input type="checkbox" data-f="sub"' + (e.sub ? ' checked' : '') + '> Sub-proses (tanda +)</label>';
       if (e.type === 'partition') h += '<label class="cbx"><input type="checkbox" data-f="horiz"' + (e.horiz ? ' checked' : '') + '> Partition mendatar (judul di kiri)</label>';
@@ -3041,8 +3101,8 @@ function umlPanel() {
       h += '<div class="sec"><h2>' + esc(CT[f.kind].label0) + '</h2><div class="field"><label for="p-kind">Jenis garis</label><select class="in" id="p-kind" data-f="kind">' + ks.map(function (k) { return '<option value="' + k + '"' + (k === f.kind ? ' selected' : '') + '>' + CT[k].label0 + '</option>'; }).join('') + '</select></div>';
       h += '<div class="field"><label for="p-name">Nama' + (a.type === 'decision' || a.type === 'gateway' ? ' (kondisi, mis. Ya / Tidak)' : '') + '</label><input class="in" id="p-name" data-f="name" value="' + esc(f.name || '') + '"></div>';
       if (f.kind === 'control' || f.kind === 'object' || f.kind === 'seq') h += '<div class="field"><label for="p-guard">Guard [ ]</label><input class="in" id="p-guard" data-f="guard" value="' + esc(f.guard || '') + '" placeholder="opsional"></div>';
-      if (f.kind === 'assoc') h += '<label class="cbx"><input type="checkbox" data-f="nav"' + (f.nav ? ' checked' : '') + '> Tampilkan panah arah</label>';
-      h += '<div class="kv"><span>Arah</span><b style="font-family:var(--f-body)">' + esc(a.name || TT[a.type] && TT[a.type].label) + ' → ' + esc(b.name || TT[b.type] && TT[b.type].label) + '</b></div></div>';
+      if (f.kind === 'assoc' && D.kind !== 'class') h += '<label class="cbx"><input type="checkbox" data-f="nav"' + (f.nav ? ' checked' : '') + '> Tampilkan panah arah</label>';
+      h += '<div class="kv"><span>Arah</span><b style="font-family:var(--f-body)">' + esc(a.name || TT[a.type] && TT[a.type].label) + ' → ' + esc(b.name || TT[b.type] && TT[b.type].label) + '</b></div></div>' + clsPanelFlow(D, f);
       h += '<div class="sec"><h2>Gaya garis</h2><div class="field"><label for="p-route">Bentuk</label><select class="in" id="p-route" data-f="route">' + routeNames().map(function (r, i) { return '<option value="' + i + '"' + (st.route === i ? ' selected' : '') + '>' + r + '</option>'; }).join('') + '</select></div>';
       h += '<p class="hint"><b>Seret garisnya langsung</b> ke mana saja, naik-turun dan kiri-kanan sekaligus (tahan Shift untuk mengunci ke satu arah). <b>Ctrl+klik</b> di garis untuk menambah titik, Ctrl+klik titiknya untuk menghapus. Kotak di ujung bisa digeser menyusuri tepi objek, atau ditarik menjauh untuk menyambung ke objek lain.</p>';
       h += '<div class="row"><button class="btn" data-act="flip">Balik arah</button><button class="btn" data-act="tidy">Rapikan garis</button></div></div>';
@@ -3055,6 +3115,7 @@ function umlPanel() {
     h += '<div class="sec"><h2>Diagram</h2><div class="field"><label for="p-dn">Nama diagram</label><input class="in" id="p-dn" data-f="dname" value="' + esc(D.name) + '"></div>';
     h += '<div class="kv"><span>Jenis</span><b>' + KINDS[D.kind].name + '</b></div><div class="kv"><span>Elemen</span><b>' + D.elements.length + '</b></div><div class="kv"><span>Garis</span><b>' + D.flows.length + '</b></div>';
     h += (D.kind === 'sequence' ? '<button class="btn block" data-act="sqrespace">Rapikan jarak pesan</button><button class="btn block" data-act="cmfromseq">' + (cmCommOf(D) ? 'Perbarui Collaboration Diagram-nya' : 'Buat Collaboration Diagram (Transform)') + '</button><p class="hint">Tarik dari garis putus-putus lifeline ke lifeline lain untuk membuat pesan. Lepas di lifeline yang sama untuk pesan ke diri sendiri.</p>' : D.kind === 'comm' ? cmPanelDiagram(D) : D.kind === 'flowchart' ? fcPanelDiagram(D) : '<button class="btn block" data-act="tidyall">Rapikan semua garis…</button>' + (D.kind === 'activity' ? '<button class="btn block" data-act="fcfromad">Buat Flowchart dari diagram ini…</button>' : '')) + '</div>';
+    if (D.kind === 'class') h += clsPanelDiagram(D);
     var items = umlCheck(D); if (!items.length) items.push({ s: 'ok', t: D.elements.length ? 'Tidak ada masalah di diagram ini.' : D.kind === 'flowchart' ? 'Diagram masih kosong. Klik Terminator di panel kiri untuk mulai, lalu tambah simbol berikutnya lewat panel atau panah biru.' : 'Diagram masih kosong. Pilih elemen di Toolbox lalu klik di kanvas.' });
     h += '<div class="sec"><h2>Pemeriksaan</h2><ul class="chk">' + items.map(function (c) { return '<li class="' + c.s + '"' + (c.ids ? ' data-go="' + active + '" data-ids="' + c.ids.join(',') + '"' : '') + '><span>' + esc(c.t) + '</span></li>'; }).join('') + '</ul>' + (typeof revPanelHtml === 'function' ? revPanelHtml(D) : '') + '</div>';
   }
@@ -3077,6 +3138,7 @@ function umlPanelChange(t) {
     else if (f === 'rect') { if (v) { o.rect = true; if (o.w < 90) { o.x -= Math.round((100 - o.w) / 2); o.w = 100; } } else { delete o.rect; if (o.w > 30) { o.x += Math.round((o.w - 30) / 2); o.w = 30; } } }
     else if (f === 'sub' || f === 'horiz' || f === 'nav') { if (v) o[f] = true; else delete o[f]; }
     else if (f === 'guard') { v = String(v).replace(/^\[|\]$/g, '').trim(); if (v) o.guard = v; else delete o.guard; }
+    else if (f === 'cs' || f === 'ct') { v = String(v).trim(); if (v) o[f] = v; else delete o[f]; }
     else if (f === 'kind') o.kind = v;
     else if (f === 'route') o.style.route = Number(v);
   });
@@ -3288,6 +3350,7 @@ function buildEaDoc(M, name) {
       var e = { id: 'e' + (++n), type: type, name: type === 'note' ? (o.note || o.name || '') : (o.name || ''), x: go.l, y: go.t, w: w, h: h, style: {}, guid: o.guid };
       if (o.type === 'Action' && type === 'action') e.eaAct = 1;
       if (o.note && type !== 'note') e.note = o.note;
+      if (type === 'class') clsFromModel(e, o);
       if (o.stereo && !TT[type].stereo && type !== 'datastore' && !/::/.test(o.stereo)) e.stereo = o.stereo;
       var ds = styleKV(go.style), fill = colorFromRef(ds.BCol != null ? ds.BCol : o.back), line = colorFromRef(ds.LCol != null ? ds.LCol : o.border), fc = colorFromRef(ds.BFol != null ? ds.BFol : o.font);
       if (fill && !(type === 'sboundary' || type === 'scontrol' || type === 'sentity' || type === 'lifeline' || (CM_ROLE[type] || type === 'cobject')) || (fill && String(fill).toLowerCase() !== '#00ffff')) e.style.fill = fill; if (line) e.style.stroke = line; if (fc) e.style.text = fc;
@@ -3327,6 +3390,7 @@ function buildEaDoc(M, name) {
       }
       var col = colorFromRef(gs.Color != null ? gs.Color : c.color); if (col) f.style.stroke = col;
       if (kd === 'assoc' && c.nav) f.nav = true;
+      clsFlowFromModel(f, c, kind);
       D.flows.push(f);
     });
     if (kind === 'sequence') { sqChainY(D); D.flows.sort(function (p1, p2) { return (p1.y - p2.y) || ((p1.seqno || 0) - (p2.seqno || 0)); }); D.flows.forEach(function (fq) { delete fq.seqno; }); sqNormalize(D); }
@@ -3346,7 +3410,9 @@ function eapToModel(u8) {
   tab('t_objectproperties').forEach(function (p) { (props[p.Object_ID] = props[p.Object_ID] || {})[p.Property] = p.Value; });
   var parts = {}; tab('t_xref').forEach(function (x) { if (x.Name === 'Partitions') parts[x.Client] = x.Description; });
   tab('t_object').forEach(function (o) { M.objects[o.Object_ID] = { type: o.Object_Type, stereo: o.Stereotype, ntype: o.NType, name: o.Name, note: o.Note, guid: o.ea_guid, back: o.Backcolor, border: o.Bordercolor, font: o.Fontcolor, props: props[o.Object_ID] || {}, parts: parts[o.ea_guid] || '' }; });
+  clsEapFeatures(M, tab);
   tab('t_connector').forEach(function (c) { M.conns[c.Connector_ID] = { type: c.Connector_Type, stereo: c.Stereotype, sub: c.SubType, name: c.Name, src: c.Start_Object_ID, dst: c.End_Object_ID, guid: c.ea_guid, color: c.LineColor, nav: c.DestIsNavigable && c.Connector_Type === 'Association' && c.Direction === 'Source -> Destination', guard: (c.Connector_Type === 'ControlFlow' || c.Connector_Type === 'ObjectFlow') && c.PDATA2 ? String(c.PDATA2) : '' };
+    clsConnExtra(M.conns[c.Connector_ID], c);
     if (c.Connector_Type === 'Collaboration') Object.assign(M.conns[c.Connector_ID], { coll: true, link: c.SourceIsAggregate, num: c.PDATA4, seqno: Number(c.SeqNo || 0), pd1: c.PDATA1, pd2: c.PDATA2, isRet: /IsReturn=true/i.test(c.StateFlags || ''), diagram: c.DiagramID });
     if (c.Connector_Type === 'Sequence') Object.assign(M.conns[c.Connector_ID], { seq: true, sub: c.SubType, sx: c.StyleEx, cond: c.Btm_Mid_Label, cons: c.SourceConstraint, card: c.SourceCard, diagram: c.DiagramID, y1: -Number(c.PtStartY || 0), y2: -Number(c.PtEndY || 0), seqno: Number(c.SeqNo || 0), pd1: c.PDATA1, pd2: c.PDATA2, pd3: c.PDATA3, pd4: c.PDATA4, pd5: c.PDATA5 }); });
   var dobj = tab('t_diagramobjects'), dl = tab('t_diagramlinks');
@@ -3441,7 +3507,7 @@ function ensureGuids(d) {
   d.diagrams.forEach(function (D) { fix(D); D.elements.forEach(fix); D.flows.forEach(fix); });
 }
 function eaXmi(d, only) {
-  ensureGuids(d);
+  ensureGuids(d); CLS_DT = null;
   var now = nowStr(), local = 0, out = [], loose = [], diagXml = [], author = 'Alir';
   function TVs(o, ind) { return ind + '<UML:ModelElement.taggedValue>\n' + Object.keys(o).filter(function (k) { return o[k] != null; }).map(function (k) { return ind + '\t<UML:TaggedValue tag="' + k + '" value="' + xa(o[k]) + '"/>'; }).join('\n') + '\n' + ind + '</UML:ModelElement.taggedValue>\n'; }
   function stereoXml(st, ind) { return st ? ind + '<UML:ModelElement.stereotype>\n' + ind + '\t<UML:Stereotype name="' + xa(st) + '"/>\n' + ind + '</UML:ModelElement.stereotype>\n' : ''; }
@@ -3454,6 +3520,7 @@ function eaXmi(d, only) {
   var localIds = {};
   function lid(o) { if (!localIds[o.id]) localIds[o.id] = ++local; return localIds[o.id]; }
   function elemXml(e, D, pk, ind) {
+    if (e.type === 'class') return { tag: 'Class', xml: clsElemXml(e, pk, ind, { TVs: TVs, now: now, author: author, lid: lid }) };
     var t = TT[e.type], st = t.stereo || (e.type === 'datastore' ? 'datastore' : e.stereo) || '', g = e.guid, id = xid(g), s = es(e);
     var tv = { isAbstract: 'false', isSpecification: 'false', ea_stype: e.eaAct && e.type === 'action' ? 'Action' : t.ea, ea_ntype: String(e.type === 'fragment' ? (e.op | 0) : (t.nType || 0)), version: '1.0', isActive: 'false', package: xid(pk.guid, 'EAPK_'), date_created: now, date_modified: now, gentype: '<none>', tagged: '0', package_name: pk.name, phase: '1.0', author: author, complexity: '1', status: 'Proposed', stereotype: st || null, tpos: '0', ea_localid: String(lid(e)), ea_eleType: 'element',
       style: 'BackColor=' + (e.style.fill && e.style.fill !== 'none' ? colorToRef(e.style.fill) : -1) + ';BorderColor=' + (e.style.stroke ? colorToRef(e.style.stroke) : -1) + ';BorderWidth=-1;FontColor=' + (e.style.text ? colorToRef(e.style.text) : -1) + ';VSwimLanes=1;HSwimLanes=1;BorderStyle=' + (t.container && t.ea === 'ActivityPartition' ? 3 : 0) + ';' };
@@ -3485,6 +3552,7 @@ function eaXmi(d, only) {
   function connXml(f, D, ind) {
     if (f.kind === 'smsg') return { seqm: true, xml: sqMsgXml(f, D, ind, { lid: lid, TVs: TVs, now: now, xa: xa }) };
     if (f.kind === 'clink') { var ord = cmAll(D).map(function (q) { return q.m; }); return { cm: cmLinkXml(f, D, ind, { lid: lid, TVs: TVs, I2: ind, seqOf: function (m) { return ord.indexOf(m) + 1; } }) }; }
+    if (f.kind === 'diassoc' || f.kind === 'aggreg' || f.kind === 'compos' || (f.kind === 'assoc' && D.kind === 'class')) return clsConnXml(f, D, ind, { TVs: TVs, lid: lid });
     var c = CT[f.kind], A = elOf(D, f.from), B = elOf(D, f.to), g = f.guid, id = xid(g), st = c.stereo || '';
     if (f.kind === 'dassoc') st = A && (A.type === 'dataobject' || A.type === 'bstore') ? 'DataInputAssociation' : 'DataOutputAssociation';
     var tv = { style: '3', ea_type: c.ea, direction: f.kind === 'assoc' && !f.nav ? 'Unspecified' : 'Source -> Destination', linemode: '3', linecolor: String(f.style.stroke ? colorToRef(f.style.stroke) : -1), linewidth: '0', seqno: '0', stereotype: st || null, headStyle: '0', lineStyle: '0', ea_localid: String(lid(f)),
@@ -3527,7 +3595,7 @@ function eaXmi(d, only) {
   function diagramXml(D, p) {
     var b = bbox(D) || { x: 0, y: 0, w: 800, h: 1000 }, kind = KINDS[D.kind], duid = {}, s = '';
     D.elements.forEach(function (e) { duid[e.id] = e.guid.replace(/[{}-]/g, '').slice(0, 8); });
-    s += '\t\t<UML:Diagram name="' + xa(D.name) + '" xmi.id="' + xid(D.guid) + '" diagramType="' + (D.kind === 'usecase' ? 'UseCaseDiagram' : D.kind === 'bpmn' || D.kind === 'comm' ? 'CollaborationDiagram' : D.kind === 'sequence' ? 'SequenceDiagram' : 'ActivityDiagram') + '" owner="' + xid(p.guid, 'EAPK_') + '" toolName="Enterprise Architect 2.5">\n';
+    s += '\t\t<UML:Diagram name="' + xa(D.name) + '" xmi.id="' + xid(D.guid) + '" diagramType="' + (D.kind === 'usecase' ? 'UseCaseDiagram' : D.kind === 'bpmn' || D.kind === 'comm' ? 'CollaborationDiagram' : D.kind === 'sequence' ? 'SequenceDiagram' : D.kind === 'class' ? 'ClassDiagram' : 'ActivityDiagram') + '" owner="' + xid(p.guid, 'EAPK_') + '" toolName="Enterprise Architect 2.5">\n';
     s += TVs({ version: '1.0', author: author, created_date: now, modified_date: now, package: xid(p.guid, 'EAPK_'), type: kind.ea, swimlanes: 'locked=false;orientation=0;width=0;inbar=false;names=false;color=-1;bold=false;fcol=0;tcol=-1;ofCol=-1;hl=1;cls=0;', matrixitems: 'locked=false;matrixactive=false;swimlanesactive=true;kanbanactive=false;width=1;', ea_localid: String(++local),
       EAStyle: 'ShowPrivate=1;ShowProtected=1;ShowPublic=1;HideRelationships=0;Locked=0;Border=1;HighlightForeign=1;PackageContents=1;SequenceNotes=0;ScalePrintImage=0;PPgs.cx=1;PPgs.cy=1;DocSize.cx=' + Math.max(800, Math.ceil(b.w + 120)) + ';DocSize.cy=' + Math.max(1100, Math.ceil(b.h + 120)) + ';ShowDetails=0;Orientation=P;Zoom=100;ShowTags=0;OpParams=1;VisibleAttributeDetail=0;ShowOpRetType=1;ShowIcons=1;CollabNums=0;HideProps=0;ShowReqs=0;ShowCons=0;PaperSize=9;HideParents=0;UseAlias=0;HideAtts=0;HideOps=0;HideStereo=0;HideElemStereo=0;ShowTests=0;ShowMaint=0;ConnectorNotation=UML 2.1;ExplicitNavigability=0;AdvancedElementProps=1;AdvancedFeatureProps=1;AdvancedConnectorProps=1;ShowNotes=0;SuppressBrackets=0;SuppConnectorLabels=0;PrintPageHeadFoot=0;ShowAsList=0;',
       styleex: 'ExcludeRTF=0;DocAll=0;HideQuals=0;AttPkg=1;ShowTests=0;ShowMaint=0;' + (D.kind === 'sequence' ? 'SuppressFOC=0;INT_ARGS=;INT_RET=;INT_ATT=;SeqTopMargin=' + SQ_TOP + ';' : 'SuppressFOC=1;') + 'MatrixActive=0;SwimlanesActive=1;KanbanActive=0;MatrixLineWidth=1;MatrixLocked=0;TConnectorNotation=UML 2.1;TExplicitNavigability=0;AdvancedElementProps=1;AdvancedFeatureProps=1;AdvancedConnectorProps=1;ProfileData=;MDGDgm=' + (D.kind === 'bpmn' ? 'BPMN2.0::Business Process' : '') + ';STBLDgm=;ShowNotes=0;VisibleAttributeDetail=0;ShowOpRetType=1;SuppressBrackets=0;SuppConnectorLabels=0;PrintPageHeadFoot=0;ShowAsList=0;SuppressedCompartments=;' }, '\t\t\t');
@@ -3576,7 +3644,7 @@ function eaXmi(d, only) {
   var body = roots.map(function (p) { return pkgXml(p, '\t\t\t\t'); }).join('');
   out.push('<?xml version="1.0" encoding="windows-1252"?>\n<XMI xmi.version="1.1" xmlns:UML="omg.org/UML1.3" timestamp="' + now + '">\n\t<XMI.header>\n\t\t<XMI.documentation>\n\t\t\t<XMI.exporter>Enterprise Architect</XMI.exporter>\n\t\t\t<XMI.exporterVersion>2.5</XMI.exporterVersion>\n\t\t</XMI.documentation>\n\t</XMI.header>\n\t<XMI.content>\n');
   out.push('\t\t<UML:Model name="EA Model" xmi.id="MX_' + xid(roots[0].guid) + '">\n\t\t\t<UML:Namespace.ownedElement>\n\t\t\t\t<UML:Class name="EARootClass" xmi.id="EAID_11111111_5487_4080_A7F4_41526CB0AA00" isRoot="true" isLeaf="false" isAbstract="false"/>\n');
-  out.push(body + '\t\t\t</UML:Namespace.ownedElement>\n\t\t</UML:Model>\n');
+  out.push(body + clsDtXml('\t\t\t\t') + '\t\t\t</UML:Namespace.ownedElement>\n\t\t</UML:Model>\n');
   out.push(diagXml.join(''));
   loose.forEach(function (q) { out.push('\t\t<UML:TaggedValue tag="' + q[1] + '" xmi.id="' + xid(newGuid()) + '" value="' + xa(q[2]) + '" modelElement="' + xid(q[0]) + '"/>\n'); });
   out.push('\t</XMI.content>\n\t<XMI.difference/>\n\t<XMI.extensions xmi.extender="Enterprise Architect 2.5">\n\t\t<EAModel.paramSub/>\n' + noteLinks.join('') + '\t</XMI.extensions>\n</XMI>\n');
@@ -3644,6 +3712,7 @@ function openKind(kind) {
   if (isDfd() || isFcDoc()) useDoc(s1.doc, s1.active);
   var D = doc.diagrams.find(function (d) { return d.id === active && d.kind === kind; }) || doc.diagrams.find(function (d) { return d.kind === kind; });
   if (D) { switchTo(D.id); modeUI(); }
+  else if (kind === 'comm') { run('cmbatch'); }
   else { run('newdiag:' + kind); }
 }
 function closeStart() { var s = $('#start'); if (s) s.remove(); }
@@ -3658,6 +3727,7 @@ function startPage() {
     ['usecase', 'Use Case Diagram', 'Aktor, use case, batas sistem, «include» dan «extend».', ea && cnt(ea, 'usecase') ? 'Lanjutkan (' + cnt(ea, 'usecase') + ' diagram)' : 'Mulai baru', '<circle cx="9" cy="14" r="3.5"/><path d="M9 18v10M3 22h12M9 28l-5 8M9 28l5 8"/><ellipse cx="33" cy="16" rx="11" ry="6"/><ellipse cx="33" cy="34" rx="11" ry="6"/><path d="M15 22l7-4M15 24l7 8"/>'],
     ['bpmn', 'BPMN', 'Proses bisnis: pool, lane, event, gateway, data store.', ea && cnt(ea, 'bpmn') ? 'Lanjutkan (' + cnt(ea, 'bpmn') + ' diagram)' : 'Mulai baru', '<rect x="2" y="8" width="44" height="32"/><path d="M8 8v32M8 24h38"/><circle cx="15" cy="16" r="3"/><rect x="22" y="12" width="12" height="8" rx="2"/><path d="M40 13l4 3-4 3-4-3z"/>'],
     ['sequence', 'Sequence Diagram', 'Lifeline V_/C_/M_, pesan, activation, fragment alt/opt/loop.', ea && cnt(ea, 'sequence') ? 'Lanjutkan (' + cnt(ea, 'sequence') + ' diagram)' : 'Mulai baru', '<rect x="3" y="4" width="12" height="7"/><rect x="33" y="4" width="12" height="7"/><path d="M9 11v33M39 11v33" stroke-dasharray="3 2"/><rect x="7" y="16" width="4" height="16"/><rect x="37" y="20" width="4" height="8"/><path d="M11 20h24M31 17l4 3-4 3"/>'],
+    ['class', 'Class Diagram', 'Class V_/C_/M_ dengan attribute & operation, garis Dependency, Aggregation, Association. Bisa dibuat dari Sequence.', ea && cnt(ea, 'class') ? 'Lanjutkan (' + cnt(ea, 'class') + ' diagram)' : 'Mulai baru', '<rect x="4" y="6" width="17" height="15" rx="1.5"/><path d="M4 11h17M4 16h17"/><rect x="27" y="27" width="17" height="15" rx="1.5"/><path d="M27 32h17M27 37h17"/><path d="M21 14h7v13" stroke-dasharray="3 2"/>'],
     ['comm', 'Collaboration Diagram', 'Transform dari Sequence: objek, link, pesan bernomor 0.1, 0.2, … langsung rapi.', ea && cnt(ea, 'comm') ? 'Lanjutkan (' + cnt(ea, 'comm') + ' diagram)' : 'Mulai baru', '<circle cx="10" cy="12" r="6"/><circle cx="38" cy="12" r="6"/><circle cx="24" cy="38" r="6"/><path d="M16 12h16M13 17l8 16M35 17l-8 16"/><path d="M20 7h6M24 5l2 2-2 2"/>'],
     ['flowchart', 'Flowchart', 'Mode sendiri (FLOW): simbol lengkap, dibuat dari Activity Diagram atau skenario, ekspor XML / PNG / SVG.', fcd && cnt(fcd, 'flowchart') ? 'Lanjutkan (' + cnt(fcd, 'flowchart') + ' flowchart)' : 'Mulai baru', '<rect x="14" y="3" width="20" height="8" rx="4"/><path d="M24 11v4M24 15l9 7-9 7-9-7z"/><path d="M24 29v4"/><path d="M15 33h22l-4 9H11z"/>']
   ];
@@ -3722,7 +3792,8 @@ function umlDisplayPrefs() {
       });
     });
 }
-function fileBase() { return (doc.name || 'proyek').replace(/[^\w\-. ]+/g, '_'); }
+function cleanBase(s) { return String(s || '').replace(/(^|\s)[-–]?\s*\(?\s*untuk EA\b(?:\s*\))?/gi, ' ').replace(/\s+/g, ' ').trim(); }
+function fileBase() { return (cleanBase(doc.name) || 'proyek').replace(/[^\w\-. ]+/g, '_'); }
 function eaExportModal() {
   var total = doc.diagrams.reduce(function (n, D) { return n + D.elements.length; }, 0);
   if (!total) { toast('Proyek masih kosong.'); return; }
@@ -3752,8 +3823,8 @@ function eaExportModal() {
     $('[data-ok]', s).addEventListener('click', async function () {
       var xml;
       try { xml = eaXmi(doc); persist(); } catch (err) { toast('Gagal membuat XMI: ' + (err && err.message)); return; }
-      var n = fileBase() + ' (untuk EA).xml', r = await saveFile(n, latin1(xml, true), true);
-      if (r === 'ext') { r = await saveFile(fileBase() + ' (untuk EA).zip', zip1(n, latin1(xml, true)), true); if (r === 'ok') toast('Tersimpan sebagai ZIP. Ekstrak dulu, lalu impor berkas .xml-nya ke EA.'); }
+      var n = fileBase() + '.xml', r = await saveFile(n, latin1(xml, true), true);
+      if (r === 'ext') { r = await saveFile(fileBase() + '.zip', zip1(n, latin1(xml, true)), true); if (r === 'ok') toast('Tersimpan sebagai ZIP. Ekstrak dulu, lalu impor berkas .xml-nya ke EA.'); }
       else if (r === 'ok') toast('Tersimpan: ' + n + '. Ikuti langkah di jendela ini untuk mengimpornya ke EA.');
       if (r === 'fail') textFallback(n, xml);
     });
@@ -3767,7 +3838,7 @@ async function openEapFile(file) {
 }
 function openXmiText(text, name) {
   try {
-    var M = xmiToModel(text), res = buildEaDoc(M, name.replace(/\.(xml|xmi)$/i, '').replace(/ \(untuk EA\)$/, ''));
+    var M = xmiToModel(text), res = buildEaDoc(M, cleanBase(name.replace(/\.(xml|xmi)$/i, '')));
     useDoc(res.doc, null, 'Dibuka: ' + name + ' (' + res.doc.diagrams.length + ' diagram).');
   } catch (err) { toast('Gagal membuka XMI: ' + (err && err.message ? err.message : 'berkas rusak')); }
 }
@@ -6108,7 +6179,7 @@ async function fhSave(as) {
   var h = !as && FH.h && ok.indexOf(fk) >= 0 && (!multi || !FH.root || FH.root === R.id) ? FH.h : null, kind = h ? fk : null;
   if (mode === 'fc' && !doc.diagrams.some(isFc)) { toast('Belum ada flowchart.'); return; }
   if (!h) {
-    var base = FH.name && (!multi || FH.root === R.id) ? FH.name.replace(/\.[^.]+$/, '').replace(/ \(untuk EA\)$/, '') : safeName(fname('')) + (multi && R !== rootsOf()[0] ? ' - ' + safeName(R.name) : '');
+    var base = FH.name && (!multi || FH.root === R.id) ? cleanBase(FH.name.replace(/\.[^.]+$/, '')) : safeName(fname('')) + (multi && R !== rootsOf()[0] ? ' - ' + safeName(R.name) : '');
     try { h = await window.showSaveFilePicker({ suggestedName: base + FH_EXT[ok[0]], types: ok.map(function (k) { return FH_TYPE[k]; }) }); }
     catch (x) { return; }
     var k2 = fhEff(fhKindOf(h.name)); kind = ok.indexOf(k2) >= 0 ? k2 : ok[0];
@@ -7069,7 +7140,7 @@ function adTidyModal() {
     sel('ad-gap', 'Jarak antarobjek', [['rapat', 'Rapat'], ['sedang', 'Sedang'], ['longgar', 'Longgar']]) +
     sel('ad-side', 'Cabang decision', [['auto', 'Otomatis (pilih yang paling rapi)'], ['kanan', 'Selalu di kanan'], ['kiri', 'Selalu di kiri']]) +
     sel('ad-flat', 'Pindah partition', [['auto', 'Mendatar kalau bisa, selain itu L'], ['L', 'Selalu bentuk L (turun lalu ke samping)']]) +
-    sel('ad-fork', 'Garis fork/join', [['miring', 'Miring langsung (seperti contoh EA)'], ['siku', 'Siku']]) +
+    sel('ad-fork', 'Garis fork/join', [['miring', 'Miring langsung'], ['siku', 'Siku']]) +
     '</div><div class="tcards" id="ad-c"></div>' +
     '<label class="cbx"><input type="checkbox" id="ad-def"> Jadikan pengaturan bawaan (dipakai juga saat membuat diagram dari skenario)</label>' +
     '<p class="hint">Alir mencoba banyak susunan lalu menampilkan beberapa yang terbaik. Klik salah satu, lalu <b>Terapkan</b>. Bisa dibatalkan dengan Ctrl+Z.</p>';
@@ -8040,7 +8111,7 @@ function revSuffix(s) { var m = /\(([^)]*)\)\s*$/.exec(revClean(s)); return m ? 
 function revRefs() {
   var R = {};
   function add(role, raw, ref) { raw = revClean(raw); if (!raw) return; (R[role] = R[role] || []).push({ raw: raw, k: revKey(raw), ref: ref }); }
-  doc.diagrams.forEach(function (D) { if (D.kind === 'comm' || D.kind === 'flowchart') return; /* v62: salinan Sequence/Activity, diperiksa silang sendiri */
+  doc.diagrams.forEach(function (D) { if (D.kind === 'comm' || D.kind === 'flowchart' || D.kind === 'class') return; /* v62: salinan Sequence/Activity, diperiksa silang sendiri */
     D.elements.forEach(function (e) {
       var r = { D: D, id: e.id, el: e };
       if (isDfd()) {
@@ -8190,7 +8261,7 @@ function revSwapWord(s, from, to, firstOnly) {
 /* semua nama di proyek: nama diagram, elemen, garis, pesan (ident = nama gaya kode: lifeline & pesan sequence) */
 function revOcc() {
   var L = [];
-  doc.diagrams.forEach(function (D) { if (D.kind === 'comm' || D.kind === 'flowchart') return; /* v62: salinan Sequence/Activity, diperiksa silang sendiri */
+  doc.diagrams.forEach(function (D) { if (D.kind === 'comm' || D.kind === 'flowchart' || D.kind === 'class') return; /* v62: salinan Sequence/Activity, diperiksa silang sendiri */
     L.push({ D: D, o: D, w: 'nama diagram', ident: false, plain: true });
     D.elements.forEach(function (e) {
       if (!revClean(e.name) || /^(note|annotation|initial|final|flowfinal|merge|fork|forkv|pgfx|offpage|spmg)$/.test(e.type)) return;
@@ -10610,7 +10681,7 @@ function diagramMenu(id, x, y) {
 function pkgMenu(pid, x, y) {
   var p = doc.packages.find(function (q) { return q.id === pid; }); if (!p) return;
   pkMenuId = pid;
-  var its = [{ hd: 'Paket ' + p.name }, item('Ganti nama…', 'pk:rename'), HR, { hd: 'Tambah di dalamnya' }, item('Activity Diagram', 'pk:new:activity'), item('Use Case Diagram', 'pk:new:usecase'), item('BPMN', 'pk:new:bpmn'), item('Sequence Diagram', 'pk:new:sequence'), item('Paket baru', 'pk:newpkg'),
+  var its = [{ hd: 'Paket ' + p.name }, item('Ganti nama…', 'pk:rename'), HR, { hd: 'Tambah di dalamnya' }, item('Activity Diagram', 'pk:new:activity'), item('Use Case Diagram', 'pk:new:usecase'), item('BPMN', 'pk:new:bpmn'), item('Sequence Diagram', 'pk:new:sequence'), item('Class Diagram', 'pk:new:class'), item('Paket baru', 'pk:newpkg'),
     HR, item('Duplikat paket beserta isinya', 'pk:dup'), item('Salin paket', 'pk:copy'), item('Tempel diagram/paket di sini', 'pk:paste', '', { dis: !canPasteDiagram() })];
   var others = doc.packages.filter(function (q) { return q.id !== pid && pkgDescendants(pid).indexOf(q.id) < 0; });
   if (others.length) { its.push({ hd: 'Pindah ke dalam paket' }); others.forEach(function (q) { its.push(item(q.name, 'pk:move:' + q.id, '', { ck: p.parent === q.id, dis: p.parent === q.id })); }); }
@@ -12067,7 +12138,7 @@ function seqCheck(D, items) {
     var a = byId[f.from], b = byId[f.to]; if (!a || !b) return;
     var n = String(f.name || '').trim(), ra = R(a), rb = R(b), lab = sqLabel(f) || 'pesan ke-' + (i + 1);
     if (!n && !f.isRet) items.push({ s: 'warn', t: 'Pesan ke-' + (i + 1) + ' (' + a.name + ' → ' + b.name + ') belum diberi nama.', ids: [f.id] });
-    if (/[()]/.test(n)) items.push({ s: 'warn', t: 'Pesan "' + n + '" ditulis dengan kurung. Tulis namanya saja (mis. ' + n.replace(/\(.*$/, '') + ') — EA menambahkan "()" sendiri; isi di dalam kurung masuk ke kolom Parameter.', ids: [f.id] });
+    if (/[()]/.test(n)) items.push({ s: 'warn', t: 'Pesan "' + n + '" ditulis dengan kurung. Tulis namanya saja (mis. ' + n.replace(/\(.*$/, '') + '), tanda "()" ditambahkan otomatis; isi di dalam kurung masuk ke kolom Parameter.', ids: [f.id] });
     else if (/[ \t]/.test(n)) items.push({ s: 'warn', t: 'Nama pesan "' + n + '" mengandung spasi. Nama method biasanya satu kata, mis. ' + n.replace(/[^\w\s]/g, '').replace(/\s+(\w)/g, function (m, c) { return c.toUpperCase(); }) + '.', ids: [f.id] });
     if (ra === 'A' && rb === 'V' && /^input[A-Z]/.test(n) && !String(f.args || '').trim()) items.push({ s: 'warn', t: 'Pesan "' + n + '()" belum membawa atribut. Isi Argumen dengan atribut form (mis. ' + n + '(nama, email)) di panel kanan; atribut biasanya diambil dari daftar atribut pada langkah "Menampilkan Form …" di skenario.', ids: [f.id] });
     if (ra === 'A' && rb && rb !== 'V') items.push({ s: 'bad', t: 'Aktor "' + a.name + '" langsung ke ' + (rb === 'C' ? 'Controller' : 'Model') + ' "' + b.name + '" (' + lab + '). Aktor hanya berinteraksi dengan View (V_).', ids: [f.id] });
@@ -12214,7 +12285,7 @@ var SQ_CONCEPTS = [
   [/async|asinkron|sinkron|panah (penuh|terbuka)/, '<p><b>Synchronous</b> (panah segitiga penuh): pengirim menunggu sampai penerima selesai. <b>Asynchronous</b> (panah terbuka): pengirim langsung lanjut tanpa menunggu.</p>'],
   [/fragment|alt\b|opt\b|loop|kondisi|operand/, '<p><b>Combined fragment</b> membingkai sebagian pesan dengan aturan: <b>alt</b> = pilihan (seperti if/else, tiap operand diberi kondisi [Iya] / [Tidak]); <b>opt</b> = hanya terjadi bila kondisinya benar; <b>loop</b> = diulang selama kondisinya benar; <b>par</b> = berjalan bersamaan. Garis putus-putus memisahkan operand.</p>'],
   [/boundary|control|entity|mvc|v_|c_|m_|awalan|prefix/, '<p>Aturan MVC: <b>Boundary</b> = View (nama diawali <b>V_</b>, halaman/form yang dilihat aktor), <b>Control</b> = Controller (<b>C_</b>, pengatur logika), <b>Entity</b> = Model (<b>M_</b>, data/tabel). Aktor hanya berinteraksi dengan View, View meneruskan ke Controller, Controller yang mengakses Model, dan Model hanya membalas ke Controller.</p>'],
-  [/kurung|\(\)|parameter|argumen/, '<p>Nama pesan ditulis <b>tanpa kurung</b>, misalnya <i>getDataBuku</i>. EA (dan Alir) menambahkan "()" sendiri. Isi di dalam kurung diisi lewat kolom <b>Parameter</b> (mis. <i>nama, jumlah</i>), hasilnya tampil <i>getDataBuku(nama, jumlah)</i>. Nilai kembali ditulis di <b>Return value</b> → <i>getDataBuku(): Array</i>.</p>'],
+  [/kurung|\(\)|parameter|argumen/, '<p>Nama pesan ditulis <b>tanpa kurung</b>, misalnya <i>getDataBuku</i>. Tanda "()" ditambahkan otomatis. Isi di dalam kurung diisi lewat kolom <b>Parameter</b> (mis. <i>nama, jumlah</i>), hasilnya tampil <i>getDataBuku(nama, jumlah)</i>. Nilai kembali ditulis di <b>Return value</b> → <i>getDataBuku(): Array</i>.</p>'],
   [/sequence|urutan pesan/, '<p><b>Sequence diagram</b> menggambarkan <b>urutan pesan</b> antar objek untuk satu skenario use case, dibaca dari atas ke bawah. Sumbernya biasanya activity diagram/skenario: tiap langkah menjadi pesan antara aktor, View (V_), Controller (C_), dan Model (M_).</p>']
 ];
 function seqAnswer(D, raw) {
@@ -12455,12 +12526,26 @@ function cmLoopSeg(P, B, q) {
   var f = cmNearSeg([P[0], P[1]], q); f.i = 0; return f;
 }
 /* label pesan di titik tengah teks C. P = titik jalur link (urut dari f.from ke f.to; loop: lihat cmLoopPath) */
+/* v72: sisi panah label pesan pada link biasa, aturan EA 12 (diukur dari render EA):
+   kemiringan ruas < 0,3: panah di arah jalan pesan (kanan bila ke kanan);
+   0,3 sampai 0,4: panah di atas/bawah teks, di sisi yang menghadap garis;
+   lebih curam: panah di kiri/kanan teks, di sisi yang menghadap garis. */
+function cmArrowSide(d, p, C) {
+  var sl = Math.abs(d.y) / Math.max(1e-6, Math.abs(d.x)), fx = p.x - C.x, fy = p.y - C.y;
+  if (sl < .3) return { right: d.x > 0 };
+  if (sl < .4) return Math.abs(fy) > .5 ? { v: fy > 0 ? 1 : -1 } : { right: d.x > 0 };
+  if (Math.abs(fx) > .5) return { right: fx > 0 };
+  return null;
+}
 function cmLabelAt(f, m, P, C, F, loopSign) {
   var text = cmMsgText(m), w = textW(text, F.fc), h2 = F.fpx * .62, seg = P.box ? cmLoopSeg(P, P.box, C) : cmNearSeg(P, C), sg = loopSign || (m.rev ? -1 : 1);
   var d = { x: seg.u.x * sg, y: seg.u.y * sg }, horiz = Math.abs(d.x) >= Math.abs(d.y), right = horiz ? d.x > 0 : d.y > 0;
   /* panah tegak diletakkan di sisi teks yang menghadap garisnya (seperti EA) */
   if (!horiz && Math.abs(d.x) < .01 && Math.abs(seg.p.x - C.x) > .5) right = seg.p.x > C.x;
+  var vside = 0, rg = P.box ? null : cmArrowSide(d, seg.p, C);
+  if (rg) { if (rg.v) vside = rg.v; else right = rg.right; }
   var reach = CMK.GAP + CMK.ARW / 2 * Math.abs(d.x), ax = right ? C.x + w / 2 + reach : C.x - w / 2 - reach, ay = C.y, A2 = CMK.ARW / 2;
+  if (vside) { ax = C.x; ay = C.y + vside * (h2 + CMK.GAP + CMK.ARW / 2 * Math.abs(d.y) + CMK.HEADW / 2 * Math.abs(d.x)); }
   var arw = { x1: ax - d.x * A2, y1: ay - d.y * A2, x2: ax + d.x * A2, y2: ay + d.y * A2 };
   var tb = { l: C.x - w / 2, r: C.x + w / 2, t: C.y - h2, b: C.y + h2 };
   var px = CMK.HEADW / 2 * Math.abs(d.y), py = CMK.HEADW / 2 * Math.abs(d.x); /* lebar kepala panah tegak lurus arah panah */
@@ -12658,12 +12743,14 @@ function cmSlots(D, f, ms, Rt, F) {
     var bwMax = Math.max.apply(null, order.map(function (m) { return tw(m) + CMK.GAP + CMK.ARW; }));
     /* nomor terkecil di atas */
     var items = order.map(function (m, k) {
-      var w = tw(m), d = dirOf(m), hz2 = Math.abs(d.x) >= Math.abs(d.y), right = hz2 ? d.x > 0 : d.y > 0;
+      var w = tw(m), d = dirOf(m), hz2 = Math.abs(d.x) >= Math.abs(d.y), right = hz2 ? d.x > 0 : d.y > 0, slp = Math.abs(d.y) / Math.max(1e-6, Math.abs(d.x)), vb = slp >= .3 && slp < .4;
+      if (slp >= .4 && Math.abs(nn.x) > .01) right = nn.x < 0; /* panah menghadap garis */
       var t = ((k - (n - 1) / 2) * CMK.D_ROW) / Math.max(.35, Math.abs(uy)) * (uy < 0 ? -1 : 1) + g * 14, Q = { x: mid.x + ux * t, y: mid.y + uy * t };
       /* kotak label (teks + panah) dijauhkan dari garis sepanjang normal sampai bebas */
       /* jarak ke garis sama untuk satu kelompok (pakai label terlebar) supaya tangganya rata; tiap label lalu ditempel ke sisi dekat garis */
       var bh = F.fpx * 1.3 + 6, dist = Math.abs(nn.x) * bwMax / 2 + Math.abs(nn.y) * bh / 2 + CMK.CLEAR + 4;
       var bc = { x: Q.x + nn.x * dist, y: Q.y + nn.y * dist }, bw2 = w + CMK.GAP + CMK.ARW, sh = nn.x ? -Math.sign(nn.x) * (bwMax - bw2) / 2 : 0;
+      if (vb) return { m: m, x: bc.x + sh, y: bc.y + (nn.y > 0 ? 1 : -1) * 12 };
       return { m: m, x: bc.x + sh + (right ? -(CMK.GAP + CMK.ARW) / 2 : (CMK.GAP + CMK.ARW) / 2), y: bc.y };
     });
     out.push({ items: items, ax: { x: ux, y: uy }, nx: nn, len: len, span: n * CMK.D_ROW / Math.max(.35, Math.abs(uy)) + 40 });
@@ -14188,13 +14275,13 @@ function fcExportModal() {
   var row = function (act, t, d) { return '<button class="btn block fcx" data-x="' + act + '"><b>' + t + '</b><br><span class="hint">' + d + '</span></button>'; };
   var body = '<p class="hint">Flowchart tidak dibuka di Enterprise Architect. Pilih bentuk berkasnya:</p>' +
     '<p class="st-sec">Diagram ini' + (one ? ' — ' + esc(D.name) : '') + '</p>' +
-    row('png', 'Gambar PNG', 'Untuk laporan / Word / Google Docs.') + row('svg', 'Gambar SVG', 'Tajam di ukuran berapa pun.') + row('one', 'XML (.drawio)', 'Bisa dibuka & diedit lagi di Alir atau di diagrams.net.') +
+    row('png', 'Gambar PNG', 'Untuk laporan / Word / Google Docs.') + row('jpg', 'Gambar JPG', 'Ukuran berkas lebih kecil, latar putih.') + row('svg', 'Gambar SVG', 'Tajam di ukuran berapa pun.') + row('one', 'XML (.drawio)', 'Bisa dibuka & diedit lagi di Alir atau di diagrams.net.') +
     '<p class="st-sec">Semua (' + list.length + ' flowchart)</p>' +
     row('all', 'XML (.drawio) semua', 'Satu berkas, tiap flowchart jadi satu halaman (sama dengan Simpan).') + row('pdf', 'PDF semua', 'Satu flowchart per halaman.') + row('allpng', 'PNG semua (ZIP)', 'Satu gambar per flowchart.');
   modal('Ekspor Flowchart', body, '<button class="btn" data-close>Tutup</button>', function (s, close) {
     s.addEventListener('click', function (e) {
       var b = e.target.closest('[data-x]'); if (!b) return; var x = b.dataset.x; close();
-      if (x === 'png') run('png'); else if (x === 'svg') run('svg'); else if (x === 'pdf') run('pdf'); else if (x === 'allpng') run('allpng');
+      if (x === 'png') run('png'); else if (x === 'jpg') run('jpg'); else if (x === 'svg') run('svg'); else if (x === 'pdf') run('pdf'); else if (x === 'allpng') run('allpng');
       else if (x === 'one') fcSaveDrawio(one ? D : null); else fcSaveDrawio(null);
     });
   });
@@ -15760,11 +15847,11 @@ function startRename(id, suggestions) {
   if (o.type === 'offpage') { sel = new Set([id]); draw(); panel(); var r = $('#p-ref'); if (r) r.focus(); toast(o.loose ? 'Ujung lepas: seret ujung alurnya ke salah satu proses.' : 'Nama konektor mengikuti proses yang dirujuk. Ganti lewat panel kanan.'); return; }
   var v = view(), cx, cy, w;
   if (isF) { var r = routeAll(D).get(id); if (!r) return; cx = r.lab.x; cy = r.lab.y; w = 180; }
-  else { cx = o.x + o.w / 2; cy = o.y + o.h / 2; w = Math.max(150, Math.min(o.w * v.k, 260)); }
+  else { cx = o.x + o.w / 2; cy = o.type === 'class' ? o.y + 12.5 + (o.stereo ? 11 : 0) : o.y + o.h / 2; w = Math.max(150, Math.min(o.w * v.k, 260)); }
   $('#dl').innerHTML = (suggestions || (isF ? flowSuggest(D, o) : [])).map(function (n) { return '<option value="' + esc(n) + '">'; }).join('');
   inl.style.left = (cx * v.k + v.x) + 'px'; inl.style.top = (cy * v.k + v.y) + 'px'; inl.style.width = w + 'px';
   /* nama pesan sequence boleh dua baris (Enter di EA): di kotak satu baris ditampilkan sebagai ⏎, Shift+Enter menambah baris baru */
-  inl.value = String(o.name || '').replace(/\s*\r?\n\s*/g, ' ⏎ '); inl.dataset.id = id; inl.dataset.ml = (isF && o.kind === 'smsg') || (!isF && TT[o.type] && TT[o.type].ml) ? '1' : ''; inl.title = inl.dataset.ml ? 'Shift+Enter = baris baru (tampil dua baris, seperti Enter di EA)' : ''; inl.hidden = false; editing = true;
+  inl.value = String(o.name || '').replace(/\s*\r?\n\s*/g, ' ⏎ '); inl.dataset.id = id; inl.dataset.ml = (isF && o.kind === 'smsg') || (!isF && TT[o.type] && TT[o.type].ml) ? '1' : ''; inl.title = inl.dataset.ml ? 'Shift+Enter = baris baru (tampil dua baris)' : ''; inl.hidden = false; editing = true;
   setTimeout(function () { inl.focus(); if (!isF && isSeq(D) && isLL(o) && /^[VCM]_\d*$/.test(o.name || '')) inl.setSelectionRange(2, inl.value.length); else inl.select(); }, 0);
 }
 function endRename(commit) {
@@ -15882,7 +15969,7 @@ function menuItems(name) {
   if (name === 'file' && isFcDoc()) return [item('Halaman mulai…', 'start'), item('Flowchart baru (kosong)…', 'newfc'), item('Proyek UML baru (kosong)…', 'newuml'), item('DFD baru (kosong)…', 'new'), item('Buka .drawio / .xml / .alir…', 'open', 'Ctrl+O'), item('Simpan' + (FH.h ? ' ke ' + FH.name : ' (.drawio)'), 'save', 'Ctrl+S'), item('Simpan sebagai…', 'saveas', 'Ctrl+Shift+S'), HR, item('Flowchart dari skenario (.docx / tabel)…', 'scen'), item('Flowchart dari Activity Diagram…', 'fcbatch'), HR, item('Jelaskan diagram ini (tanya jawab)…', 'explain', 'F3'), item('Teks untuk laporan (narasi & tabel)…', 'report'), item('Bagikan lewat link…', 'share'), item('Riwayat versi…', 'hist'), HR, item('Ekspor (XML / PNG / SVG / PDF)…', 'fcexport', 'Ctrl+E'), item('Simpan proyek Alir (.json)', 'saveproj'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Gambar untuk laporan (pas lebar A4 / tabel)…', 'repimg'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar SVG', 'svg'), item('Ekspor XML (.drawio) diagram ini', 'fcdrawio'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Preferensi tampilan…', 'dispref')];
   if (name === 'file' && !isDfd()) return [item('Halaman mulai…', 'start'), item('Proyek UML baru (kosong)…', 'newuml'), item('Flowchart baru (kosong)…', 'newfc'), item('DFD baru (kosong)…', 'new'), item('Buka .eap / .xml / .alir / .json…', 'open', 'Ctrl+O')].concat([item('Simpan' + (FH.h ? ' ke ' + FH.name : ' (.xml untuk EA)'), 'save', 'Ctrl+S'), item('Simpan sebagai…', 'saveas', 'Ctrl+Shift+S')]).concat([ item('Buat diagram dari skenario (.docx / tabel)…', 'scen'), HR, item('Jelaskan diagram ini (tanya jawab)…', 'explain', 'F3'), item('Teks untuk laporan (narasi & tabel)…', 'report'), item('Bagikan lewat link…', 'share'), item('Riwayat versi…', 'hist'), HR, item('Ekspor ke Enterprise Architect…', 'exportea', 'Ctrl+E'), item('Simpan proyek Alir (.json)', 'saveproj'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Gambar untuk laporan (pas lebar A4 / tabel)…', 'repimg'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar JPG', 'jpg'), item('Ekspor gambar SVG', 'svg'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Preferensi tampilan…', 'dispref')]);
   if (name === 'dict' && isFcDoc()) return [{ hd: 'Flowchart baru' }, item('Flowchart kosong', 'newdiag:flowchart'), item('Dari Activity Diagram (proyek UML)…', 'fcbatch'), item('Dari skenario use case (tabel / .docx)…', 'scen'), HR, item('Jelaskan diagram ini…', 'explain', 'F3'), item('Teks untuk laporan…', 'report'), HR, item('Ganti nama diagram…', 'renamediag'), item('Hapus diagram ini', 'deldiag', '', { dis: doc.diagrams.length < 2 }), item('Paket (folder) baru', 'newpkg'), HR, item('Periksa diagram', 'check', 'F4')];
-  if (name === 'dict' && !isDfd()) return [{ hd: 'Diagram baru' }, item('Activity Diagram', 'newdiag:activity'), item('Use Case Diagram', 'newdiag:usecase'), item('BPMN (Business Process)', 'newdiag:bpmn'), item('Sequence Diagram', 'newdiag:sequence'), item('Collaboration Diagram', 'newdiag:comm'), item('Dari skenario use case (tabel / .docx)…', 'scen'), item('Collaboration dari Sequence (Transform)…', 'cmbatch'), item('Flowchart dari Activity Diagram (ke mode Flowchart)…', 'fcbatch'), HR, item('Jalankan alur ▶', 'sim', '', { dis: !(D.kind === 'activity' || D.kind === 'bpmn') }), item('Jelaskan diagram ini…', 'explain', 'F3'), item('Teks untuk laporan…', 'report'), HR, item('Ganti nama diagram…', 'renamediag'), item('Hapus diagram ini', 'deldiag', '', { dis: doc.diagrams.length < 2 }), item('Paket (folder) baru', 'newpkg'), HR, item('Periksa diagram', 'check', 'F4')];
+  if (name === 'dict' && !isDfd()) return [{ hd: 'Diagram baru' }, item('Activity Diagram', 'newdiag:activity'), item('Use Case Diagram', 'newdiag:usecase'), item('BPMN (Business Process)', 'newdiag:bpmn'), item('Sequence Diagram', 'newdiag:sequence'), item('Class Diagram', 'newdiag:class'), item('Dari skenario use case (tabel / .docx)…', 'scen'), item('Collaboration dari Sequence (Transform)…', 'cmbatch'), HR, item('Jalankan alur ▶', 'sim', '', { dis: !(D.kind === 'activity' || D.kind === 'bpmn') }), item('Jelaskan diagram ini…', 'explain', 'F3'), item('Teks untuk laporan…', 'report'), HR, item('Ganti nama diagram…', 'renamediag'), item('Hapus diagram ini', 'deldiag', '', { dis: doc.diagrams.length < 2 }), item('Paket (folder) baru', 'newpkg'), HR, item('Periksa diagram', 'check', 'F4')];
   if (name === 'file') return [item('Halaman mulai…', 'start'), item('DFD baru (kosong)…', 'new'), item('Proyek UML baru (kosong)…', 'newuml'), item('Buka .pam / .alir / .json / .zip…', 'open', 'Ctrl+O'), item('Buat DFD dari skenario (.docx / tabel)…', 'dfdscen')].concat([item('Simpan' + (FH.h ? ' ke ' + FH.name : ' (.pam)'), 'save', 'Ctrl+S'), item('Simpan sebagai…', 'saveas', 'Ctrl+Shift+S')]).concat([HR, item('Jelaskan diagram ini (tanya jawab)…', 'explain', 'F3'), item('Teks untuk laporan (tabel alur data)…', 'report'), item('Bagikan lewat link…', 'share'), item('Riwayat versi…', 'hist'), HR, item('Unduh salinan .pam', 'savepam'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Gambar untuk laporan (pas lebar A4 / tabel)…', 'repimg'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar JPG', 'jpg'), item('Ekspor gambar SVG', 'svg'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Opsi model…', 'modelopt'), item('Preferensi tampilan…', 'dispref')]);
   if (name === 'edit') return [item('Urungkan', 'undo', 'Ctrl+Z', { dis: !undoS.length }), item('Ulangi', 'redo', 'Ctrl+Y', { dis: !redoS.length }), HR, item('Potong', 'cut', 'Ctrl+X', { dis: !has }), item('Salin', 'copy', 'Ctrl+C', { dis: !has }), item('Tempel', 'paste', 'Ctrl+V', { dis: !canPaste() }), item('Hapus', 'del', 'Del', { dis: !has }), HR, item('Pilih simbol terhubung', 'selconn', '', { dis: !has }), item('Pilih semua', 'selall', 'Ctrl+A'), item('Pilih beberapa (klik satu per satu)', 'multipick', '', { ck: multiPick }), item('Pilih semua yang sejenis', 'selsame', '', { dis: !has }), item('Cari elemen…', 'find', 'Ctrl+F'), HR, item('Kunci / buka kunci posisi', 'lock', '', { dis: !nE }), item('Kelompokkan', 'group', 'Ctrl+G', { dis: nE < 2 }), item('Pisahkan kelompok', 'ungroup', 'Ctrl+Shift+G', { dis: !nE }), HR, item('Duplikat', 'dup', 'Ctrl+D', { dis: !has }), item('Ubah nama', 'rename', 'F2', { dis: sel.size !== 1 })];
   if (name === 'dict') return [item('Properti model…', 'modelopt'), { hd: 'Sub-proses' }, item(proc && childOf(D, proc) ? 'Buka diagram turunan' : 'Dekomposisi proses terpilih', 'decomp', 'Alt+↓', { dis: !proc }), item('Naik satu level', 'up', 'Alt+↑', { dis: !D.parent }), item('Hapus dekomposisi', 'undecomp', '', { dis: !(proc && childOf(D, proc)) }), item('Pohon proses…', 'tree'), HR, item('Daftar objek…', 'objlist'), item('Urutkan ulang nomor objek', 'renum'), item('Auto-balance alur', 'autobal', '', { dis: !D.parent }), item('Tambah konektor off-page', 'offadd'), item('Buat DFD dari skenario use case…', 'dfdscen'), item('Migrasikan alur terpilih ke induk', 'migrate', '', { dis: !D.parent || !f }), HR, item('Periksa model…', 'check', 'F4')];
@@ -15950,6 +16037,7 @@ function contextMenu(e, id) {
       if (o.type && !isContainer(o)) items.push(item('Jelaskan objek ini', 'explainel'), item('Pilih semua alurnya (masuk & keluar)', 'selflows'), item('Warnai alurnya sesuai warna objek ini', 'colflows'), HR);
       if (o.type === 'gateway' || o.type === 'decision' || o.type === 'merge') items.push(item('Hapus & sambungkan garisnya', 'gwbypass'), HR);
       if (o.type === 'fdec' || (o.kind === 'fline' && (elOf(D, o.from) || {}).type === 'fdec')) items.push(item('Tukar label Ya / Tidak', 'fcswapyn'), HR);
+      if (o.type === 'class') items.push(item('Attributes & Operations…', 'clsedit', 'Enter'), HR);
       if (o.type === 'usecase') items.push(item(ucDiagram(o) ? 'Buka Activity Diagram-nya' : 'Buat Activity Diagram untuk use case ini', 'ucad'), HR);
       if (o.type) { if (!isContainer(o)) items.push(item('Sesuaikan dengan teks', 'adjust', 'Ctrl+J'), item('Ukuran normal', 'normsize')); if (o.type === 'partition') items.push(item(o.horiz ? 'Jadikan partition tegak' : 'Jadikan partition mendatar', 'porient')); if (o.type === 'partition' || o.type === 'lane') items.push(item('Rapatkan semua ' + (o.type === 'lane' ? 'lane' : 'partition'), 'dockall'), HR); items.push(item('Warna garis…', 'pop:stroke'), item('Warna isi…', 'pop:fill'), item('Warna teks…', 'pop:text')); }
       else if (o.kind === 'clink') {
@@ -15977,6 +16065,8 @@ function contextMenu(e, id) {
       if (D.kind === 'activity') items.push(item('Buat Flowchart dari diagram ini…', 'fcfromad'), HR);
       if (D.kind === 'comm') items.push(item('Rapikan label (objek tetap)', 'cmtidylab'), item('Tata ulang objek dan label', 'cmtidy'), item('Nomori ulang pesan', 'cmrenum'), HR);
       if (D.kind === 'flowchart') items.push(item('Rapikan flowchart', 'fctidy'), item('Simpan sebagai .drawio', 'fcdrawio'), HR);
+      if (D.kind === 'class') items.push(item('Tata letak otomatis (V | C | M)', 'relayout', 'Ctrl+Shift+K'), item('Buat dari Sequence Diagram…', 'clsfromseq'), HR);
+      if (D.kind === 'sequence') items.push(item('Buat Class Diagram dari Sequence ini…', 'clsfromseq'), HR);
       items = items.concat([item('Jelaskan diagram ini…', 'explain', 'F3'), HR, item('Tempel', 'paste', 'Ctrl+V', { dis: !canPaste() }), item('Salin diagram sebagai gambar HD', 'copyimg', 'Ctrl+Alt+C'), item('Pilih semua', 'selall', 'Ctrl+A'), item(multiPick ? 'Selesai memilih' : 'Pilih beberapa (klik satu per satu)', 'multipick'), item('Cari elemen…', 'find', 'Ctrl+F'), HR, item('Rapikan semua garis…', 'tidyall', 'Ctrl+Shift+L'), item('Tampilan global', 'fit', 'F8')].concat(D.kind === 'activity' || D.kind === 'bpmn' ? [item('Jalankan alur ▶', 'sim')] : []).concat([HR, item('Ganti nama diagram…', 'renamediag'), item('Diagram baru…', 'newdiag'), item('Periksa diagram', 'check', 'F4')]));
     }
     renderMenu(items, e.clientX, e.clientY); return;
@@ -16043,7 +16133,7 @@ function run(a, btn) {
   }
   switch (a) {
     case 'start': startPage(); return;
-    case 'newdiag': (function () { var r0 = btn && btn.getBoundingClientRect ? btn.getBoundingClientRect() : { left: 200, bottom: 120 }; renderMenu(isFcDoc() ? [{ hd: 'Flowchart baru' }, item('Flowchart kosong', 'newdiag:flowchart'), item('Dari Activity Diagram (proyek UML)…', 'fcbatch'), item('Dari skenario use case…', 'scen')] : [{ hd: 'Diagram baru' }, item('Activity Diagram', 'newdiag:activity'), item('Use Case Diagram', 'newdiag:usecase'), item('BPMN (Business Process)', 'newdiag:bpmn'), item('Sequence Diagram', 'newdiag:sequence'), item('Collaboration Diagram', 'newdiag:comm'), HR, item('Collaboration dari Sequence…', 'cmbatch'), item('Flowchart dari Activity (ke mode Flowchart)…', 'fcbatch')], r0.left, r0.bottom + 4); })(); return;
+    case 'newdiag': (function () { var r0 = btn && btn.getBoundingClientRect ? btn.getBoundingClientRect() : { left: 200, bottom: 120 }; if (isFcDoc()) { run('newdiag:flowchart'); return; } renderMenu([{ hd: 'Diagram baru' }, item('Activity Diagram', 'newdiag:activity'), item('Use Case Diagram', 'newdiag:usecase'), item('BPMN (Business Process)', 'newdiag:bpmn'), item('Sequence Diagram', 'newdiag:sequence'), item('Class Diagram', 'newdiag:class')], r0.left, r0.bottom + 4); })(); return;
     case 'newpkg': (function () { var nm0 = 'Paket ' + (doc.packages.length + 1); mutate(function () { doc.packages.push({ id: uid('p'), name: nm0, parent: doc.packages[0].id }); }); toast('Paket "' + nm0 + '" dibuat. Diagram baru akan masuk ke paket diagram yang sedang dibuka.'); })(); return;
     case 'renamediag': renameDiagramModal(); return;
     case 'deldiag': removeDiagram(active); return;
@@ -16376,7 +16466,7 @@ cv.addEventListener('pointerdown', function (e) {
   var g = e.target.closest('[data-id]'), gid = g && g.dataset.id, hd = e.target.closest('[data-h]');
   var now = Date.now(), dbl = gid && !hd && !e.ctrlKey && !e.metaKey && lastDown.id === gid && now - lastDown.t < 450 && Math.hypot(e.clientX - lastDown.x, e.clientY - lastDown.y) < 6;
   lastDown = { id: gid, t: dbl ? 0 : now, x: e.clientX, y: e.clientY };
-  if (dbl && tool === 'select' && !multiPick) { drag = null; if (!isDfd() && ucOpen(gid)) return; startRename(gid); return; }
+  if (dbl && tool === 'select' && !multiPick) { drag = null; if (!isDfd() && clsDbl(gid, e)) return; if (!isDfd() && ucOpen(gid)) return; startRename(gid); return; }
   if (tool === 'select') {
     var labG = !isDfd() && !multiPick && !hd && gid && !e.shiftKey && !e.ctrlKey && !e.metaKey && e.target.closest('[data-lab]');
     if (labG && labDown(e, D, p, gid, labG.dataset.lab)) return;
@@ -16473,7 +16563,7 @@ cv.addEventListener('pointermove', function (e) {
   } else if (drag.t === 'resize') {
     var el = elOf(D, drag.id), o = drag.o, hv = drag.h, l = o.x, t = o.y, r = o.x + o.w, b = o.y + o.h;
     if (!drag.pushed) { push(); drag.pushed = true; pinAround(D, new Set(drag.grp ? Object.keys(drag.grp) : [drag.id]), true); }
-    var mw = TT[el.type] ? 6 : MINW, mh = TT[el.type] ? 4 : MINH;
+    var mw = TT[el.type] ? 6 : MINW, mh = TT[el.type] ? 4 : MINH, mm0 = elMinWH(el, mw, mh); mw = mm0.w; mh = mm0.h;
     if (hv.indexOf('w') >= 0) l = Math.min(snap(p.x, e), r - mw); if (hv.indexOf('e') >= 0) r = Math.max(snap(p.x, e), l + mw);
     if (hv.indexOf('n') >= 0) t = Math.min(snap(p.y, e), b - mh); if (hv.indexOf('s') >= 0) b = Math.max(snap(p.y, e), t + mh);
     drag.guides = null;
@@ -16487,7 +16577,7 @@ cv.addEventListener('pointermove', function (e) {
       var dl = l - o.x, dt = t - o.y, dr = r - (o.x + o.w), db = b - (o.y + o.h);
       Object.keys(drag.grp).forEach(function (gid2) {
         if (gid2 === el.id) return; var x = elOf(D, gid2), g0 = drag.grp[gid2]; if (!x) return;
-        var m1 = TT[x.type] ? 6 : MINW, m2 = TT[x.type] ? 4 : MINH, L2 = g0.x + dl, R2 = g0.x + g0.w + dr, T2 = g0.y + dt, B2 = g0.y + g0.h + db;
+        var mm1 = elMinWH(x, TT[x.type] ? 6 : MINW, TT[x.type] ? 4 : MINH), m1 = mm1.w, m2 = mm1.h, L2 = g0.x + dl, R2 = g0.x + g0.w + dr, T2 = g0.y + dt, B2 = g0.y + g0.h + db;
         if (R2 - L2 < m1) { if (hv.indexOf('w') >= 0) L2 = R2 - m1; else R2 = L2 + m1; }
         if (B2 - T2 < m2) { if (hv.indexOf('n') >= 0) T2 = B2 - m2; else B2 = T2 + m2; }
         x.x = L2; x.y = T2; x.w = R2 - L2; x.h = B2 - T2;
@@ -16983,7 +17073,7 @@ var HELP = {
     '<li><b>Membuat alur, cara cepat:</b> klik sebuah objek. Muncul 4 tombol panah kecil di sisinya. <b>Seret</b> salah satu ke objek tujuan, atau <b>klik</b> untuk memilih tujuan dari daftar.</li>' +
     '<li><b>Cara lama:</b> alat Alur (F), klik objek asal, lalu klik objek tujuan.</li>' +
     '<li>Klik dua kali objek atau alur untuk mengganti nama.</li>' +
-    '<li>Alat lain di kiri, sama seperti palet PowerDesigner: <b>Split/Merge</b> (M) untuk memecah/menggabung alur, <b>Off-page</b> (O) untuk proses di luar diagram turunan, <b>Teks</b> (T) untuk judul/keterangan, serta <b>Kotak, Elips, Garis</b> untuk gambar bebas. Semuanya ikut tersimpan di .pam.</li></ul>' +
+    '<li>Alat lain di kiri: <b>Split/Merge</b> (M) untuk memecah/menggabung alur, <b>Off-page</b> (O) untuk proses di luar diagram turunan, <b>Teks</b> (T) untuk judul/keterangan, serta <b>Kotak, Elips, Garis</b> untuk gambar bebas. Semuanya ikut tersimpan di .pam.</li></ul>' +
     '<h4>Dari skenario use case</h4><ul><li>Berkas → <b>Buat DFD dari skenario</b>: tempel tabel skenario dari Google Docs/Word atau buka .docx. Alir menyusun DFD level 0, level 1 (satu proses "Mengelola Data X" per objek data, lengkap dengan data store), dan level 2 per use case. Alurnya sudah seimbang antar level.</li>' +
     '<li>Format tabel yang dikenali: baris "Nomor Use Case" dan "Nama Use Case" terpisah, satu baris gabungan "UC21 - Membuat Data Artikel", dua sel "UC21 | Nama", judul tabel "Tabel 3.1 Skenario ...", kolom "No | Aktor | Sistem", versi bahasa Inggris, dan teks biasa.</li></ul>' +
     '<h4>Tab dan daftar diagram</h4><ul><li><b>Tab = diagram yang sedang dibuka.</b> Tombol × (atau klik tengah) hanya <b>menutup tab</b>; diagramnya tetap ada dan bisa dibuka lagi dari Pohon proses / Project Browser atau daftar semua diagram. Menghapus diagram: klik kanan → Hapus diagram. Klik kanan tab juga punya <b>Tutup tab lainnya</b> dan <b>Tutup tab di kanan</b>.</li><li>Tab bertulisan <i>miring</i> adalah <b>tab pratinjau</b>: dibuka dengan sekali klik dari pohon dan diganti saat kamu membuka diagram lain, supaya tab tidak menumpuk. Tab menetap kalau isinya diubah atau tabnya diklik dua kali (bisa dimatikan di Preferensi tampilan).</li><li>Bilah tab bisa digeser dengan roda mouse, diseret, atau tombol ‹ ›. Tombol angka di ujung kanan membuka <b>daftar semua diagram</b>; ketik nama atau nomor urut lalu Enter (Ctrl+Shift+E). Ctrl+PageUp/PageDown pindah tab.</li>' +
@@ -17010,12 +17100,12 @@ var HELP = {
     '<p><b>Seimbang (balancing)</b> artinya setiap alur yang masuk atau keluar dari proses di level induk harus muncul juga di level turunannya, dengan nama yang sama.</p>',
   kunci: '<table>' + [['V / H / P / D / E / F', 'Alat Pilih / Geser / Proses / Store / Entitas / Alur'], ['Ctrl+A, Ctrl+C, Ctrl+X, Ctrl+V', 'Pilih semua, salin, potong, tempel'], ['Shift+klik, atau klik kanan → Pilih beberapa', 'Memilih banyak objek satu per satu'], ['Ctrl+G, Ctrl+Shift+G', 'Kelompokkan, pisahkan kelompok'], ['Ctrl+F', 'Cari elemen di semua diagram'], ['Klik kanan → Kunci posisi', 'Objek tidak bisa tergeser, diubah ukurannya, atau terhapus'], ['Shift saat menggeser, Esc saat menyeret', 'Gerak lurus, batalkan geseran'], ['Ctrl+D', 'Duplikat'], ['Ctrl+Z / Ctrl+Y', 'Urungkan / ulangi'], ['Delete', 'Hapus pilihan'], ['F2', 'Ganti nama'], ['Ctrl+L', 'Rapikan garis alur terpilih'], ['Ctrl+J', 'Sesuaikan ukuran dengan teks'], ['Panah / Shift+panah', 'Geser objek 1 / 10 px'], ['Alt+↓ / Alt+↑', 'Masuk dekomposisi / naik satu level'], ['Ctrl + scroll, cubit touchpad', 'Zoom'], ['Scroll, geser dua jari di touchpad, Shift+scroll, Spasi+seret', 'Geser kanvas'], ['Alt saat menyeret', 'Tanpa snap ke grid'], ['F1', 'Bantuan ini'], ['F3', 'Jelaskan diagram (tanya jawab tentang alur)'], ['F4', 'Periksa model'], ['F5 / F6 / F7', 'Skala 100% / perbesar / perkecil'], ['F8 (atau Ctrl+0 / Shift+1) / F9', 'Tampilan global, kembali melihat seluruh diagram / tampilan sebelumnya'], ['Ctrl+S', 'Simpan .pam'], ['Ctrl+O', 'Buka berkas']].map(function (r) { return '<tr><td><kbd>' + r[0] + '</kbd></td><td>' + r[1] + '</td></tr>'; }).join('') + '</table>',
   uml: '<h4>Memulai</h4><ul><li>Klik ikon <b>rumah</b> di kiri atas (Halaman mulai) untuk memilih <b>Activity</b>, <b>Use Case</b>, <b>BPMN</b>, atau <b>Sequence</b>. Semua diagram UML disimpan dalam satu proyek, terpisah dari DFD.</li>' +
-    '<li><b>Toolbox</b> di kiri berisi elemen dan jenis garis, sama seperti di Enterprise Architect. Klik elemen lalu klik di kanvas.</li>' +
+    '<li><b>Toolbox</b> di kiri berisi elemen dan jenis garis. Klik elemen lalu klik di kanvas.</li>' +
     '<li><b>Project Browser</b> di kanan menampilkan paket, diagram, dan elemennya. Klik diagram untuk membukanya; tanda <b>›</b> di kiri untuk menampilkan/melipat isinya, lalu klik elemen untuk langsung menuju ke elemennya. Kotak <b>Cari diagram</b> menyaring daftar (Enter membuka hasil pertama, Esc mengosongkan). Titik biru = diagram yang sedang terbuka di tab. Tarik pojok kanan bawah kotaknya untuk mengubah tinggi.</li></ul>' +
     '<h4>Sequence Diagram</h4><ul><li>Taruh <b>Actor</b>, <b>Boundary</b> (View, nama diawali <b>V_</b>), <b>Control</b> (Controller, <b>C_</b>), dan <b>Entity</b> (Model, <b>M_</b>) dari Toolbox. Semua kepala lifeline sejajar di atas dan hanya bisa digeser ke kiri/kanan.</li>' +
     '<li><b>Membuat pesan:</b> seret dari <b>garis putus-putus</b> satu lifeline ke lifeline lain (lepas di lifeline yang sama untuk pesan ke diri sendiri), lalu ketik namanya <b>tanpa kurung</b>. Parameter, nilai kembali, sinkron/asinkron, dan <i>Is Return</i> diisi di panel kanan; label tampil, mis. <i>getData(id): Array</i>.</li>' +
     '<li>Seret pesan naik/turun untuk mengubah urutan (tahan <b>Ctrl</b> untuk ikut menggeser semua pesan di bawahnya), atau panah atas/bawah. Seret kotak di ujung pesan terpilih untuk memindah asal/tujuannya.</li>' +
-    '<li><b>Activation</b> (kotak sempit) digambar otomatis dari urutan pesan, sama dengan EA. <b>Fragment</b> alt/opt/loop: atur operator dan operand [kondisi] di panel kanan, seret pemisah putus-putusnya untuk mengubah tinggi.</li>' +
+    '<li><b>Activation</b> (kotak sempit) digambar otomatis dari urutan pesan. <b>Fragment</b> alt/opt/loop: atur operator dan operand [kondisi] di panel kanan, seret pemisah putus-putusnya untuk mengubah tinggi.</li>' +
     '<li>Pemeriksaan otomatis mengecek awalan V_/C_/M_, alur MVC (aktor hanya ke View, View lewat Controller, Model hanya membalas ke Controller), nama pesan berkurung, dan balasan tanpa pemanggil.</li></ul>' +
     '<h4>Menyambung elemen</h4><ul><li>Pilih elemen, lalu <b>seret panah biru</b> di sisinya ke elemen lain. Kalau ada beberapa jenis hubungan (misalnya «include», «extend», Generalization), Alir menanyakan jenisnya.</li>' +
     '<li>Seret panah biru ke <b>area kosong</b> untuk membuat elemen baru yang langsung tersambung.</li>' +
@@ -17045,6 +17135,809 @@ window.addEventListener('resize', function () { closeMenus(); closePop(); draw()
 if (window.ResizeObserver) new ResizeObserver(function () { if (view().fresh) fit(); else draw(); }).observe(stage);
 
 /* ---------- mulai ---------- */
+/* ===================== v72: Class Diagram (gaya Enterprise Architect 12) =====================
+   Semua angka di bawah diukur langsung dari EA 12 (render & GUI lewat Wine):
+   - Class baru 90 x 70. Kotak sudut membulat ±3 px, isi putih bergradasi ke kanan, bayangan.
+   - Kompartemen nama 25 px (nama tebal di tengah). Garis pemisah hanya digambar kalau kompartemennya berisi.
+   - Baris atribut/operation 11 px; baris pertama 12 px di bawah garis pemisah; tiap kompartemen = n x 11 + 8.
+   - Simbol visibility di x+5, teks di x+23. Tinggi minimum tanpa isi 28, lebar minimum 40.
+   - EA TIDAK membiarkan class lebih kecil dari isinya: saat atribut ditambah kotak membesar sendiri,
+     dan saat diperkecil berhenti di ukuran isinya (berkas yang ukurannya terlalu kecil pun digambar sebesar isinya).
+   - Atribut & operation ditampilkan urut abjad (tanpa membedakan huruf besar/kecil), seperti bawaan EA.
+   - Parameter operation ditampilkan TIPE-nya saja (pengaturan bawaan diagram EA: OpParams=1).
+   - Ujung garis: Directed Association panah terbuka 15x13, Dependency putus-putus 7/4 + panah terbuka 16x11,
+     Generalization segitiga 16x13, Aggregation belah ketupat 20x11 (isi krem), Composition belah ketupat hitam. */
+KINDS['class'] = { name: 'Class Diagram', short: 'CD', ea: 'Logical', pre: 'class' };
+EA_THEME['class'] = '#ffffff';
+var CLS = { NAME_H: 25, ROW: 11, PAD: 8, X_VIS: 5, X_TXT: 23, R_PAD: 5, MIN_W: 40, MIN_H: 28, W: 90, H: 70, ST_H: 11 };
+var CLS_VIS = { Private: '-', Public: '+', Protected: '#', Package: '~' };
+var CLS_VIS_NAME = { '-': 'Private', '+': 'Public', '#': 'Protected', '~': 'Package' };
+var CLS_TYPES = ['string', 'int', 'integer', 'float', 'double', 'decimal', 'boolean', 'char', 'text', 'date', 'datetime', 'time', 'timestamp', 'enum', 'array', 'object', 'void'];
+DASHARR.cdash = '7 4';
+
+function isCls(e) { return !!e && e.type === 'class'; }
+function clsOn(D) { return !!D && D.kind === 'class'; }
+function clsFont(e, bold) { var st = es(e); return Object.assign({}, st.font, { b: !!bold }); }
+function clsSort(list) {
+  return list.map(function (x, i) { return { x: x, i: i }; }).sort(function (a, b) {
+    var p = String(a.x.name || '').toLowerCase(), q = String(b.x.name || '').toLowerCase();
+    return p < q ? -1 : p > q ? 1 : a.i - b.i;
+  }).map(function (o) { return o.x; });
+}
+function clsParamText(p) { return String((p && (p.type || p.name)) || '').trim(); }
+function clsAttrText(a) { return String(a.name || '') + (a.type ? ': ' + a.type : ''); }
+function clsOpText(o) { return String(o.name || '') + '(' + (o.params || []).map(clsParamText).filter(Boolean).join(', ') + ')' + (o.ret ? ': ' + o.ret : ''); }
+function clsRows(e) {
+  return { attrs: clsSort(e.attrs || []).map(function (a) { return { v: a.vis || '-', t: clsAttrText(a), id: a.id }; }),
+    ops: clsSort(e.ops || []).map(function (o) { return { v: o.vis || '+', t: clsOpText(o), id: o.id }; }) };
+}
+function clsNameH(e) { return CLS.NAME_H + (e.stereo ? CLS.ST_H : 0); }
+/* ukuran minimum = ukuran isi (seperti EA) */
+function clsMin(e) {
+  var R = clsRows(e), fN = fontCss(clsFont(e, true)), fR = fontCss(clsFont(e, false)), w = CLS.MIN_W;
+  w = Math.max(w, textW(String(e.name || ''), fN) + 12);
+  if (e.stereo) w = Math.max(w, textW('«' + e.stereo + '»', fR) + 12);
+  R.attrs.concat(R.ops).forEach(function (r) { w = Math.max(w, CLS.X_TXT + textW(r.t, fR) + CLS.R_PAD); });
+  var h = clsNameH(e), any = false;
+  [R.attrs, R.ops].forEach(function (L) { if (L.length) { h += L.length * CLS.ROW + CLS.PAD; any = true; } });
+  h = any ? h + 1 : Math.max(CLS.MIN_H, h + 3);
+  return { w: Math.ceil(w), h: Math.ceil(h) };
+}
+function clsFit(e) { if (!isCls(e)) return; var m = clsMin(e); if (e.w < m.w) e.w = m.w; if (e.h < m.h) e.h = m.h; }
+function clsFitAll(D) { if (D && D.elements) D.elements.forEach(clsFit); }
+/* letak tiap kompartemen (dipakai menggambar & mengenali klik ganda) */
+function clsGeom(e) {
+  var R = clsRows(e), y = e.y + clsNameH(e), out = { name: { t: e.y, b: y }, parts: [] };
+  [['attr', R.attrs], ['op', R.ops]].forEach(function (P) {
+    if (!P[1].length) return;
+    var top = y; out.parts.push({ k: P[0], top: top, rows: P[1], y0: top + 12 });
+    y = top + P[1].length * CLS.ROW + CLS.PAD;
+  });
+  return out;
+}
+function clsDraw(e, st) {
+  var G = clsGeom(e), fN = clsFont(e, true), fR = clsFont(e, false), col = st.text, s = '';
+  s += '<rect x="' + e.x + '" y="' + e.y + '" width="' + e.w + '" height="' + e.h + '" rx="3" ry="3" fill="' + fillOf(st) + '" stroke="' + st.stroke + '"' + shadowAttr() + '/>';
+  var cx = e.x + e.w / 2;
+  if (e.stereo) s += '<text x="' + cx + '" y="' + (e.y + 14) + '" text-anchor="middle" ' + fontAttr(fR, col) + '>' + esc('«' + e.stereo + '»') + '</text>';
+  s += '<text x="' + cx + '" y="' + (e.y + 17 + (e.stereo ? CLS.ST_H : 0)) + '" text-anchor="middle" ' + fontAttr(fN, col) + '>' + esc(e.name || '') + '</text>';
+  G.parts.forEach(function (P) {
+    s += '<path d="M' + e.x + ' ' + (P.top + .5) + 'H' + (e.x + e.w) + '" stroke="' + st.stroke + '" fill="none"/>';
+    P.rows.forEach(function (r, i) {
+      var by = P.y0 + i * CLS.ROW;
+      s += '<text x="' + (e.x + CLS.X_VIS + (r.v === '-' ? .5 : 0)) + '" y="' + by + '" ' + fontAttr(fR, col) + '>' + esc(r.v) + '</text>';
+      s += '<text x="' + (e.x + CLS.X_TXT) + '" y="' + by + '" ' + fontAttr(fR, col) + '>' + esc(r.t) + '</text>';
+    });
+  });
+  return s;
+}
+TT['class'] = T({ k: 'class', label: 'Class', name: 'Class', ea: 'Class', size: [CLS.W, CLS.H], grow: false, font: ufont(true),
+  icon: '<rect x="4" y="4" width="16" height="16" rx="1.5"/><path d="M4 9h16M4 14.5h16"/>', draw: clsDraw });
+
+/* ---------- jenis garis (nama Inggris seperti di EA) ---------- */
+CT.diassoc = C({ label0: 'Directed Association', ea: 'Association', head: 'cop', icon: '<path d="M4 20L20 4M20 4h-7M20 4v7"/>' });
+CT.cgen = C({ label0: 'Generalization', ea: 'Generalization', head: 'ctri', icon: '<path d="M4 20L14 10"/><path d="M20 4l-8.5 3 5.5 5.5z"/>' });
+CT.cdep = C({ label0: 'Dependency', ea: 'Dependency', dash: 'cdash', head: 'cdp', icon: '<path d="M4 20L19 5" stroke-dasharray="3 2"/><path d="M20 4h-7M20 4v7"/>' });
+CT.aggreg = C({ label0: 'Aggregation', ea: 'Aggregation', head: 'cdia', icon: '<path d="M4 20L11.5 12.5"/><path d="M19.5 4.5L17.5 10.5L11.5 12.5L13.5 6.5z"/>' });
+CT.compos = C({ label0: 'Composition', ea: 'Aggregation', sub: 'Strong', head: 'cfdia', icon: '<path d="M4 20L11.5 12.5"/><path d="M19.5 4.5L17.5 10.5L11.5 12.5L13.5 6.5z" fill="currentColor"/>' });
+['diassoc', 'cgen', 'cdep', 'aggreg', 'compos'].forEach(function (k) { CT[k].label = CT.assoc.label; CT[k].cls = true; });
+TOOLBOX['class'] = [['Class', ['class', 'note']], ['Class Relationships', ['c:assoc', 'c:diassoc', 'c:cgen', 'c:cdep', 'c:aggreg', 'c:compos', 'c:notelink']]];
+umlMarkers = (function (orig) {
+  return function (set) {
+    var s = orig(set);
+    set.forEach(function (k) {
+      if (k.indexOf('|') < 0) return;
+      var p = k.split('|'), kind = p[0], c = p[1], id = mkId(kind, c), cream = '#fcf2e3';
+      if (kind === 'cop') s += '<marker id="' + id + '" viewBox="0 0 15 13" refX="15" refY="6.5" markerWidth="15" markerHeight="13" markerUnits="userSpaceOnUse" orient="auto"><path d="M0 .5L15 6.5L0 12.5" fill="none" stroke="' + c + '"/></marker>';
+      else if (kind === 'cdp') s += '<marker id="' + id + '" viewBox="0 0 16 11" refX="16" refY="5.5" markerWidth="16" markerHeight="11" markerUnits="userSpaceOnUse" orient="auto"><path d="M0 .5L16 5.5L0 10.5" fill="none" stroke="' + c + '"/></marker>';
+      else if (kind === 'ctri') s += '<marker id="' + id + '" viewBox="0 0 17 14" refX="16.5" refY="7" markerWidth="17" markerHeight="14" markerUnits="userSpaceOnUse" orient="auto"><path d="M.5 .5L16.5 7L.5 13.5z" fill="' + cream + '" stroke="' + c + '"/></marker>';
+      else if (kind === 'cdia' || kind === 'cfdia') s += '<marker id="' + id + '" viewBox="0 0 21 12" refX="20.5" refY="6" markerWidth="21" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M.5 6L10.5 .5L20.5 6L10.5 11.5z" fill="' + (kind === 'cfdia' ? c : cream) + '" stroke="' + c + '"/></marker>';
+    });
+    return s;
+  };
+})(umlMarkers);
+
+/* peran class menurut nama (View = V_, Controller = C_, Model = M_) */
+function clsRole(e) {
+  if (!e || !isCls(e)) return '';
+  var st = String(e.stereo || '').toLowerCase();
+  if (st === 'boundary') return 'V'; if (st === 'control') return 'C'; if (st === 'entity') return 'M';
+  var m = /^\s*([VCM])[_\s]/i.exec(String(e.name || '')); return m ? m[1].toUpperCase() : '';
+}
+/* garis yang ditawarkan, urutan pertama = bawaan (aturan MVC):
+   V ke C = Dependency; C ke M = Aggregation (belah ketupat di M); M ke M = Association; C ke C = Directed Association */
+function clsLinkKinds(a, b) {
+  var all = ['assoc', 'diassoc', 'cgen', 'cdep', 'aggreg', 'compos'];
+  var ra = clsRole(a), rb = clsRole(b), first = null;
+  if (ra === 'V' && rb === 'C') first = 'cdep';
+  else if (ra === 'C' && rb === 'V') first = 'cdep';
+  else if (ra === 'C' && rb === 'M') first = 'aggreg';
+  else if (ra === 'M' && rb === 'M') first = 'assoc';
+  else if (ra === 'C' && rb === 'C') first = 'diassoc';
+  if (!first) return all;
+  return [first].concat(all.filter(function (k) { return k !== first; }));
+}
+linkKinds = (function (orig) {
+  return function (a, b, dk) {
+    if (dk === 'class' && a && b && isCls(a) && isCls(b)) return clsLinkKinds(a, b);
+    return orig(a, b, dk);
+  };
+})(linkKinds);
+umlAddEl = (function (orig) {
+  return function (type, p, ev) {
+    if (type !== 'class') return orig(type, p, ev);
+    var D = cur(), n = D.elements.filter(isCls).length + 1, nm = 'Class' + n;
+    while (D.elements.some(function (x) { return x.name === nm; })) nm = 'Class' + (++n);
+    return { id: uid('e'), type: 'class', name: nm, x: snap(p.x - CLS.W / 2, ev), y: snap(p.y - CLS.H / 2, ev), w: CLS.W, h: CLS.H, style: {}, attrs: [], ops: [] };
+  };
+})(umlAddEl);
+function elMinWH(el, mw, mh) { if (isCls(el)) { var m = clsMin(el); return { w: m.w, h: m.h }; } return { w: mw, h: mh }; }
+
+/* ---------- parsing teks "nama: tipe" dan "nama(param): kembali" ---------- */
+function clsSplitTop(s) { var out = [], d = 0, cur0 = ''; String(s).split('').forEach(function (ch) { if (ch === '(' || ch === '[' || ch === '<') d++; if (ch === ')' || ch === ']' || ch === '>') d--; if (ch === ',' && d === 0) { out.push(cur0); cur0 = ''; } else cur0 += ch; }); if (cur0.trim()) out.push(cur0); return out.map(function (x) { return x.trim(); }).filter(Boolean); }
+/* satu kata tanpa ":" = nama parameter (tipe ditebak), kecuali memang nama tipe.
+   $data jadi data: array (atau dibiarkan "$data" bila opt.keepDollar). */
+var CLS_TYPE_RE = /^(string|str|int|integer|bigint|smallint|tinyint|long|short|byte|float|double|decimal|real|number|numeric|bool|boolean|char|varchar|text|longtext|date|datetime|date ?time|time|timestamp|year|enum|array|object|void|blob|json|currency|single|variant|file|image)$/i;
+function clsIsType(t) { t = String(t || '').trim(); return CLS_TYPE_RE.test(t) || /\s/.test(t) || /[\[\]<>]/.test(t) || /^[A-Z]/.test(t); }
+function clsParseParams(s, opt) {
+  opt = opt || {};
+  return clsSplitTop(s).map(function (t) {
+    var m = /^([^:]+):(.*)$/.exec(t);
+    if (m && m[2].trim()) return { name: m[1].trim().replace(/^\$/, ''), type: m[2].trim() };
+    t = t.replace(/:$/, '').trim();
+    if (/^\$/.test(t)) { if (opt.keepDollar) return { name: '', type: t }; var nm = t.slice(1); return { name: nm, type: /^data$/i.test(nm) ? 'array' : clsGuessType(nm) }; }
+    if (!t || clsIsType(t) || !/^[a-z_][\w]*$/.test(t)) return { name: '', type: t };
+    return { name: t, type: clsGuessType(t) };
+  });
+}
+function clsParamsStr(ps) { return (ps || []).map(function (p) { return p.name && p.type ? p.name + ': ' + p.type : (p.type || p.name || ''); }).filter(Boolean).join(', '); }
+function clsParseLine(line, defOp) {
+  var s = String(line || '').replace(/\s+/g, ' ').trim(); if (!s) return null;
+  var vis = null, m = /^([-+#~])\s*(.*)$/.exec(s); if (m) { vis = m[1]; s = m[2]; }
+  var po = s.indexOf('(');
+  if (po > 0 || (defOp && po < 0 && !/:/.test(s) && false)) {
+    var pc = s.lastIndexOf(')'); if (pc < po) pc = s.length;
+    var name = s.slice(0, po).trim(), params = clsParseParams(s.slice(po + 1, pc)), rest = s.slice(pc + 1).trim().replace(/^:\s*/, '');
+    return { kind: 'op', o: { id: uid('o'), name: name, params: params, ret: rest, vis: vis || '+' } };
+  }
+  var c = s.indexOf(':');
+  var nm = (c >= 0 ? s.slice(0, c) : s).trim(), ty = c >= 0 ? s.slice(c + 1).trim() : '';
+  if (!nm) return null;
+  return { kind: 'attr', o: { id: uid('a'), name: nm, type: ty, vis: vis || '-' } };
+}
+function clsToText(e) {
+  return (e.attrs || []).map(function (a) { return (a.vis || '-') + ' ' + clsAttrText(a); }).concat((e.ops || []).map(function (o) { return (o.vis || '+') + ' ' + String(o.name || '') + '(' + clsParamsStr(o.params) + ')' + (o.ret ? ': ' + o.ret : ''); })).join('\n');
+}
+function clsFromText(txt) {
+  var A = [], O = [];
+  String(txt || '').split(/\r?\n/).forEach(function (l) { var r = clsParseLine(l); if (!r) return; (r.kind === 'op' ? O : A).push(r.o); });
+  return { attrs: A, ops: O };
+}
+
+/* ---------- jendela Attributes & Operations ---------- */
+function clsTypeList() { return '<datalist id="cls-types">' + CLS_TYPES.map(function (t) { return '<option value="' + t + '">'; }).join('') + '</datalist>'; }
+function clsVisSel(v, k) { return '<select class="in clv" data-k="vis" aria-label="Visibility" title="Visibility: - Private, + Public, # Protected, ~ Package">' + ['-', '+', '#', '~'].map(function (x) { return '<option value="' + x + '"' + (x === v ? ' selected' : '') + ' title="' + CLS_VIS_NAME[x] + '">' + x + '</option>'; }).join('') + '</select>'; }
+function clsRowHtml(k, o) {
+  if (k === 'attr') return '<tr data-id="' + esc(o.id) + '"><td>' + clsVisSel(o.vis || '-') + '</td><td><input class="in" data-k="name" value="' + esc(o.name || '') + '" placeholder="nama_atribut" spellcheck="false"></td><td class="clac"><input class="in" data-k="type" data-ac="type" value="' + esc(o.type || '') + '" placeholder="string" spellcheck="false" autocomplete="off"><button class="clddb" data-dd tabindex="-1" title="Pilih tipe data" aria-label="Pilih tipe data">▾</button></td><td><button class="tb cldel" data-del title="Hapus baris (Ctrl+Delete)" aria-label="Hapus">×</button></td></tr>';
+  return '<tr data-id="' + esc(o.id) + '"><td>' + clsVisSel(o.vis || '+') + '</td><td><input class="in" data-k="name" value="' + esc(o.name || '') + '" placeholder="namaOperation" spellcheck="false"></td><td class="clac"><input class="in" data-k="params" data-ac="param" value="' + esc(clsParamsStr(o.params)) + '" placeholder="id, $data" spellcheck="false" autocomplete="off"></td><td class="clac"><input class="in" data-k="ret" data-ac="type" value="' + esc(o.ret || '') + '" placeholder="—" spellcheck="false" autocomplete="off"><button class="clddb" data-dd tabindex="-1" title="Pilih tipe data" aria-label="Pilih tipe data">▾</button></td><td><button class="tb cldel" data-del title="Hapus baris (Ctrl+Delete)" aria-label="Hapus">×</button></td></tr>';
+}
+function clsEdit(id, focus) {
+  var D = cur(), e = elOf(D, id); if (!isCls(e)) return;
+  var snap0 = JSON.stringify({ a: e.attrs || [], o: e.ops || [], n: e.name, w: e.w, h: e.h }), pushed = false, textMode = false;
+  e.attrs = e.attrs || []; e.ops = e.ops || [];
+  var role = clsRole(e), mini = { attr: role === 'C' && !e.attrs.length, op: role === 'V' && !e.ops.length };
+  function sec(k, title, cols, list) {
+    var why = k === 'attr' ? 'Controller biasanya tidak punya attribute.' : 'View biasanya tidak punya operation.';
+    return '<section class="clsec' + (mini[k] ? ' mini' : '') + '" data-sec="' + k + '"><div class="clhd"><b>' + title + '</b><span class="hint clfull">' + (k === 'attr' ? 'Baris baru otomatis private (-)' : 'Baris baru otomatis public (+)') + '</span><span class="hint clwhy">Kosong. ' + why + '</span></div>' +
+      '<table class="cltab"><thead><tr>' + cols.map(function (c) { return '<th>' + c + '</th>'; }).join('') + '</tr></thead><tbody>' + list.map(function (o) { return clsRowHtml(k, o); }).join('') + '</tbody></table>' +
+      '<button class="btn sm cladd" data-add="' + k + '">+ ' + (k === 'attr' ? 'Attribute' : 'Operation') + '</button></section>';
+  }
+  var body = 
+    '<div class="clname"><label for="cl-nm">Nama class</label><input class="in" id="cl-nm" value="' + esc(e.name || '') + '" spellcheck="false"><div class="clmode" role="tablist"><button class="on" data-mode="tab" role="tab">Tabel</button><button data-mode="txt" role="tab">Tulis cepat</button></div></div>' +
+    '<div class="clbody' + (mini.attr || mini.op ? ' one' : '') + '">' + sec('attr', 'Attributes', ['', 'Nama', 'Tipe data', ''], e.attrs) + sec('op', 'Operations', ['', 'Nama', 'Parameter', 'Return', ''], e.ops) + '</div>' +
+    '<div class="cltxt" hidden><textarea class="in ta" id="cl-txt" rows="12" spellcheck="false" placeholder="- id_akun: int&#10;- nama: string&#10;+ getDataAkun(): array&#10;+ insertDataAkun($data)"></textarea><p class="hint">Satu baris untuk satu attribute atau operation. Baris yang memakai tanda kurung ( ) dibaca sebagai operation. Awalan <b>-</b> private, <b>+</b> public, <b>#</b> protected; tanpa awalan, attribute jadi private dan operation jadi public.</p></div>' +
+    '<ul class="hint cltip"><li><b>Enter</b> baris baru, <b>↑ ↓</b> pindah baris, <b>Ctrl+Delete</b> hapus baris.</li><li>Bisa langsung ketik <b>nama: string</b> atau <b>getData(id): array</b> di kolom Nama, nanti dipisah sendiri ke kolomnya.</li><li>Tipe data: ketik huruf awalnya, saran abu-abu muncul. <b>Enter</b>, <b>Tab</b>, atau <b>→</b> untuk memakai saran, tombol <b>▾</b> untuk daftar lengkap. Tipe lain seperti <b>string</b> boleh diketik bebas, di EA tetap terbaca.</li><li>Parameter dipisah koma: <b>id, $data</b> otomatis jadi <b>id: int, data: array</b>, atau tulis sendiri <b>nama: tipe</b>. Di diagram yang tampil tipenya saja, dan isi class diurutkan sesuai abjad.</li></ul>';
+  modal('Attributes & Operations — ' + (e.name || 'Class'), body, '<button class="btn" data-revert>Batalkan perubahan</button><button class="btn pri" data-close>Selesai</button>', function (s, close) {
+    s.querySelector('.modal').classList.add('clmodal');
+    function touch() { if (!pushed) { push(); pushed = true; } }
+    function readTables() {
+      var A = [], O = [];
+      s.querySelectorAll('[data-sec="attr"] tbody tr').forEach(function (tr) { var g = function (k) { var x = tr.querySelector('[data-k="' + k + '"]'); return x ? x.value : ''; }; var nm = g('name').trim(); if (!nm && !g('type').trim()) return; A.push({ id: tr.dataset.id, name: nm, type: g('type').trim(), vis: g('vis') || '-' }); });
+      s.querySelectorAll('[data-sec="op"] tbody tr').forEach(function (tr) { var g = function (k) { var x = tr.querySelector('[data-k="' + k + '"]'); return x ? x.value : ''; }; var nm = g('name').trim().replace(/\(\s*\)$/, ''); if (!nm && !g('params').trim() && !g('ret').trim()) return; var pm = /^([^(]+)\((.*)\)\s*(?::\s*(.*))?$/.exec(nm); if (pm) { O.push({ id: tr.dataset.id, name: pm[1].trim(), params: clsParseParams(pm[2]), ret: (pm[3] || g('ret')).trim(), vis: g('vis') || '+' }); return; } O.push({ id: tr.dataset.id, name: nm, params: clsParseParams(g('params')), ret: g('ret').trim(), vis: g('vis') || '+' }); });
+      return { attrs: A, ops: O };
+    }
+    function apply() {
+      touch();
+      var r = textMode ? clsFromText($('#cl-txt', s).value) : readTables();
+      e.attrs = r.attrs; e.ops = r.ops;
+      var nn = $('#cl-nm', s).value.trim(); if (nn) e.name = nn;
+      clsFit(e); persist(); draw(); panel();
+      var hd = s.querySelector('header b'); if (hd) hd.textContent = 'Attributes & Operations — ' + (e.name || 'Class');
+    }
+    function addRow(k, after, val) {
+      var o = k === 'attr' ? { id: uid('a'), name: val || '', type: '', vis: '-' } : { id: uid('o'), name: val || '', params: [], ret: '', vis: '+' };
+      var sc = s.querySelector('[data-sec="' + k + '"]'); if (sc.classList.contains('mini')) { sc.classList.remove('mini'); var cb = s.querySelector('.clbody'); if (!s.querySelector('.clsec.mini')) cb.classList.remove('one'); }
+      var tb = s.querySelector('[data-sec="' + k + '"] tbody'), tmp = document.createElement('tbody'); tmp.innerHTML = clsRowHtml(k, o);
+      var tr = tmp.firstChild; if (after && after.parentNode === tb) tb.insertBefore(tr, after.nextSibling); else tb.appendChild(tr);
+      var inp = tr.querySelector('[data-k="name"]'); inp.focus(); return tr;
+    }
+    var AC = clsAcSetup(s);
+    s.addEventListener('input', function (ev) { if (ev.target.dataset && ev.target.dataset.ac) AC.update(ev.target, ev.inputType); if (ev.target.closest('.clbody, .cltxt') || ev.target.id === 'cl-nm') apply(); });
+    s.addEventListener('change', function (ev) { if (ev.target.closest('.clbody')) apply(); });
+    s.addEventListener('click', function (ev) {
+      var dd = ev.target.closest('[data-dd]'); if (dd) { AC.list(dd.parentNode.querySelector('input')); return; }
+      var a = ev.target.closest('[data-add]'); if (a) { addRow(a.dataset.add); return; }
+      var d = ev.target.closest('[data-del]'); if (d) { var tr = d.closest('tr'), nx = tr.nextElementSibling || tr.previousElementSibling; tr.remove(); apply(); if (nx) { var q = nx.querySelector('[data-k="name"]'); if (q) q.focus(); } return; }
+      var md = ev.target.closest('[data-mode]'); if (md) { setMode(md.dataset.mode === 'txt'); return; }
+      if (ev.target.closest('[data-revert]')) { var o0 = JSON.parse(snap0); e.attrs = o0.a; e.ops = o0.o; e.name = o0.n; e.w = o0.w; e.h = o0.h; if (pushed) { undoS.pop(); pushed = false; } close(); afterChange(); toast('Perubahan dibatalkan.'); }
+    });
+    function setMode(txt) {
+      if (txt === textMode) return;
+      if (txt) { $('#cl-txt', s).value = clsToText(e); }
+      else { var r = clsFromText($('#cl-txt', s).value); e.attrs = r.attrs; e.ops = r.ops; s.querySelector('[data-sec="attr"] tbody').innerHTML = e.attrs.map(function (o) { return clsRowHtml('attr', o); }).join(''); s.querySelector('[data-sec="op"] tbody').innerHTML = e.ops.map(function (o) { return clsRowHtml('op', o); }).join(''); }
+      textMode = txt; s.querySelector('.clbody').hidden = txt; s.querySelector('.cltxt').hidden = !txt; s.querySelector('.cltip').hidden = txt;
+      s.querySelectorAll('[data-mode]').forEach(function (b) { b.classList.toggle('on', (b.dataset.mode === 'txt') === txt); });
+      if (txt) $('#cl-txt', s).focus();
+    }
+    s.addEventListener('keydown', function (ev) {
+      var t = ev.target;
+      if (t.id === 'cl-nm' && ev.key === 'Enter') { ev.preventDefault(); var f0 = s.querySelector('.clbody tbody [data-k="name"]'); if (f0) f0.focus(); else addRow('attr'); return; }
+      var tr = t.closest && t.closest('.cltab tbody tr'); if (!tr) return;
+      var k = tr.closest('[data-sec]').dataset.sec;
+      var acr = AC.key(ev, t); if (acr) { if (acr !== 'enter') return; apply(); }
+      if (ev.key === 'Enter' && !ev.ctrlKey && !ev.metaKey) {
+        ev.preventDefault();
+        /* teks berisi "nama: tipe" atau "nama(param): kembali" di kolom nama langsung dipecah */
+        var ni = tr.querySelector('[data-k="name"]'), raw = ni.value;
+        if (k === 'op' && /\(/.test(raw)) { var po = clsParseLine(raw); if (po && po.kind === 'op') { ni.value = po.o.name; tr.querySelector('[data-k="params"]').value = clsParamsStr(po.o.params); if (po.o.ret) tr.querySelector('[data-k="ret"]').value = po.o.ret; if (/^[-+#~]/.test(raw.trim())) tr.querySelector('[data-k="vis"]').value = po.o.vis; apply(); } }
+        if (k === 'attr' && /:/.test(raw)) { var pa = clsParseLine(raw); if (pa && pa.kind === 'attr') { ni.value = pa.o.name; if (pa.o.type) tr.querySelector('[data-k="type"]').value = pa.o.type; if (/^[-+#~]/.test(raw.trim())) tr.querySelector('[data-k="vis"]').value = pa.o.vis; apply(); } }
+        var nx = tr.nextElementSibling;
+        if (nx) { var q = nx.querySelector('[data-k="' + (t.dataset.k === 'vis' ? 'name' : t.dataset.k) + '"]') || nx.querySelector('[data-k="name"]'); q.focus(); if (q.select) q.select(); }
+        else if (ni.value.trim()) addRow(k, tr);
+        return;
+      }
+      if (ev.key === 'Delete' && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); tr.querySelector('[data-del]').click(); return; }
+      if ((ev.key === 'ArrowDown' || ev.key === 'ArrowUp') && t.tagName === 'INPUT') {
+        var to = ev.key === 'ArrowDown' ? tr.nextElementSibling : tr.previousElementSibling; if (to) { ev.preventDefault(); var q2 = to.querySelector('[data-k="' + t.dataset.k + '"]'); if (q2) { q2.focus(); q2.select(); } }
+      }
+    });
+    /* menutup jendela dengan cara apa pun (Selesai, ×, Esc, klik di luar) = perubahan disimpan */
+    var mo = new MutationObserver(function () { if (!document.body.contains(s)) { mo.disconnect(); if (pushed) afterChange(); else { draw(); panel(); } } });
+    mo.observe(document.body, { childList: true });
+    setTimeout(function () {
+      var target = null;
+      if (focus && focus.k) { var list = focus.k === 'attr' ? '[data-sec="attr"]' : '[data-sec="op"]'; target = focus.id ? s.querySelector(list + ' tr[data-id="' + focus.id + '"] [data-k="name"]') : null; if (!target) { var rows = s.querySelectorAll(list + ' tbody tr'); if (!rows.length) { addRow(focus.k); return; } target = rows[rows.length - 1].querySelector('[data-k="name"]'); } }
+      if (!target && role === 'C' && !e.attrs.length) { target = s.querySelector('[data-sec="op"] tbody [data-k="name"]'); if (!target) { addRow('op'); return; } }
+      if (!target) { target = s.querySelector('[data-sec="attr"] tbody [data-k="name"]') || null; if (!target && !e.ops.length) { addRow('attr'); return; } if (!target) target = s.querySelector('[data-sec="op"] tbody [data-k="name"]'); }
+      if (target) { target.focus(); target.select(); }
+    }, 30);
+  });
+}
+/* ---------- saran tipe data (teks abu-abu di belakang ketikan) ---------- */
+function clsTypeSuggestions() {
+  var cnt = {}, add = function (t) { t = String(t || '').trim(); if (!t || /^\$/.test(t)) return; cnt[t] = (cnt[t] || 0) + 1; };
+  (doc.diagrams || []).forEach(function (D) { (D.elements || []).forEach(function (e) { if (!isCls(e)) return; (e.attrs || []).forEach(function (a) { add(a.type); }); (e.ops || []).forEach(function (o) { add(o.ret); (o.params || []).forEach(function (p) { add(p.type); }); }); }); });
+  var used = Object.keys(cnt).sort(function (a, b) { return cnt[b] - cnt[a] || a.localeCompare(b); });
+  var out = [], seen = {};
+  used.concat(CLS_TYPES).forEach(function (t) { var k = t.toLowerCase(); if (!seen[k]) { seen[k] = 1; out.push(t); } });
+  return out;
+}
+function clsAcSetup(s) {
+  var ghost = null, ghostFor = null, menu = null, menuIdx = -1, sugg = null;
+  function list() { if (!sugg) sugg = clsTypeSuggestions(); return sugg; }
+  /* bagian yang sedang diketik: seluruh isi (tipe/return) atau teks sesudah ":" pada parameter terakhir */
+  function part(inp) {
+    var v = inp.value;
+    if (inp.dataset.ac !== 'param') return { pre: '', word: v };
+    var lastComma = v.lastIndexOf(','), seg = v.slice(lastComma + 1), c = seg.indexOf(':');
+    if (c < 0) return null;
+    var pre = v.slice(0, lastComma + 1) + seg.slice(0, c + 1), w = seg.slice(c + 1);
+    var lead = /^\s*/.exec(w)[0]; return { pre: pre + lead, word: w.slice(lead.length) };
+  }
+  function hide() { if (ghost) { ghost.remove(); ghost = null; } ghostFor = null; }
+  function closeMenu() { if (menu) { menu.remove(); menu = null; menuIdx = -1; } }
+  function show(inp, rest) {
+    hide(); if (!rest) return;
+    var cs = getComputedStyle(inp), g = document.createElement('div'); g.className = 'clghost';
+    g.style.font = cs.font; g.style.paddingLeft = cs.paddingLeft; g.style.paddingRight = cs.paddingRight; g.style.borderLeftWidth = cs.borderLeftWidth; g.style.left = inp.offsetLeft + 'px'; g.style.top = inp.offsetTop + 'px'; g.style.width = inp.offsetWidth + 'px'; g.style.height = inp.offsetHeight + 'px'; g.style.lineHeight = inp.offsetHeight + 'px';
+    var a = document.createElement('span'); a.className = 'clg-a'; a.textContent = inp.value;
+    var b = document.createElement('span'); b.className = 'clg-b'; b.textContent = rest;
+    g.appendChild(a); g.appendChild(b); inp.parentNode.appendChild(g);
+    if (inp.scrollWidth > inp.clientWidth + 1) { hide(); return; }
+    ghost = g; ghostFor = inp; ghost.dataset.rest = rest;
+  }
+  function update(inp, how) {
+    closeMenu();
+    if (inp.selectionStart !== inp.value.length || !/^insert/.test(how || '')) { hide(); return; }
+    var P = part(inp); if (!P || !P.word) { hide(); return; }
+    var w = P.word.toLowerCase();
+    if (list().some(function (t) { return t.toLowerCase() === w; })) { hide(); return; }
+    var hit = list().find(function (t) { return t.toLowerCase().indexOf(w) === 0 && t.length > P.word.length; });
+    show(inp, hit ? hit.slice(P.word.length) : '');
+  }
+  function accept(inp) {
+    if (!ghost || ghostFor !== inp) return false;
+    var P = part(inp), rest = ghost.dataset.rest;
+    var full = (P.word + rest), hit = list().find(function (t) { return t.toLowerCase() === full.toLowerCase(); }) || full;
+    inp.value = P.pre + hit; hide();
+    inp.dispatchEvent(new Event('input', { bubbles: true }));
+    inp.setSelectionRange(inp.value.length, inp.value.length); return true;
+  }
+  function pick(inp, t) {
+    var P = part(inp); inp.value = P ? P.pre + t : t; closeMenu(); hide(); inp.focus();
+    inp.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  function openList(inp) {
+    if (menu && menu.dataset.for === inp.dataset.k + inp.closest('tr').dataset.id) { closeMenu(); return; }
+    closeMenu(); hide(); inp.focus();
+    var m = document.createElement('div'); m.className = 'clddm'; m.dataset.for = inp.dataset.k + inp.closest('tr').dataset.id;
+    m.innerHTML = list().map(function (t, i) { return '<button tabindex="-1" data-t="' + esc(t) + '">' + esc(t) + '</button>'; }).join('');
+    m.style.left = inp.offsetLeft + 'px'; m.style.top = (inp.offsetTop + inp.offsetHeight + 2) + 'px'; m.style.minWidth = inp.offsetWidth + 'px';
+    m.addEventListener('mousedown', function (ev) { ev.preventDefault(); var b = ev.target.closest('[data-t]'); if (b) pick(inp, b.dataset.t); });
+    inp.parentNode.appendChild(m); menu = m; menu._inp = inp;
+  }
+  function moveMenu(d) {
+    var bs = menu.querySelectorAll('button'); if (!bs.length) return;
+    menuIdx = (menuIdx + d + bs.length) % bs.length; bs.forEach(function (b, i) { b.classList.toggle('on', i === menuIdx); }); bs[menuIdx].scrollIntoView({ block: 'nearest' });
+  }
+  /* true = tombol sudah ditangani di sini; 'enter' = saran diterima, Enter lanjut pindah baris */
+  function key(ev, t) {
+    if (menu && menu._inp === t) {
+      if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') { ev.preventDefault(); moveMenu(ev.key === 'ArrowDown' ? 1 : -1); return true; }
+      if (ev.key === 'Enter' && menuIdx >= 0) { ev.preventDefault(); pick(t, menu.querySelectorAll('button')[menuIdx].dataset.t); return true; }
+      if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); closeMenu(); return true; }
+    }
+    if (!t.dataset || !t.dataset.ac) return false;
+    if (ev.altKey && ev.key === 'ArrowDown' && t.dataset.ac === 'type') { ev.preventDefault(); openList(t); return true; }
+    if (ghost && ghostFor === t) {
+      if (ev.key === 'Tab' && !ev.shiftKey) { ev.preventDefault(); accept(t); return true; }
+      if (ev.key === 'ArrowRight' && t.selectionStart === t.value.length) { ev.preventDefault(); accept(t); return true; }
+      if (ev.key === 'Enter') { accept(t); return 'enter'; }
+      if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); hide(); return true; }
+    }
+    return false;
+  }
+  s.addEventListener('focusout', function (ev) { if (ev.target === ghostFor) hide(); if (menu && ev.target === menu._inp) setTimeout(closeMenu, 120); });
+  return { update: update, key: key, list: openList };
+}
+/* klik ganda pada class: di bagian nama = ganti nama; di attribute/operation = buka jendela di baris itu */
+function clsDbl(id, ev) {
+  var D = cur(), e = elOf(D, id); if (!isCls(e)) return false;
+  var r = cv.getBoundingClientRect(), v = view(), y = (ev.clientY - r.top - v.y) / v.k;
+  var G = clsGeom(e);
+  if (y < G.name.b) { startRename(id); return true; }
+  var foc = { k: G.parts.length ? G.parts[G.parts.length - 1].k : 'attr' };
+  G.parts.forEach(function (P) { var bot = P.top + P.rows.length * CLS.ROW + CLS.PAD; if (y >= P.top && y < bot) { foc.k = P.k; var i = Math.floor((y - P.top - 3) / CLS.ROW); if (P.rows[i]) foc.id = P.rows[i].id; } });
+  sel = new Set([id]); draw(); panel();
+  clsEdit(id, foc); return true;
+}
+
+/* ---------- panel kanan ---------- */
+function clsPanelEl(D, e) {
+  if (!isCls(e)) return '';
+  var R = clsRows(e), h = '<div class="clpanel">';
+  h += '<div class="clp-h"><b>Attributes (' + R.attrs.length + ')</b></div>' + (R.attrs.length ? '<ul class="clp-l">' + R.attrs.map(function (r) { return '<li data-cle="attr:' + esc(r.id) + '"><i>' + esc(r.v) + '</i>' + esc(r.t) + '</li>'; }).join('') + '</ul>' : '<p class="hint">Belum ada.</p>');
+  h += '<div class="clp-h"><b>Operations (' + R.ops.length + ')</b></div>' + (R.ops.length ? '<ul class="clp-l">' + R.ops.map(function (r) { return '<li data-cle="op:' + esc(r.id) + '"><i>' + esc(r.v) + '</i>' + esc(r.t) + '</li>'; }).join('') + '</ul>' : '<p class="hint">Belum ada.</p>');
+  h += '<button class="btn block pri" data-act="clsedit">Edit Attributes & Operations</button><p class="hint">Bisa juga klik ganda class atau tekan Enter. Ukuran kotak menyesuaikan isinya.</p></div>';
+  return h;
+}
+function clsPanelDiagram(D) {
+  var hasSd = doc.diagrams.some(function (d) { return d.kind === 'sequence' && d.elements.length; });
+  return '<div class="sec"><h2>Class Diagram</h2>' + (hasSd ? '<button class="btn block" data-act="clsfromseq">Buat dari Sequence Diagram…</button>' : '') + (D.elements.some(isCls) ? '<button class="btn block" data-act="relayout">Tata letak otomatis (V | C | M)</button>' : '') + '<p class="hint">Garis bawaan saat menyambung: V ke C = Dependency, C ke M = Aggregation (belah ketupat di M), M ke M = Association, C ke C = Directed Association. Jenisnya bisa diganti lewat klik kanan garis.</p></div>';
+}
+panelEl.addEventListener('click', function (ev) {
+  var li = ev.target.closest('[data-cle]'); if (!li) return;
+  var p = li.dataset.cle.split(':'), id = Array.from(sel)[0]; if (id) clsEdit(id, { k: p[0], id: p.slice(1).join(':') });
+});
+window.addEventListener('keydown', function (ev) {
+  if (ev.key !== 'Enter' || ev.ctrlKey || ev.metaKey || ev.altKey || ev.shiftKey || $('.scrim')) return;
+  var t = ev.target; if (t && t.matches && t.matches('input,textarea,select,button,[contenteditable]')) return;
+  if (isDfd() || !clsOn(cur()) || sel.size !== 1 || !inl.hidden) return;
+  var e = elOf(cur(), Array.from(sel)[0]); if (!isCls(e)) return;
+  ev.preventDefault(); clsEdit(e.id);
+});
+
+/* ---------- pemeriksaan (aturan Class Diagram) ---------- */
+function clsCheck(D, items) {
+  var C2 = D.elements.filter(isCls), byName = {};
+  function nm(e) { return '"' + (e.name || 'tanpa nama') + '"'; }
+  C2.forEach(function (e) {
+    var n = String(e.name || '').trim();
+    if (!n || /^Class\d*$/.test(n)) items.push({ s: 'warn', t: 'Class ' + nm(e) + ' belum diberi nama yang jelas (mis. V_FormLogin, C_Login, M_Akun).', ids: [e.id] });
+    if (n) (byName[n.toLowerCase()] = byName[n.toLowerCase()] || []).push(e);
+    var role = clsRole(e), seenA = {}, seenO = {};
+    (e.attrs || []).forEach(function (a) {
+      if (!String(a.type || '').trim()) items.push({ s: 'warn', t: 'Attribute ' + a.name + ' di ' + nm(e) + ' belum punya tipe data.', ids: [e.id] });
+      if ((a.vis || '-') !== '-') items.push({ s: 'warn', t: 'Attribute ' + a.name + ' di ' + nm(e) + ' sebaiknya private (-).', ids: [e.id] });
+      var k = String(a.name || '').toLowerCase(); if (seenA[k]) items.push({ s: 'warn', t: 'Attribute ' + a.name + ' ditulis dua kali di ' + nm(e) + '.', ids: [e.id] }); seenA[k] = 1;
+    });
+    (e.ops || []).forEach(function (o) {
+      if ((o.vis || '+') !== '+' && (role === 'C' || role === 'M')) items.push({ s: 'warn', t: 'Operation ' + o.name + '() di ' + nm(e) + ' sebaiknya public (+).', ids: [e.id] });
+      var k = clsOpText(o).toLowerCase(); if (seenO[k]) items.push({ s: 'warn', t: 'Operation ' + clsOpText(o) + ' ditulis dua kali di ' + nm(e) + '.', ids: [e.id] }); seenO[k] = 1;
+    });
+    if (role === 'V' && (e.ops || []).length) items.push({ s: 'warn', t: nm(e) + ' (View) punya operation. Pesan dari dan ke View dijadikan operation di Controller, jadi View cukup berisi attribute.', ids: [e.id] });
+    if (/^(boundary|control|entity)$/i.test(e.stereo || '')) items.push({ s: 'warn', t: 'Class ' + nm(e) + ' memakai stereotype «' + e.stereo + '». Di EA, class dengan stereotype ini digambar sebagai ikon lingkaran, bukan kotak. Kosongkan stereotype kalau ingin tampil kotak.', ids: [e.id] });
+    if (!D.flows.some(function (f) { return f.from === e.id || f.to === e.id; }) && C2.length > 1) items.push({ s: 'warn', t: 'Class ' + nm(e) + ' belum terhubung ke class lain.', ids: [e.id] });
+  });
+  Object.keys(byName).forEach(function (k) { if (byName[k].length > 1) items.push({ s: 'warn', t: 'Ada ' + byName[k].length + ' class bernama "' + byName[k][0].name + '". Nama class sebaiknya unik dalam satu diagram.', ids: byName[k].map(function (e) { return e.id; }) }); });
+  D.flows.forEach(function (f) {
+    var a = elOf(D, f.from), b = elOf(D, f.to); if (!isCls(a) || !isCls(b)) return;
+    var ra = clsRole(a), rb = clsRole(b), lab = CT[f.kind] ? CT[f.kind].label0 : f.kind;
+    if ((ra === 'V' && rb === 'M') || (ra === 'M' && rb === 'V')) items.push({ s: 'bad', t: 'View ' + nm(ra === 'V' ? a : b) + ' tersambung langsung ke Model ' + nm(ra === 'M' ? a : b) + '. Dalam MVC, View hanya berhubungan dengan Controller.', ids: [f.id] });
+    if (ra === 'M' && rb === 'C' && (f.kind === 'aggreg' || f.kind === 'compos')) items.push({ s: 'warn', t: lab + ' dari ' + nm(a) + ' ke ' + nm(b) + ': belah ketupat ada di Controller, seharusnya di Model. Klik kanan garis lalu pilih Balik arah.', ids: [f.id] });
+    if (ra === 'C' && rb === 'V' && f.kind === 'cdep') items.push({ s: 'warn', t: 'Dependency dari Controller ' + nm(a) + ' ke View ' + nm(b) + '. Arahnya terbalik: Dependency ditarik dari View ke Controller. Klik kanan garis lalu pilih Balik arah.', ids: [f.id] });
+    if (ra === 'V' && rb === 'C' && f.kind !== 'cdep') items.push({ s: 'warn', t: 'Garis ' + nm(a) + ' ke ' + nm(b) + ' memakai ' + lab + '. View ke Controller sebaiknya memakai Dependency.', ids: [f.id] });
+    if (ra === 'C' && rb === 'M' && f.kind !== 'aggreg' && f.kind !== 'compos') items.push({ s: 'warn', t: 'Garis ' + nm(a) + ' ke ' + nm(b) + ' memakai ' + lab + '. Controller ke Model sebaiknya memakai Aggregation (belah ketupat di Model).', ids: [f.id] });
+    if (f.from === f.to) items.push({ s: 'warn', t: 'Garis ' + lab + ' menyambung class ' + nm(a) + ' ke dirinya sendiri.', ids: [f.id] });
+  });
+}
+umlCheck = (function (orig) {
+  return function (D) {
+    if (!clsOn(D)) return orig(D);
+    var items = []; clsCheck(D, items);
+    D.elements.forEach(function (e) { if (e.type === 'note' && !String(e.name || '').trim()) items.push({ s: 'warn', t: 'Note masih kosong.', ids: [e.id] }); });
+    return items;
+  };
+})(umlCheck);
+
+/* ---------- tata letak otomatis: kolom View | Controller | Model, dikelompokkan per controller ---------- */
+function clsLayout(D) {
+  var E = D.elements.filter(isCls); if (!E.length) return;
+  clsFitAll(D);
+  var GAPX = 100, GAPY = 36, BGX = 120, BGY = 80, x0 = 40, y0 = 40;
+  var Cs = E.filter(function (e) { return clsRole(e) === 'C'; }), placed = new Set(), blocks = [];
+  function nb(e, role) { var out = []; D.flows.forEach(function (f) { var o = f.from === e.id ? elOf(D, f.to) : f.to === e.id ? elOf(D, f.from) : null; if (isCls(o) && clsRole(o) === role && out.indexOf(o) < 0) out.push(o); }); return out; }
+  /* urutan controller mengikuti posisi sekarang (atas ke bawah, kiri ke kanan) supaya hasilnya bisa ditebak */
+  Cs.sort(function (a, b) { return (a.y - b.y) || (a.x - b.x); });
+  Cs.forEach(function (c) {
+    var vs = nb(c, 'V').filter(function (v) { return !placed.has(v.id); }), ms = nb(c, 'M').filter(function (m) { return !placed.has(m.id); });
+    vs.forEach(function (v) { placed.add(v.id); }); ms.forEach(function (m) { placed.add(m.id); }); placed.add(c.id);
+    blocks.push({ c: [c], v: vs, m: ms });
+  });
+  var rest = E.filter(function (e) { return !placed.has(e.id); });
+  if (rest.length) {
+    var B0 = { c: [], v: [], m: [] }; rest.forEach(function (e) { var r = clsRole(e); (r === 'V' ? B0.v : r === 'M' ? B0.m : B0.c).push(e); });
+    blocks.push(B0);
+  }
+  function stackH(L) { return L.reduce(function (s, e, i) { return s + e.h + (i ? GAPY : 0); }, 0); }
+  function maxW(L) { return L.reduce(function (s, e) { return Math.max(s, e.w); }, 0); }
+  /* ukuran tiap kelompok: kolom V | C | M */
+  blocks.forEach(function (B) {
+    B.wv = maxW(B.v); B.wc = maxW(B.c); B.wm = maxW(B.m);
+    B.w = B.wv + (B.wv && (B.wc || B.wm) ? GAPX : 0) + B.wc + (B.wm && (B.wc || B.wv) ? GAPX : 0) + B.wm;
+    B.h = Math.max(stackH(B.v), stackH(B.c), stackH(B.m));
+  });
+  /* kelompok disusun dalam kisi supaya hasilnya melebar (seperti contoh laporan), bukan satu kolom panjang */
+  var n = blocks.length, best = 1, bestScore = 1e18;
+  for (var cols = 1; cols <= Math.min(n, 5); cols++) {
+    var rows = Math.ceil(n / cols), W = 0, H = 0;
+    for (var r = 0; r < rows; r++) { var rw = 0, rh = 0; blocks.slice(r * cols, r * cols + cols).forEach(function (B, i) { rw += B.w + (i ? BGX : 0); rh = Math.max(rh, B.h); }); W = Math.max(W, rw); H += rh + (r ? BGY : 0); }
+    var score = Math.abs(Math.log((W || 1) / (H || 1) / 1.5));
+    if (score < bestScore - 1e-9) { bestScore = score; best = cols; }
+  }
+  /* lebar kolom kisi disamakan supaya kolom V/C/M antarkelompok sejajar */
+  var colW = [];
+  blocks.forEach(function (B, i) { var c = i % best, cw = colW[c] || { v: 0, c: 0, m: 0 }; cw.v = Math.max(cw.v, B.wv); cw.c = Math.max(cw.c, B.wc); cw.m = Math.max(cw.m, B.wm); colW[c] = cw; });
+  var colX = [], xx = x0; colW.forEach(function (cw, c) { colX[c] = xx; xx += cw.v + GAPX + cw.c + GAPX + cw.m + BGX; });
+  var y = y0;
+  for (var r2 = 0; r2 * best < n; r2++) {
+    var row = blocks.slice(r2 * best, r2 * best + best), rh2 = Math.max.apply(null, row.map(function (B) { return B.h; }));
+    row.forEach(function (B, i) {
+      var cw = colW[i], bx = colX[i], xV = bx, xC = bx + cw.v + GAPX, xM = xC + cw.c + GAPX;
+      var yy = y + (rh2 - stackH(B.v)) / 2; B.v.forEach(function (v) { v.x = Math.round(xV + cw.v - v.w); v.y = Math.round(yy); yy += v.h + GAPY; });
+      yy = y + (rh2 - stackH(B.c)) / 2; B.c.forEach(function (c) { c.x = Math.round(xC + (cw.c - c.w) / 2); c.y = Math.round(yy); yy += c.h + GAPY; });
+      yy = y + (rh2 - stackH(B.m)) / 2; B.m.forEach(function (m) { m.x = Math.round(xM); m.y = Math.round(yy); yy += m.h + GAPY; });
+    });
+    y += rh2 + BGY;
+  }
+  D.flows.forEach(function (f) { f.bends = []; delete f.sa; delete f.ta; delete f.manual; delete f.eaSE; });
+  try { autoRoute(D, {}); } catch (x) { /* abaikan */ }
+}
+function clsLayoutCmd() {
+  var D = cur(); if (!D.elements.some(isCls)) { toast('Diagram masih kosong.'); return; }
+  mutate(function () { clsLayout(D); }); fit(); toast('Class dirapikan: View di kiri, Controller di tengah, Model di kanan. Ctrl+Z untuk membatalkan.');
+}
+
+/* ---------- Class Diagram dari Sequence Diagram ----------
+   Aturan: pesan Aktor ke View bukan method; View ke Controller dan Controller ke View masuk class Controller;
+   Controller ke Model masuk class Model; pesan balasan (return) bukan method; semua attribute private, operation public. */
+function clsDataStyle() { try { return localStorage.getItem('alir-cls-data') === 'dollar' ? 'dollar' : 'array'; } catch (e) { return 'array'; } }
+function clsGuessType(n) {
+  var s = String(n || '').toLowerCase().replace(/^\$/, '');
+  if (/^(id|no|nomor|kode)(_|$)|_id$|^id[a-z]/.test(s)) return /kode/.test(s) ? 'string' : 'int';
+  if (/(jumlah|harga|total|stok|qty|poin|umur|usia|tahun|nominal|biaya|diskon|berat|bayar|saldo|rating|jml)/.test(s)) return 'int';
+  if (/(tanggal|tgl|date|waktu|jam|periode)/.test(s)) return 'date';
+  if (/(deskripsi|keterangan|isi|alamat|catatan|ulasan|komentar|pesan)/.test(s)) return 'text';
+  return 'string';
+}
+function clsMsgParts(f) {
+  var n = String(f.name || '').replace(/\s*\r?\n\s*/g, ' ').trim(), args = String(f.args || '').trim(), ret = String(f.ret || '').trim();
+  var m = /^([^(]*)\((.*)\)\s*(?::\s*(.*))?$/.exec(n); if (m) { n = m[1].trim(); if (!args) args = m[2].trim(); if (!ret && m[3]) ret = m[3].trim(); }
+  n = n.replace(/^[*\s]*(\[[^\]]*\])?\s*:?\s*/, '').trim();
+  return { name: n, args: args, ret: ret };
+}
+function clsSdRole(e) {
+  if (!e) return '';
+  if (e.type === 'sboundary') return 'V'; if (e.type === 'scontrol') return 'C'; if (e.type === 'sentity') return 'M'; if (e.type === 'sactor') return 'A';
+  var m = /^\s*([VCM])[_\s]/i.exec(String(e.name || '')); return m ? m[1].toUpperCase() : '';
+}
+function clsFromSeq(list, D) {
+  var map = {}, order = [], links = {};
+  function cls(e) {
+    var k = String(e.name || '').trim(); if (!k) return null;
+    if (!map[k]) { map[k] = { id: uid('e'), type: 'class', name: k, x: 0, y: 0, w: CLS.W, h: CLS.H, style: {}, attrs: [], ops: [] }; order.push(map[k]); }
+    return map[k];
+  }
+  function addAttr(c, n, typ) { n = String(n || '').trim().replace(/^\$/, ''); if (!n || /^data$/i.test(n)) return; if (c.attrs.some(function (a) { return a.name.toLowerCase() === n.toLowerCase(); })) return; c.attrs.push({ id: uid('a'), name: n, type: typ || clsGuessType(n), vis: '-' }); }
+  function addOp(c, n, args, ret, withParams) {
+    if (!n) return; var ps = withParams ? clsParseParams(args, { keepDollar: clsDataStyle() === 'dollar' }) : [];
+    var key = (n + '(' + clsParamsStr(ps) + ')').toLowerCase();
+    if (c.ops.some(function (o) { return (o.name + '(' + clsParamsStr(o.params) + ')').toLowerCase() === key; })) return;
+    c.ops.push({ id: uid('o'), name: n, params: ps, ret: withParams ? ret : '', vis: '+' });
+  }
+  function link(a, b, kind) { var k = a.id + '>' + b.id; if (a === b || links[k] || links[b.id + '>' + a.id + ':' + kind]) return; links[k] = { from: a.id, to: b.id, kind: kind }; }
+  list.forEach(function (S) {
+    S.elements.forEach(function (e) { if (isLL(e) && clsSdRole(e) !== 'A' && e.type !== 'sactor') cls(e); });
+    var formAttrs = [];
+    sqOrder(S).forEach(function (f) {
+      if (f.kind !== 'smsg' || f.isRet) return;
+      var A = elOf(S, f.from), B = elOf(S, f.to); if (!A || !B) return;
+      var ra = clsSdRole(A), rb = clsSdRole(B), p = clsMsgParts(f);
+      var ca = ra === 'A' ? null : cls(A), cb = rb === 'A' ? null : cls(B);
+      if (ra === 'A' && cb && rb === 'V') {
+        /* pesan aktor ke View bukan method; isian form (input…(a, b)) jadi attribute View */
+        if (/^input/i.test(p.name) && p.args) clsSplitTop(p.args).forEach(function (x) { addAttr(cb, x); formAttrs.push(x); });
+        return;
+      }
+      if (!ca || !cb) return;
+      if (ra === 'V' && rb === 'C') { addOp(cb, p.name, '', '', false); link(ca, cb, 'cdep'); return; }
+      if (ra === 'C' && rb === 'V') { addOp(ca, p.name, '', '', false); link(cb, ca, 'cdep'); return; }
+      if (ra === 'C' && rb === 'M') {
+        addOp(cb, p.name, p.args, p.ret, true); link(ca, cb, 'aggreg');
+        /* attribute Model: argumen yang ditulis satu per satu (bukan $data), atau isian form sebelum insert/update $data */
+        var as = clsSplitTop(p.args);
+        if (as.length && !(as.length === 1 && /^\$?data$/i.test(as[0]))) as.forEach(function (x) { if (!/^\$/.test(x) && !/^id$/i.test(x)) addAttr(cb, x); });
+        else if (/^(insert|update)/i.test(p.name)) formAttrs.forEach(function (x) { addAttr(cb, x); });
+        return;
+      }
+      if (ra === 'C' && rb === 'C') { if (ca === cb) addOp(ca, p.name, '', '', false); else { addOp(cb, p.name, '', '', false); link(ca, cb, 'diassoc'); } return; }
+      if (ca === cb) { addOp(ca, p.name, '', '', false); return; }
+    });
+  });
+  /* id entitas di urutan pertama attribute Model: id_<nama> bertipe int */
+  order.forEach(function (c) {
+    if (clsSdRole({ type: '', name: c.name }) !== 'M') return;
+    var base = String(c.name).replace(/^M_(Data)?/i, '').replace(/^_+/, ''), idn = 'id_' + base.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase();
+    if (base && !c.attrs.some(function (a) { return /^id(_|$)/i.test(a.name); })) c.attrs.unshift({ id: uid('a'), name: idn, type: 'int', vis: '-' });
+  });
+  order.forEach(clsFit);
+  D.elements = D.elements.concat(order);
+  Object.keys(links).forEach(function (k) { var L = links[k]; D.flows.push({ id: uid('f'), kind: L.kind, from: L.from, to: L.to, name: '', bends: [], style: {} }); });
+  clsLayout(D);
+  return order.length;
+}
+function clsFromSeqModal() {
+  var SDs = doc.diagrams.filter(function (d) { return d.kind === 'sequence' && d.elements.length; });
+  if (!SDs.length) { toast('Belum ada Sequence Diagram berisi di proyek ini.'); return; }
+  var body = '<p class="hint">Class, attribute, operation, dan garisnya dibuat dari pesan di Sequence Diagram yang dipilih: pesan View ke Controller dan Controller ke View jadi operation Controller, pesan Controller ke Model jadi operation Model (dengan parameter & return), pesan balasan dan pesan Aktor ke View tidak dijadikan operation. Isian form (input…(a, b)) jadi attribute View dan Model. Tipe data ditebak dari nama attribute, jadi cek lagi hasilnya.</p>' +
+    '<div class="clsdl">' + SDs.map(function (S, i) { return '<label class="cbx"><input type="checkbox" data-sd="' + S.id + '"' + (i === 0 || cur().kind === 'sequence' && cur().id === S.id ? ' checked' : '') + '> ' + esc(S.name) + '</label>'; }).join('') + '</div>' +
+    '<label class="cbx"><input type="checkbox" id="cl-into"' + (clsOn(cur()) && !cur().elements.length ? ' checked' : '') + (clsOn(cur()) && !cur().elements.length ? '' : ' disabled') + '> Isi ke Class Diagram yang sedang dibuka (masih kosong)</label>' +
+    '<div class="field cldata"><label for="cl-dst">Parameter $data ditulis sebagai</label><select class="in" id="cl-dst"><option value="array"' + (clsDataStyle() === 'array' ? ' selected' : '') + '>array, mis. insertDataAkun(array)</option><option value="dollar"' + (clsDataStyle() === 'dollar' ? ' selected' : '') + '>$data, mis. insertDataAkun($data)</option></select></div>';
+  modal('Class Diagram dari Sequence Diagram', body, '<button class="btn" data-close>Batal</button><button class="btn pri" data-ok>Buat</button>', function (s, close) {
+    $('[data-ok]', s).addEventListener('click', function () {
+      var pick = Array.prototype.filter.call(s.querySelectorAll('[data-sd]'), function (x) { return x.checked; }).map(function (x) { return doc.diagrams.find(function (d) { return d.id === x.dataset.sd; }); }).filter(Boolean);
+      if (!pick.length) { toast('Pilih minimal satu Sequence Diagram.'); return; }
+      var into = $('#cl-into', s).checked, n = 0;
+      try { localStorage.setItem('alir-cls-data', $('#cl-dst', s).value); } catch (e2) { /* tanpa penyimpanan */ }
+      close();
+      mutate(function () {
+        var D = into && clsOn(cur()) ? cur() : newDiagram('class');
+        if (!into) D.name = pick.length === 1 ? 'Class ' + pick[0].name.replace(/^(Sequence( Diagram)?|SD)\s*/i, '') : 'Class Diagram';
+        n = clsFromSeq(pick, D); active = D.id; sel.clear(); views[D.id] = { x: 0, y: 0, k: 1, fresh: true };
+      });
+      umlToolbox(); setTool('select'); fit();
+      toast(n + ' class dibuat dari ' + pick.length + ' Sequence Diagram. Periksa tipe data & garisnya, lalu sesuaikan bila perlu.');
+    });
+  });
+}
+
+/* ---------- integrasi menu & perintah ---------- */
+run = (function (orig) {
+  return function (a, btn) {
+    var D = cur();
+    if (a === 'clsfromseq') { clsFromSeqModal(); return; }
+    if (D && !isDfd() && clsOn(D)) {
+      if (a === 'clsedit') { var id = Array.from(sel)[0] || ctxId; if (isCls(elOf(D, id))) clsEdit(id); else toast('Pilih satu class dulu.'); return; }
+      if (a === 'relayout') { clsLayoutCmd(); return; }
+      if (a === 'explain' || a === 'explainel') { toast('Penjelasan otomatis tidak tersedia untuk Class Diagram. Pakai Periksa diagram (F4).'); return; }
+      if (a === 'adjust' || a === 'normsize') { var E = selEls().filter(isCls); if (E.length) { mutate(function () { E.forEach(function (e) { var m = clsMin(e); if (a === 'normsize') { e.w = Math.max(CLS.W, m.w); e.h = Math.max(CLS.H, m.h); } else { e.w = m.w; e.h = m.h; } }); }); return; } }
+    }
+    return orig(a, btn);
+  };
+})(run);
+/* menu: tanpa "Jelaskan" di Class Diagram */
+renderMenu = (function (orig) {
+  return function (items, x, y, anchorBtn) {
+    try {
+      if (!isDfd() && clsOn(cur())) {
+        items = items.filter(function (it) { return !(it && (it.a === 'explain' || it.a === 'explainel')); });
+        items = items.filter(function (it, i) { return !(it && it.hr && (i === 0 || (items[i - 1] && items[i - 1].hr) || i === items.length - 1)); });
+      }
+    } catch (err) { /* abaikan */ }
+    return orig(items, x, y, anchorBtn);
+  };
+})(renderMenu);
+
+normEa = (function (orig) { return function (d) { var r = orig(d); try { (r.diagrams || []).forEach(function (D) { if (D.kind === 'class') D.elements.forEach(function (e) { if (isCls(e)) { e.attrs = e.attrs || []; e.ops = e.ops || []; clsFit(e); } }); }); } catch (x) { /* abaikan */ } return r; }; })(normEa);
+
+/* ---------- impor dari EA (.eap / XMI) ---------- */
+diagKindOf = (function (orig) { return function (type, styleex) { if (type === 'Logical' || type === 'Class') return 'class'; return orig(type, styleex); }; })(diagKindOf);
+eaTypeOf = (function (orig) {
+  return function (o, kind, w, h) {
+    if (kind === 'class') { if (o.type === 'Class' || o.type === 'Interface') return 'class'; if (o.type === 'Note' || o.type === 'Text') return 'note'; if (o.type === 'Package' || o.type === 'Boundary') return null; }
+    return orig(o, kind, w, h);
+  };
+})(eaTypeOf);
+eaKindOf = (function (orig) {
+  return function (c, kind) {
+    if (kind === 'class') {
+      if (c.type === 'Aggregation') return /strong/i.test(c.sub || '') || (c.agg && (+c.agg[0] === 2 || +c.agg[1] === 2)) ? 'compos' : 'aggreg';
+      if (c.type === 'Association') return c.nav || /^(Source -> Destination|Destination -> Source)$/.test(c.dir || '') ? 'diassoc' : 'assoc';
+      if (c.type === 'Generalization') return 'cgen';
+      if (c.type === 'Dependency' || c.type === 'Usage' || c.type === 'Realisation' || c.type === 'Realization') return 'cdep';
+    }
+    return orig(c, kind);
+  };
+})(eaKindOf);
+function clsVisOf(s) { return CLS_VIS[String(s || '').replace(/^./, function (c) { return c.toUpperCase(); })] || null; }
+/* tabel atribut/operation .eap */
+function clsEapFeatures(M, tab) {
+  var pars = {};
+  tab('t_operationparams').forEach(function (p) { (pars[p.OperationID] = pars[p.OperationID] || []).push(p); });
+  tab('t_attribute').forEach(function (a) { var o = M.objects[a.Object_ID]; if (!o) return; (o.attrs = o.attrs || []).push({ name: a.Name || '', type: a.Type || '', vis: clsVisOf(a.Scope) || '-', pos: +a.Pos || 0, guid: a.ea_guid }); });
+  tab('t_operation').forEach(function (p) {
+    var o = M.objects[p.Object_ID]; if (!o) return;
+    var ps = (pars[p.OperationID] || []).filter(function (q) { return String(q.Kind || 'in').toLowerCase() !== 'return'; }).sort(function (x, y) { return (+x.Pos || 0) - (+y.Pos || 0); }).map(function (q) { return { name: q.Name || '', type: q.Type || '' }; });
+    (o.ops = o.ops || []).push({ name: p.Name || '', params: ps, ret: p.Type || '', vis: clsVisOf(p.Scope) || '+', pos: +p.Pos || 0, guid: p.ea_guid });
+  });
+  Object.keys(M.objects).forEach(function (k) { var o = M.objects[k]; ['attrs', 'ops'].forEach(function (f) { if (o[f]) o[f].sort(function (x, y) { return x.pos - y.pos; }); }); });
+}
+function clsConnExtra(m, c) { if (!m) return; m.agg = [c.SourceIsAggregate, c.DestIsAggregate]; m.card = [c.SourceCard || '', c.DestCard || '']; m.dir = c.Direction; }
+xmiToModel = (function (orig) {
+  return function (text) {
+    var M = orig(text);
+    try {
+      var X = new DOMParser().parseFromString(text, 'application/xml'), all = X.getElementsByTagName('*');
+      function kids(e, ln) { var out = []; Array.prototype.forEach.call(e.getElementsByTagName('*'), function (x) { if (x.localName === ln) out.push(x); }); return out; }
+      function tvOf(e) { var o = {}; Array.prototype.forEach.call(e.children, function (c) { if (c.localName === 'ModelElement.taggedValue') Array.prototype.forEach.call(c.children, function (t) { o[t.getAttribute('tag')] = t.getAttribute('value'); }); }); return o; }
+      var dt = {}; Array.prototype.forEach.call(all, function (x) { if (x.localName === 'DataType' || (x.localName === 'Class' && x.getAttribute('xmi.id') && /^eaxmiid/.test(x.getAttribute('xmi.id')))) dt[x.getAttribute('xmi.id')] = x.getAttribute('name') || ''; });
+      function typeOf(feat, tv) { if (tv.type != null && tv.type !== '') return tv.type; var c = kids(feat, 'Classifier')[0]; return c ? (dt[c.getAttribute('xmi.idref')] || '') : ''; }
+      Array.prototype.forEach.call(all, function (x) {
+        var id = x.getAttribute('xmi.id');
+        if (x.localName === 'Class' && id && M.objects[id]) {
+          var o = M.objects[id], A = [], O = [];
+          Array.prototype.forEach.call(x.children, function (fe) {
+            if (fe.localName !== 'Classifier.feature') return;
+            Array.prototype.forEach.call(fe.children, function (q) {
+              var tv = tvOf(q), vis = { private: '-', public: '+', protected: '#', package: '~' }[String(q.getAttribute('visibility') || '').toLowerCase()];
+              if (q.localName === 'Attribute') A.push({ name: q.getAttribute('name') || '', type: typeOf(q, tv), vis: vis || '-', pos: +tv.position || 0 });
+              if (q.localName === 'Operation') {
+                var ps = [], ret = tv.type || '';
+                kids(q, 'Parameter').forEach(function (p) { var pt = tvOf(p); if (p.getAttribute('kind') === 'return') { if (!ret) ret = typeOf(p, pt); return; } ps.push({ name: p.getAttribute('name') || '', type: typeOf(p, pt), pos: +pt.pos || 0 }); });
+                ps.sort(function (a, b) { return a.pos - b.pos; });
+                O.push({ name: q.getAttribute('name') || '', params: ps.map(function (p) { return { name: p.name, type: p.type }; }), ret: ret, vis: vis || '+', pos: +tv.position || 0 });
+              }
+            });
+          });
+          A.sort(function (a, b) { return a.pos - b.pos; }); O.sort(function (a, b) { return a.pos - b.pos; });
+          if (A.length) o.attrs = A; if (O.length) o.ops = O;
+        }
+        if (x.localName === 'Association' && id && M.conns[id]) {
+          var ends = kids(x, 'AssociationEnd'), ag = ends.map(function (q) { var a = q.getAttribute('aggregation'); return a === 'shared' ? 1 : a === 'composite' ? 2 : 0; });
+          M.conns[id].agg = ag; M.conns[id].card = ends.map(function (q) { return q.getAttribute('multiplicity') || ''; }); M.conns[id].dir = tvOf(x).direction || '';
+        }
+      });
+    } catch (err) { /* fitur class tidak terbaca: diagram tetap dimuat */ }
+    return M;
+  };
+})(xmiToModel);
+function clsFromModel(e, o) {
+  e.attrs = (o.attrs || []).map(function (a) { return { id: uid('a'), name: a.name, type: a.type, vis: a.vis || '-' }; });
+  e.ops = (o.ops || []).map(function (p) { return { id: uid('o'), name: p.name, params: (p.params || []).map(function (q) { return { name: q.name || '', type: q.type || '' }; }), ret: p.ret || '', vis: p.vis || '+' }; });
+}
+function clsFlowFromModel(f, c, kind) {
+  if (kind !== 'class') return;
+  /* belah ketupat selalu di ujung "to": kalau di EA tandanya di ujung sumber, arah garis dibalik */
+  if ((f.kind === 'aggreg' || f.kind === 'compos') && c.agg && +c.agg[0] > 0 && !(+c.agg[1] > 0)) { var t = f.from; f.from = f.to; f.to = t; f.bends = (f.bends || []).slice().reverse(); delete f.eaSE; var sa = f.sa; f.sa = f.ta; f.ta = sa; if (c.card) c.card = [c.card[1], c.card[0]]; }
+  if (f.kind === 'diassoc' && c.dir === 'Destination -> Source') { var t2 = f.from; f.from = f.to; f.to = t2; f.bends = (f.bends || []).slice().reverse(); delete f.eaSE; var sa2 = f.sa; f.sa = f.ta; f.ta = sa2; if (c.card) c.card = [c.card[1], c.card[0]]; }
+  if (c.card && (c.card[0] || c.card[1])) { if (c.card[0]) f.cs = String(c.card[0]); if (c.card[1]) f.ct = String(c.card[1]); }
+}
+
+/* ---------- ekspor XMI ---------- */
+var CLS_DT = null;
+function clsDtRef(name) { if (!CLS_DT) CLS_DT = { list: [], map: {} }; var k = String(name || ''); if (CLS_DT.map[k] == null) { CLS_DT.map[k] = 'eaxmiid' + CLS_DT.list.length; CLS_DT.list.push(k); } return CLS_DT.map[k]; }
+function clsDtXml(ind) { if (!CLS_DT || !CLS_DT.list.length) return ''; return CLS_DT.list.map(function (n, i) { return ind + '<UML:DataType xmi.id="eaxmiid' + i + '"' + (n ? ' name="' + xa(n) + '"' : '') + ' visibility="private" isRoot="false" isLeaf="false" isAbstract="false"/>\n'; }).join(''); }
+function clsElemXml(e, pk, ind, H) {
+  var id = xid(e.guid), st = e.stereo || '', s = '';
+  var tv = { isSpecification: 'false', ea_stype: 'Class', ea_ntype: '0', version: '1.0', package: xid(pk.guid, 'EAPK_'), date_created: H.now, date_modified: H.now, gentype: 'Java', tagged: '0', package_name: pk.name, phase: '1.0', author: H.author, complexity: '1', product_name: 'Java', status: 'Proposed', tpos: '0', ea_localid: String(H.lid(e)), ea_eleType: 'element',
+    style: 'BackColor=' + (e.style.fill && e.style.fill !== 'none' ? colorToRef(e.style.fill) : -1) + ';BorderColor=' + (e.style.stroke ? colorToRef(e.style.stroke) : -1) + ';BorderWidth=-1;FontColor=' + (e.style.text ? colorToRef(e.style.text) : -1) + ';VSwimLanes=1;HSwimLanes=1;BorderStyle=0;' };
+  if (e.note) tv.documentation = e.note;
+  if (st) tv.stereotype = st;
+  s += ind + '<UML:Class name="' + xa(e.name || '') + '" xmi.id="' + id + '" visibility="public" namespace="' + xid(pk.guid, 'EAPK_') + '" isRoot="false" isLeaf="false" isAbstract="false" isActive="false">\n';
+  if (st) s += ind + '\t<UML:ModelElement.stereotype>\n' + ind + '\t\t<UML:Stereotype name="' + xa(st) + '"/>\n' + ind + '\t</UML:ModelElement.stereotype>\n';
+  s += H.TVs(tv, ind + '\t');
+  var A = e.attrs || [], O = e.ops || [];
+  if (A.length || O.length) {
+    var I = ind + '\t\t', vn = function (v) { return (CLS_VIS_NAME[v] || 'Private').toLowerCase(); };
+    s += ind + '\t<UML:Classifier.feature>\n';
+    A.forEach(function (a, i) {
+      var g = normGuid(a.guid) || newGuid(); a.guid = g;
+      s += I + '<UML:Attribute name="' + xa(a.name) + '" changeable="none" visibility="' + vn(a.vis || '-') + '" ownerScope="instance" targetScope="instance">\n' +
+        I + '\t<UML:Attribute.initialValue>\n' + I + '\t\t<UML:Expression/>\n' + I + '\t</UML:Attribute.initialValue>\n' +
+        I + '\t<UML:StructuralFeature.type>\n' + I + '\t\t<UML:Classifier xmi.idref="' + clsDtRef(a.type || '') + '"/>\n' + I + '\t</UML:StructuralFeature.type>\n' +
+        H.TVs({ type: a.type || '', containment: 'Not Specified', ordered: '0', collection: 'false', position: String(i), lowerBound: '1', upperBound: '1', duplicates: '0', ea_guid: g, ea_localid: String(H.lid(a)), styleex: 'volatile=0;' }, I + '\t') + I + '</UML:Attribute>\n';
+    });
+    O.forEach(function (o, i) {
+      var g = normGuid(o.guid) || newGuid(); o.guid = g;
+      s += I + '<UML:Operation name="' + xa(o.name) + '" visibility="' + vn(o.vis || '+') + '" ownerScope="instance" isQuery="false" concurrency="sequential">\n' +
+        H.TVs({ type: o.ret || null, const: 'false', synchronised: '0', concurrency: 'Sequential', position: String(i), pure: '0', ea_guid: g, ea_localid: String(H.lid(o)) }, I + '\t') + I + '\t<UML:BehavioralFeature.parameter>\n';
+      var P = I + '\t\t';
+      s += P + '<UML:Parameter kind="return" visibility="public">\n' + P + '\t<UML:Parameter.type>\n' + P + '\t\t<UML:Classifier xmi.idref="' + clsDtRef(o.ret || '') + '"/>\n' + P + '\t</UML:Parameter.type>\n' +
+        H.TVs({ pos: '0', type: o.ret || null, const: '0', ea_guid: '{RETURNID-' + g.slice(10) }, P + '\t') + P + '\t<UML:Parameter.defaultValue>\n' + P + '\t\t<UML:Expression/>\n' + P + '\t</UML:Parameter.defaultValue>\n' + P + '</UML:Parameter>\n';
+      (o.params || []).forEach(function (p, j) {
+        var typ = String(p.type || '').trim(), nm2 = String(p.name || '').trim() || typ.replace(/^\$/, '') || ('p' + (j + 1));
+        s += P + '<UML:Parameter name="' + xa(nm2) + '" kind="in" visibility="public">\n' + P + '\t<UML:Parameter.type>\n' + P + '\t\t<UML:Classifier xmi.idref="' + clsDtRef(typ) + '"/>\n' + P + '\t</UML:Parameter.type>\n' +
+          H.TVs({ pos: String(j), type: typ || null, const: '0', ea_guid: newGuid() }, P + '\t') + P + '\t<UML:Parameter.defaultValue>\n' + P + '\t\t<UML:Expression/>\n' + P + '\t</UML:Parameter.defaultValue>\n' + P + '</UML:Parameter>\n';
+      });
+      s += I + '\t</UML:BehavioralFeature.parameter>\n' + I + '</UML:Operation>\n';
+    });
+    s += ind + '\t</UML:Classifier.feature>\n';
+  }
+  return s + ind + '</UML:Class>\n';
+}
+/* Association / Directed Association / Aggregation / Composition (format sama dengan ekspor EA 12) */
+function clsConnXml(f, D, ind, H) {
+  var A = elOf(D, f.from), B = elOf(D, f.to), id = xid(f.guid), c = CT[f.kind];
+  var agg = f.kind === 'aggreg' ? 'shared' : f.kind === 'compos' ? 'composite' : 'none', dir = f.kind === 'assoc' && !f.nav ? 'Unspecified' : 'Source -> Destination';
+  var srcNav = f.kind === 'assoc' && !f.nav ? 'true' : 'false';
+  var tv = { style: '3', ea_type: c.ea, direction: dir, linemode: '3', linecolor: String(f.style.stroke ? colorToRef(f.style.stroke) : -1), linewidth: '0', seqno: '0', headStyle: '0', lineStyle: '0', subtype: f.kind === 'compos' ? 'Strong' : null, ea_localid: String(H.lid(f)),
+    ea_sourceName: A.name, ea_targetName: B.name, ea_sourceType: 'Class', ea_targetType: 'Class', ea_sourceID: String(H.lid(A)), ea_targetID: String(H.lid(B)), virtualInheritance: '0' };
+  function end(o, nav, ag, card, which) {
+    return ind + '\t\t<UML:AssociationEnd visibility="public" multiplicity="' + xa(card || '') + '" aggregation="' + ag + '" isOrdered="false" targetScope="instance" changeable="none" isNavigable="' + nav + '" type="' + xid(o.guid) + '">\n' +
+      ind + '\t\t\t<UML:ModelElement.taggedValue>\n' + ind + '\t\t\t\t<UML:TaggedValue tag="containment" value="Unspecified"/>\n' +
+      ind + '\t\t\t\t<UML:TaggedValue tag="' + (which === 'source' ? 'sourcestyle' : 'deststyle') + '" value="Union=0;Derived=0;AllowDuplicates=0;Owned=0;Navigable=' + (nav === 'true' ? (dir === 'Unspecified' ? 'Unspecified' : 'Navigable') : 'Non-Navigable') + ';"/>\n' +
+      ind + '\t\t\t\t<UML:TaggedValue tag="ea_end" value="' + which + '"/>\n' + ind + '\t\t\t</UML:ModelElement.taggedValue>\n' + ind + '\t\t</UML:AssociationEnd>\n';
+  }
+  return { xml: ind + '<UML:Association xmi.id="' + id + '"' + (f.name ? ' name="' + xa(f.name) + '"' : '') + ' visibility="public" isRoot="false" isLeaf="false" isAbstract="false">\n' + H.TVs(tv, ind + '\t') +
+    ind + '\t<UML:Association.connection>\n' + end(A, srcNav, 'none', f.cs, 'source') + end(B, 'true', agg, f.ct, 'target') + ind + '\t</UML:Association.connection>\n' + ind + '</UML:Association>\n' };
+}
+
+/* ---------- label multiplicity di ujung garis (opsional, seperti EA) ---------- */
+function clsCardLabels(f, r) {
+  var out = []; if (!r || !r.pts || r.pts.length < 2 || !(f.cs || f.ct)) return out;
+  var P = r.pts;
+  /* posisi seperti EA 12 (diukur): ruas mendatar = di bawah garis, rapat ke tepi class; ruas tegak = 13 px di kanan garis, 13 px dari tepi class */
+  function at(e0, e1, txt) { var dx = e1.x - e0.x, dy = e1.y - e0.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+    if (Math.abs(ux) >= Math.abs(uy)) return { t: txt, x: e0.x + (ux > 0 ? 3 : -3), y: e0.y + 9, a: ux > 0 ? 'start' : 'end' };
+    return { t: txt, x: e0.x + 13, y: e0.y + (uy > 0 ? 13 : -13), a: 'start' }; }
+  if (f.cs) out.push(at(P[0], P[1], f.cs));
+  if (f.ct) out.push(at(P[P.length - 1], P[P.length - 2], f.ct));
+  return out;
+}
+umlFlowMarkup = (function (orig) {
+  return function (f, r, on, markers) {
+    var s = orig(f, r, on, markers);
+    if (!(f.cs || f.ct) || !CT[f.kind] || !(CT[f.kind].cls || f.kind === 'assoc')) return s;
+    var st = fs(f), add = clsCardLabels(f, r).map(function (q) { return '<text x="' + q.x.toFixed(1) + '" y="' + q.y.toFixed(1) + '" text-anchor="' + (q.a || 'middle') + '" dominant-baseline="central" ' + fontAttr(st.font, st.text) + '>' + esc(q.t) + '</text>'; }).join('');
+    return s.replace(/<\/g>$/, add + '</g>');
+  };
+})(umlFlowMarkup);
+function clsPanelFlow(D, f) {
+  if (!clsOn(D) || !CT[f.kind] || !(CT[f.kind].cls || f.kind === 'assoc') || f.kind === 'cgen' || f.kind === 'cdep') return '';
+  var a = elOf(D, f.from) || {}, b = elOf(D, f.to) || {};
+  return '<div class="sec"><h2>Multiplicity</h2><div class="row tight"><div class="field" style="flex:1"><label for="p-cs">Di ' + esc(a.name || 'sumber') + '</label><input class="in" id="p-cs" data-f="cs" list="cls-mult" value="' + esc(f.cs || '') + '" placeholder="mis. 1"></div><div class="field" style="flex:1"><label for="p-ct">Di ' + esc(b.name || 'tujuan') + '</label><input class="in" id="p-ct" data-f="ct" list="cls-mult" value="' + esc(f.ct || '') + '" placeholder="mis. 0..*"></div></div><datalist id="cls-mult"><option value="1"><option value="0..1"><option value="*"><option value="0..*"><option value="1..*"></datalist><p class="hint">Opsional. Kosongkan kalau tidak dipakai.</p></div>';
+}
+
 (function init() {
   var mode = 'dfd'; try { mode = localStorage.getItem('alir-mode') || 'dfd'; } catch (x) { mode = 'dfd'; }
   var loaded = storedDoc(mode === 'ea' ? LS_EA : mode === 'fc' ? LS_FC : LS) || storedDoc(LS) || storedDoc(LS_EA) || storedDoc(LS_FC), first = !storedDoc(LS) && !storedDoc(LS_EA) && !storedDoc(LS_FC);
