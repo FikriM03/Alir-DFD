@@ -84,6 +84,29 @@
 .clddm { position: absolute; z-index: 30; max-height: 220px; overflow: auto; background: var(--card); border: 1px solid var(--bd); border-radius: var(--r-sm); box-shadow: 0 6px 18px rgba(0,0,0,.16); padding: 3px; display: flex; flex-direction: column; }
 .clddm button { text-align: left; border: 0; background: transparent; padding: 4px 8px; font: 400 13px var(--f-mono); color: var(--fg); border-radius: 4px; }
 .clddm button:hover, .clddm button.on { background: var(--panel2); }
+/* v75: jendela gabung berkas */
+.modal.mgmodal { width: min(640px, calc(100vw - 32px)); max-width: none; max-height: calc(100vh - 32px); display: flex; flex-direction: column; }
+.mgmodal .body { overflow: auto; display: flex; flex-direction: column; gap: 10px; }
+.mgopts { display: flex; flex-direction: column; gap: 8px; }
+.mgf { border: 1px solid var(--bd); border-radius: var(--r-md); padding: 6px 10px 8px; margin: 0; display: flex; flex-direction: column; gap: 3px; }
+.mgf legend { font: 600 12px var(--f-body); color: var(--mut); padding: 0 4px; }
+.mgpk { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 2px 0 0 24px; }
+.mgsum { border: 1px solid var(--bd); border-radius: var(--r-md); padding: 8px 10px; background: var(--panel2); max-height: 260px; overflow: auto; font-size: 12.5px; }
+.mgsum .mgm { margin-top: 6px; } .mgsum .mgm:first-child { margin-top: 0; }
+.mgsum .mgm.bad b { color: var(--bad); }
+.mgsum .mgl { margin: 2px 0 4px; padding-left: 18px; line-height: 1.45; }
+.mgsum .hint { margin: 2px 0; }
+.modal.clsdm { width: min(620px, calc(100vw - 32px)); max-width: none; max-height: calc(100vh - 32px); display: flex; flex-direction: column; }
+.clsdm .body { overflow: auto; }
+.clall { margin-top: 8px; font-weight: 600; }
+.clsim { border: 1px solid var(--bd); border-radius: var(--r-md); padding: 8px 10px; margin: 8px 0; background: var(--panel2); }
+.clsim .hint { margin: 2px 0 6px; }
+.clsimr { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; padding: 4px 0; border-top: 1px solid var(--bd); }
+.clsimr:first-of-type { border-top: 0; }
+.clsimr code { font: 600 12.5px var(--f-mono); }
+.clsimto { white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--mut); }
+.clsimto select { height: 28px; padding: 2px 6px; font: 400 12.5px var(--f-mono); }
+.mgsum .mgnone { margin: 0 0 6px; }
 
 </style></head><body><title>Alir DFD</title>
 <script>try{var t=localStorage.getItem('alir-theme');if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
@@ -961,7 +984,7 @@ html.anim .modesw::before { transition: transform 220ms var(--ease-spring); }
   </div>
   <footer id="status"><span id="hint"></span><span id="method" class="wide"></span></footer>
 </div>
-<input type="file" id="file" hidden accept=".pam,.json,.txt,.zip,.eap,.xml,.xmi,.docx,.alir,.drawio">
+<input type="file" id="file" hidden multiple accept=".pam,.json,.txt,.zip,.eap,.xml,.xmi,.docx,.alir,.drawio">
 <script>
 /* Baca/tulis berkas PowerDesigner 6 ProcessAnalyst (.pam).
    Format teks: /BEGIN_TABLE nama, definisi kolom, /BEGIN_DATA, satu nilai per baris, /END_TABLE.
@@ -6142,10 +6165,11 @@ function fhTitle() {
 function fhDirty() { if (FH.h && !FH.dirty) { FH.dirty = true; fhTitle(); } }
 async function fhOpen() {
   var hs;
-  try { hs = await window.showOpenFilePicker({ multiple: false, types: [{ description: 'Berkas Alir, PowerDesigner, Enterprise Architect', accept: { 'application/octet-stream': ['.alir', '.json', '.pam', '.eap', '.xml', '.xmi', '.zip', '.docx', '.txt', '.drawio'] } }] }); } catch (x) { return; }
+  try { hs = await window.showOpenFilePicker({ multiple: true, types: [{ description: 'Berkas Alir, PowerDesigner, Enterprise Architect', accept: { 'application/octet-stream': ['.alir', '.json', '.pam', '.eap', '.xml', '.xmi', '.zip', '.docx', '.txt', '.drawio'] } }] }); } catch (x) { return; }
+  if (hs.length > 1) { var fs = []; for (var i = 0; i < hs.length; i++) fs.push(await hs[i].getFile()); fhPending = null; openFiles(fs); return; }
   var h = hs[0], f = await h.getFile();
   if (/\.docx$/i.test(f.name)) { openFile(f); return; }
-  fhPending = { h: h, name: f.name }; openFile(f);
+  fhPending = { h: h, name: f.name }; openFiles([f]);
 }
 async function fhWritePerm(h) {
   try { if (h.queryPermission && (await h.queryPermission({ mode: 'readwrite' })) === 'granted') return true; if (h.requestPermission) return (await h.requestPermission({ mode: 'readwrite' })) === 'granted'; } catch (x) { return false; }
@@ -15229,7 +15253,7 @@ var tabSelPrev = null;
 function tabs() {
   var vis = tbVisible(), justSel = tabSelPrev !== null && tabSelPrev !== active; tabSelPrev = active;
   tabsEl.innerHTML = vis.map(function (d) {
-    var label = d.parent ? procLabel(d) : d.name, pv = TB.preview === d.id;
+    var label = d.parent ? procLabel(d) : mgTabLabel(d), pv = TB.preview === d.id;
     return '<div class="tab' + (pv ? ' pv' : '') + (justSel && d.id === active ? ' justsel' : '') + '" role="tab" data-tab="' + d.id + '" aria-selected="' + (d.id === active) + '" tabindex="0" draggable="true" title="' + esc(label) + (pv ? '\nTab pratinjau (miring): diganti saat membuka diagram lain. Klik dua kali supaya tetap terbuka.' : '\nKlik dua kali: ganti nama · klik kanan: menu · klik tengah: tutup · seret: pindah urutan') + '">' + (isDfd() ? '<span class="lv">L' + depth(d) + '</span>' : kindBadge(d.kind)) + '<span class="tl">' + esc(label) + '</span>' +
       (vis.length > 1 ? '<button class="x" data-xtab="' + d.id + '" aria-label="Tutup tab ' + esc(label) + '" title="Tutup tab (diagramnya tidak dihapus, tetap ada di ' + (isDfd() ? 'Pohon proses' : 'Project Browser') + ')">×</button>' : '') + '</div>';
   }).join('') + (isDfd() ? '<button class="tab add" data-act="addd" title="Diagram utama baru. Saat disimpan ke .pam, tiap diagram utama jadi berkas .pam sendiri (dalam satu ZIP).">+ Diagram</button>' : '<button class="tab add" data-act="newdiag" title="Diagram baru">+ Diagram</button>');
@@ -15966,11 +15990,11 @@ function item(label, act, key, opt) { return { l: label, a: act, k: key || '', o
 var HR = { hr: 1 };
 function menuItems(name) {
   var D = cur(), one = selEls().length === 1 ? selEls()[0] : null, proc = one && one.type === 'process' ? one : null, has = sel.size > 0, nE = selEls().length, f = selFlows()[0], st = curStyleOf();
-  if (name === 'file' && isFcDoc()) return [item('Halaman mulai…', 'start'), item('Flowchart baru (kosong)…', 'newfc'), item('Proyek UML baru (kosong)…', 'newuml'), item('DFD baru (kosong)…', 'new'), item('Buka .drawio / .xml / .alir…', 'open', 'Ctrl+O'), item('Simpan' + (FH.h ? ' ke ' + FH.name : ' (.drawio)'), 'save', 'Ctrl+S'), item('Simpan sebagai…', 'saveas', 'Ctrl+Shift+S'), HR, item('Flowchart dari skenario (.docx / tabel)…', 'scen'), item('Flowchart dari Activity Diagram…', 'fcbatch'), HR, item('Jelaskan diagram ini (tanya jawab)…', 'explain', 'F3'), item('Teks untuk laporan (narasi & tabel)…', 'report'), item('Bagikan lewat link…', 'share'), item('Riwayat versi…', 'hist'), HR, item('Ekspor (XML / PNG / SVG / PDF)…', 'fcexport', 'Ctrl+E'), item('Simpan proyek Alir (.json)', 'saveproj'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Gambar untuk laporan (pas lebar A4 / tabel)…', 'repimg'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar SVG', 'svg'), item('Ekspor XML (.drawio) diagram ini', 'fcdrawio'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Preferensi tampilan…', 'dispref')];
-  if (name === 'file' && !isDfd()) return [item('Halaman mulai…', 'start'), item('Proyek UML baru (kosong)…', 'newuml'), item('Flowchart baru (kosong)…', 'newfc'), item('DFD baru (kosong)…', 'new'), item('Buka .eap / .xml / .alir / .json…', 'open', 'Ctrl+O')].concat([item('Simpan' + (FH.h ? ' ke ' + FH.name : ' (.xml untuk EA)'), 'save', 'Ctrl+S'), item('Simpan sebagai…', 'saveas', 'Ctrl+Shift+S')]).concat([ item('Buat diagram dari skenario (.docx / tabel)…', 'scen'), HR, item('Jelaskan diagram ini (tanya jawab)…', 'explain', 'F3'), item('Teks untuk laporan (narasi & tabel)…', 'report'), item('Bagikan lewat link…', 'share'), item('Riwayat versi…', 'hist'), HR, item('Ekspor ke Enterprise Architect…', 'exportea', 'Ctrl+E'), item('Simpan proyek Alir (.json)', 'saveproj'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Gambar untuk laporan (pas lebar A4 / tabel)…', 'repimg'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar JPG', 'jpg'), item('Ekspor gambar SVG', 'svg'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Preferensi tampilan…', 'dispref')]);
+  if (name === 'file' && isFcDoc()) return [item('Halaman mulai…', 'start'), item('Flowchart baru (kosong)…', 'newfc'), item('Proyek UML baru (kosong)…', 'newuml'), item('DFD baru (kosong)…', 'new'), item('Buka .drawio / .xml / .alir…', 'open', 'Ctrl+O'), item('Gabungkan berkas…', 'mergefiles'), item('Simpan' + (FH.h ? ' ke ' + FH.name : ' (.drawio)'), 'save', 'Ctrl+S'), item('Simpan sebagai…', 'saveas', 'Ctrl+Shift+S'), HR, item('Flowchart dari skenario (.docx / tabel)…', 'scen'), item('Flowchart dari Activity Diagram…', 'fcbatch'), HR, item('Jelaskan diagram ini (tanya jawab)…', 'explain', 'F3'), item('Teks untuk laporan (narasi & tabel)…', 'report'), item('Bagikan lewat link…', 'share'), item('Riwayat versi…', 'hist'), HR, item('Ekspor (XML / PNG / SVG / PDF)…', 'fcexport', 'Ctrl+E'), item('Simpan proyek Alir (.json)', 'saveproj'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Gambar untuk laporan (pas lebar A4 / tabel)…', 'repimg'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar SVG', 'svg'), item('Ekspor XML (.drawio) diagram ini', 'fcdrawio'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Preferensi tampilan…', 'dispref')];
+  if (name === 'file' && !isDfd()) return [item('Halaman mulai…', 'start'), item('Proyek UML baru (kosong)…', 'newuml'), item('Flowchart baru (kosong)…', 'newfc'), item('DFD baru (kosong)…', 'new'), item('Buka .eap / .xml / .alir / .json…', 'open', 'Ctrl+O'), item('Gabungkan berkas…', 'mergefiles')].concat([item('Simpan' + (FH.h ? ' ke ' + FH.name : ' (.xml untuk EA)'), 'save', 'Ctrl+S'), item('Simpan sebagai…', 'saveas', 'Ctrl+Shift+S')]).concat([ item('Buat diagram dari skenario (.docx / tabel)…', 'scen'), HR, item('Jelaskan diagram ini (tanya jawab)…', 'explain', 'F3'), item('Teks untuk laporan (narasi & tabel)…', 'report'), item('Bagikan lewat link…', 'share'), item('Riwayat versi…', 'hist'), HR, item('Ekspor ke Enterprise Architect…', 'exportea', 'Ctrl+E'), item('Simpan proyek Alir (.json)', 'saveproj'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Gambar untuk laporan (pas lebar A4 / tabel)…', 'repimg'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar JPG', 'jpg'), item('Ekspor gambar SVG', 'svg'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Preferensi tampilan…', 'dispref')]);
   if (name === 'dict' && isFcDoc()) return [{ hd: 'Flowchart baru' }, item('Flowchart kosong', 'newdiag:flowchart'), item('Dari Activity Diagram (proyek UML)…', 'fcbatch'), item('Dari skenario use case (tabel / .docx)…', 'scen'), HR, item('Jelaskan diagram ini…', 'explain', 'F3'), item('Teks untuk laporan…', 'report'), HR, item('Ganti nama diagram…', 'renamediag'), item('Hapus diagram ini', 'deldiag', '', { dis: doc.diagrams.length < 2 }), item('Paket (folder) baru', 'newpkg'), HR, item('Periksa diagram', 'check', 'F4')];
   if (name === 'dict' && !isDfd()) return [{ hd: 'Diagram baru' }, item('Activity Diagram', 'newdiag:activity'), item('Use Case Diagram', 'newdiag:usecase'), item('BPMN (Business Process)', 'newdiag:bpmn'), item('Sequence Diagram', 'newdiag:sequence'), item('Class Diagram', 'newdiag:class'), item('Dari skenario use case (tabel / .docx)…', 'scen'), item('Collaboration dari Sequence (Transform)…', 'cmbatch'), HR, item('Jalankan alur ▶', 'sim', '', { dis: !(D.kind === 'activity' || D.kind === 'bpmn') }), item('Jelaskan diagram ini…', 'explain', 'F3'), item('Teks untuk laporan…', 'report'), HR, item('Ganti nama diagram…', 'renamediag'), item('Hapus diagram ini', 'deldiag', '', { dis: doc.diagrams.length < 2 }), item('Paket (folder) baru', 'newpkg'), HR, item('Periksa diagram', 'check', 'F4')];
-  if (name === 'file') return [item('Halaman mulai…', 'start'), item('DFD baru (kosong)…', 'new'), item('Proyek UML baru (kosong)…', 'newuml'), item('Buka .pam / .alir / .json / .zip…', 'open', 'Ctrl+O'), item('Buat DFD dari skenario (.docx / tabel)…', 'dfdscen')].concat([item('Simpan' + (FH.h ? ' ke ' + FH.name : ' (.pam)'), 'save', 'Ctrl+S'), item('Simpan sebagai…', 'saveas', 'Ctrl+Shift+S')]).concat([HR, item('Jelaskan diagram ini (tanya jawab)…', 'explain', 'F3'), item('Teks untuk laporan (tabel alur data)…', 'report'), item('Bagikan lewat link…', 'share'), item('Riwayat versi…', 'hist'), HR, item('Unduh salinan .pam', 'savepam'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Gambar untuk laporan (pas lebar A4 / tabel)…', 'repimg'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar JPG', 'jpg'), item('Ekspor gambar SVG', 'svg'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Opsi model…', 'modelopt'), item('Preferensi tampilan…', 'dispref')]);
+  if (name === 'file') return [item('Halaman mulai…', 'start'), item('DFD baru (kosong)…', 'new'), item('Proyek UML baru (kosong)…', 'newuml'), item('Buka .pam / .alir / .json / .zip…', 'open', 'Ctrl+O'), item('Gabungkan berkas…', 'mergefiles'), item('Buat DFD dari skenario (.docx / tabel)…', 'dfdscen')].concat([item('Simpan' + (FH.h ? ' ke ' + FH.name : ' (.pam)'), 'save', 'Ctrl+S'), item('Simpan sebagai…', 'saveas', 'Ctrl+Shift+S')]).concat([HR, item('Jelaskan diagram ini (tanya jawab)…', 'explain', 'F3'), item('Teks untuk laporan (tabel alur data)…', 'report'), item('Bagikan lewat link…', 'share'), item('Riwayat versi…', 'hist'), HR, item('Unduh salinan .pam', 'savepam'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Gambar untuk laporan (pas lebar A4 / tabel)…', 'repimg'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar JPG', 'jpg'), item('Ekspor gambar SVG', 'svg'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Opsi model…', 'modelopt'), item('Preferensi tampilan…', 'dispref')]);
   if (name === 'edit') return [item('Urungkan', 'undo', 'Ctrl+Z', { dis: !undoS.length }), item('Ulangi', 'redo', 'Ctrl+Y', { dis: !redoS.length }), HR, item('Potong', 'cut', 'Ctrl+X', { dis: !has }), item('Salin', 'copy', 'Ctrl+C', { dis: !has }), item('Tempel', 'paste', 'Ctrl+V', { dis: !canPaste() }), item('Hapus', 'del', 'Del', { dis: !has }), HR, item('Pilih simbol terhubung', 'selconn', '', { dis: !has }), item('Pilih semua', 'selall', 'Ctrl+A'), item('Pilih beberapa (klik satu per satu)', 'multipick', '', { ck: multiPick }), item('Pilih semua yang sejenis', 'selsame', '', { dis: !has }), item('Cari elemen…', 'find', 'Ctrl+F'), HR, item('Kunci / buka kunci posisi', 'lock', '', { dis: !nE }), item('Kelompokkan', 'group', 'Ctrl+G', { dis: nE < 2 }), item('Pisahkan kelompok', 'ungroup', 'Ctrl+Shift+G', { dis: !nE }), HR, item('Duplikat', 'dup', 'Ctrl+D', { dis: !has }), item('Ubah nama', 'rename', 'F2', { dis: sel.size !== 1 })];
   if (name === 'dict') return [item('Properti model…', 'modelopt'), { hd: 'Sub-proses' }, item(proc && childOf(D, proc) ? 'Buka diagram turunan' : 'Dekomposisi proses terpilih', 'decomp', 'Alt+↓', { dis: !proc }), item('Naik satu level', 'up', 'Alt+↑', { dis: !D.parent }), item('Hapus dekomposisi', 'undecomp', '', { dis: !(proc && childOf(D, proc)) }), item('Pohon proses…', 'tree'), HR, item('Daftar objek…', 'objlist'), item('Urutkan ulang nomor objek', 'renum'), item('Auto-balance alur', 'autobal', '', { dis: !D.parent }), item('Tambah konektor off-page', 'offadd'), item('Buat DFD dari skenario use case…', 'dfdscen'), item('Migrasikan alur terpilih ke induk', 'migrate', '', { dis: !D.parent || !f }), HR, item('Periksa model…', 'check', 'F4')];
   if (name === 'arrange') return [item('Sesuaikan dengan teks', 'adjust', 'Ctrl+J', { dis: !nE }), item('Ukuran normal', 'normsize', '', { dis: !nE }), HR, { hd: 'Ratakan' }, item('Kiri', 'alL', '', { dis: nE < 2 }), item('Tengah (sumbu vertikal)', 'alC', '', { dis: nE < 2 }), item('Kanan', 'alR', '', { dis: nE < 2 }), item('Atas', 'alT', '', { dis: nE < 2 }), item('Tengah (sumbu horizontal)', 'alM', '', { dis: nE < 2 }), item('Bawah', 'alB', '', { dis: nE < 2 }), item('Samakan lebar', 'sameW', '', { dis: nE < 2 }), item('Samakan tinggi', 'sameH', '', { dis: nE < 2 }), item('Samakan lebar & tinggi', 'sameS', '', { dis: nE < 2 }), HR, item('Sebar horizontal', 'distH', '', { dis: nE < 3 }), item('Sebar vertikal', 'distV', '', { dis: nE < 3 }), HR, { hd: 'Alur' }, item('Rapikan alur terpilih', 'tidy', 'Ctrl+L', { dis: !selFlows().length }), item('Rapikan semua alur… (pilih tampilan)', 'tidyall', 'Ctrl+Shift+L'), item('Rapikan tata letak (pindahkan objek, proporsional)', 'relayout', 'Ctrl+Shift+K', { dis: !(isDfd() || D.kind === 'activity' || D.kind === 'usecase' || D.kind === 'bpmn') }), item('Pengaturan & pilihan perapian…', 'tidyset', '', { dis: !(isDfd() || D.kind === 'activity' || D.kind === 'usecase') }), item('Rapikan yang terpilih saja (objek lain tetap)', 'tidysel', '', { dis: nE < 2 }), item('Pilih alur objek terpilih', 'selflows', '', { dis: !nE }), item('Rapikan letak nama (Mulai, Selesai, gateway)', 'labfix', '', { dis: isDfd() || !(D.kind === 'activity' || D.kind === 'bpmn') }), item('Rapikan bus aktor (use case)', 'bustidy', '', { dis: D.kind !== 'usecase' }), item('Urutan use case (UC01, UC02, …)', 'ucorder', '', { dis: D.kind !== 'usecase' }), item('Rapikan otomatis setiap ada perubahan', 'autotidy', '', { ck: autoTidyOn() }), HR, { hd: 'Urutan' }, item('Bawa ke depan', 'front', 'Ctrl+]', { dis: !has }), item('Kirim ke belakang', 'back', 'Ctrl+[', { dis: !has }), item('Maju satu', 'fwd', '', { dis: !has }), item('Mundur satu', 'bwd', '', { dis: !has })];
@@ -16907,10 +16931,10 @@ function openFile(file) {
   if (/\.docx$/i.test(file.name)) { if (isDfd()) { file.arrayBuffer().then(scDocxRows).then(function (rows) { var u = scParse(rows); if (!u.length) toast('Tidak ada tabel skenario di ' + file.name + '.'); else dfdScenarioModal({ ucs: u, src: file.name }); }).catch(function (err) { toast('Gagal membaca .docx: ' + (err && err.message)); }); return; } file.arrayBuffer().then(scDocxRows).then(function (rows) { var u = scParse(rows); if (!u.length) toast('Tidak ada tabel skenario (kolom Aktor dan Sistem) di ' + file.name + '.'); else scenarioModal({ ucs: u, src: file.name }); }).catch(function (err) { toast('Gagal membaca .docx: ' + (err && err.message)); }); return; }
   var r = new FileReader(); r.onload = function () { var t = String(r.result); if (/\.drawio$/i.test(file.name) || /<mxfile|<mxGraphModel/.test(t.slice(0, 600))) { openDrawio(file); return; } if (/\.(xml|xmi)$/i.test(file.name) || /^\s*<\?xml|<XMI/.test(t.slice(0, 400))) openXmiText(t, file.name); else openText(t, file.name); }; r.readAsText(file, 'windows-1252');
 }
-fileIn.addEventListener('change', function () { openFile(fileIn.files[0]); fileIn.value = ''; });
-window.addEventListener('dragover', function (e) { e.preventDefault(); if (!$('#drop')) { var d = document.createElement('div'); d.id = 'drop'; d.textContent = 'Lepas berkas .pam, .json, atau .zip di sini'; stage.appendChild(d); } });
+fileIn.addEventListener('change', function () { var fs = Array.prototype.slice.call(fileIn.files); fileIn.value = ''; openFiles(fs); });
+window.addEventListener('dragover', function (e) { e.preventDefault(); if (!$('#drop')) { var d = document.createElement('div'); d.id = 'drop'; d.textContent = 'Lepas berkas di sini (boleh banyak sekaligus)'; stage.appendChild(d); } });
 window.addEventListener('dragleave', function (e) { if (e.relatedTarget === null) { var d = $('#drop'); if (d) d.remove(); } });
-window.addEventListener('drop', function (e) { e.preventDefault(); var d = $('#drop'); if (d) d.remove(); if (e.dataTransfer.files[0]) openFile(e.dataTransfer.files[0]); });
+window.addEventListener('drop', function (e) { e.preventDefault(); var d = $('#drop'); if (d) d.remove(); if (e.dataTransfer.files && e.dataTransfer.files.length) openFiles(e.dataTransfer.files); });
 
 /* ---------- ekspor gambar ---------- */
 function exportSVG(D, ids) {
@@ -17413,6 +17437,43 @@ function clsEdit(id, focus) {
     }, 30);
   });
 }
+/* ---------- nama class mirip antar Sequence Diagram (mis. V_HalProduk & V_HalamanProduk, M_Produk & M_DataProduk) ---------- */
+function clsNameKey(n) {
+  var s = String(n || '').trim(), m = /^\s*([VCM])[_\s]*(.*)$/i.exec(s), role = m ? m[1].toUpperCase() : '', rest = (m ? m[2] : s).toLowerCase();
+  rest = rest.replace(/halaman/g, 'hal').replace(/[^a-z0-9]/g, '');
+  if (role === 'M') rest = rest.replace(/^data/, '');
+  return role + ':' + rest;
+}
+function clsLev(a, b) {
+  if (Math.abs(a.length - b.length) > 2) return 9;
+  var d = []; for (var i = 0; i <= a.length; i++) { d[i] = [i]; } for (var j = 1; j <= b.length; j++) d[0][j] = j;
+  for (i = 1; i <= a.length; i++) for (j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+function clsSimilar(SDs) {
+  var cnt = {};
+  SDs.forEach(function (S) { var seen = {}; S.elements.forEach(function (e) { var r = clsSdRole(e); if (!/^[VCM]$/.test(r)) return; var n = String(e.name || '').trim(); if (!n || seen[n]) return; seen[n] = 1; cnt[n] = (cnt[n] || 0) + 1; }); });
+  var names = Object.keys(cnt), par = {};
+  function f(x) { while (par[x] && par[x] !== x) x = par[x]; return x; }
+  names.forEach(function (n) { par[n] = n; });
+  var strong = {};
+  for (var i = 0; i < names.length; i++) for (var j = i + 1; j < names.length; j++) {
+    var a = names[i], b = names[j], ka = clsNameKey(a), kb = clsNameKey(b);
+    if (ka.charAt(0) !== kb.charAt(0)) continue;
+    var st = ka === kb, ra = ka.slice(2), rb = kb.slice(2), weak = !st && ra.length >= 6 && rb.length >= 6 && clsLev(ra, rb) <= (Math.min(ra.length, rb.length) >= 10 ? 2 : 1);
+    if (st || weak) { var A = f(a), B = f(b); if (A !== B) par[B] = A; if (st) strong[a] = strong[b] = 1; }
+  }
+  var groups = {}; names.forEach(function (n) { var r = f(n); (groups[r] = groups[r] || []).push(n); });
+  return Object.keys(groups).map(function (k) { return groups[k]; }).filter(function (g) { return g.length > 1; }).map(function (g) {
+    g.sort(function (a, b) { return cnt[b] - cnt[a] || a.length - b.length || a.localeCompare(b); });
+    var c = {}; g.forEach(function (n) { c[n] = cnt[n]; });
+    return { names: g, count: c, strong: g.every(function (n) { return strong[n]; }) };
+  });
+}
+function clsAliasFrom(s) {
+  var al = {}; s.querySelectorAll('[data-simk]').forEach(function (r) { if (!r.querySelector('input').checked) return; var to = r.querySelector('select').value; r.dataset.simk.split('|').forEach(function (n) { if (n !== to) al[n] = to; }); });
+  return al;
+}
 /* ---------- saran tipe data (teks abu-abu di belakang ketikan) ---------- */
 function clsTypeSuggestions() {
   var cnt = {}, add = function (t) { t = String(t || '').trim(); if (!t || /^\$/.test(t)) return; cnt[t] = (cnt[t] || 0) + 1; };
@@ -17661,10 +17722,10 @@ function clsSdRole(e) {
   if (e.type === 'sboundary') return 'V'; if (e.type === 'scontrol') return 'C'; if (e.type === 'sentity') return 'M'; if (e.type === 'sactor') return 'A';
   var m = /^\s*([VCM])[_\s]/i.exec(String(e.name || '')); return m ? m[1].toUpperCase() : '';
 }
-function clsFromSeq(list, D) {
-  var map = {}, order = [], links = {};
+function clsFromSeq(list, D, alias) {
+  var map = {}, order = [], links = {}; alias = alias || {};
   function cls(e) {
-    var k = String(e.name || '').trim(); if (!k) return null;
+    var k = String(e.name || '').trim(); if (!k) return null; if (alias[k]) k = alias[k];
     if (!map[k]) { map[k] = { id: uid('e'), type: 'class', name: k, x: 0, y: 0, w: CLS.W, h: CLS.H, style: {}, attrs: [], ops: [] }; order.push(map[k]); }
     return map[k];
   }
@@ -17720,12 +17781,31 @@ function clsFromSeqModal() {
   var SDs = doc.diagrams.filter(function (d) { return d.kind === 'sequence' && d.elements.length; });
   if (!SDs.length) { toast('Belum ada Sequence Diagram berisi di proyek ini.'); return; }
   var body = '<p class="hint">Class, attribute, operation, dan garisnya dibuat dari pesan di Sequence Diagram yang dipilih: pesan View ke Controller dan Controller ke View jadi operation Controller, pesan Controller ke Model jadi operation Model (dengan parameter & return), pesan balasan dan pesan Aktor ke View tidak dijadikan operation. Isian form (input…(a, b)) jadi attribute View dan Model. Tipe data ditebak dari nama attribute, jadi cek lagi hasilnya.</p>' +
-    '<div class="clsdl">' + SDs.map(function (S, i) { return '<label class="cbx"><input type="checkbox" data-sd="' + S.id + '"' + (i === 0 || cur().kind === 'sequence' && cur().id === S.id ? ' checked' : '') + '> ' + esc(S.name) + '</label>'; }).join('') + '</div>' +
+    '<label class="cbx clall"><input type="checkbox" id="cl-all"' + (SDs.length > 1 ? '' : ' checked') + '> Pilih semua (' + SDs.length + ' Sequence Diagram)</label>' +
+    '<div class="clsdl">' + SDs.map(function (S, i) { var P = (doc.packages || []).find(function (p) { return p.id === S.pkg; }); return '<label class="cbx"><input type="checkbox" data-sd="' + S.id + '"' + (SDs.length === 1 || cur().kind === 'sequence' && cur().id === S.id ? ' checked' : '') + '> ' + esc(S.name) + (P && doc.packages.length > 1 ? ' <span class="hint">· ' + esc(P.name) + '</span>' : '') + '</label>'; }).join('') + '</div>' +
+    '<div id="cl-sim"></div>' +
     '<label class="cbx"><input type="checkbox" id="cl-into"' + (clsOn(cur()) && !cur().elements.length ? ' checked' : '') + (clsOn(cur()) && !cur().elements.length ? '' : ' disabled') + '> Isi ke Class Diagram yang sedang dibuka (masih kosong)</label>' +
     '<div class="field cldata"><label for="cl-dst">Parameter $data ditulis sebagai</label><select class="in" id="cl-dst"><option value="array"' + (clsDataStyle() === 'array' ? ' selected' : '') + '>array, mis. insertDataAkun(array)</option><option value="dollar"' + (clsDataStyle() === 'dollar' ? ' selected' : '') + '>$data, mis. insertDataAkun($data)</option></select></div>';
   modal('Class Diagram dari Sequence Diagram', body, '<button class="btn" data-close>Batal</button><button class="btn pri" data-ok>Buat</button>', function (s, close) {
+    s.querySelector('.modal').classList.add('clsdm');
+    function picked() { return Array.prototype.filter.call(s.querySelectorAll('[data-sd]'), function (x) { return x.checked; }).map(function (x) { return doc.diagrams.find(function (d) { return d.id === x.dataset.sd; }); }).filter(Boolean); }
+    function sims() {
+      var prev = {}; s.querySelectorAll('[data-simk]').forEach(function (r) { prev[r.dataset.simk] = { on: r.querySelector('input').checked, to: r.querySelector('select').value }; });
+      var G = clsSimilar(picked()), h = '';
+      if (G.length) h = '<div class="clsim"><b>Nama class yang mirip</b><p class="hint">Dari Sequence Diagram yang berbeda. Centang untuk disatukan jadi satu class.</p>' + G.map(function (g) {
+        var k = g.names.slice().sort().join('|'), pv = prev[k], on = pv ? pv.on : g.strong, to = pv && g.names.indexOf(pv.to) >= 0 ? pv.to : g.names[0];
+        return '<div class="clsimr" data-simk="' + esc(k) + '"><label class="cbx"><input type="checkbox"' + (on ? ' checked' : '') + '> ' + g.names.map(function (n) { return '<code>' + esc(n) + '</code> <span class="hint">(' + g.count[n] + ' SD)</span>'; }).join(', ') + '</label><span class="clsimto">disatukan jadi <select class="in">' + g.names.map(function (n) { return '<option' + (n === to ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join('') + '</select></span></div>';
+      }).join('') + '</div>';
+      $('#cl-sim', s).innerHTML = h;
+    }
+    s.addEventListener('change', function (ev) {
+      if (ev.target.id === 'cl-all') s.querySelectorAll('[data-sd]').forEach(function (x) { x.checked = ev.target.checked; });
+      if (ev.target.dataset && ev.target.dataset.sd !== undefined) { var all = s.querySelectorAll('[data-sd]'), n = Array.prototype.filter.call(all, function (x) { return x.checked; }).length; $('#cl-all', s).checked = n === all.length; }
+      if (ev.target.id === 'cl-all' || (ev.target.dataset && ev.target.dataset.sd !== undefined)) sims();
+    });
+    sims();
     $('[data-ok]', s).addEventListener('click', function () {
-      var pick = Array.prototype.filter.call(s.querySelectorAll('[data-sd]'), function (x) { return x.checked; }).map(function (x) { return doc.diagrams.find(function (d) { return d.id === x.dataset.sd; }); }).filter(Boolean);
+      var pick0 = picked(), pick = Array.prototype.filter.call(s.querySelectorAll('[data-sd]'), function (x) { return x.checked; }).map(function (x) { return doc.diagrams.find(function (d) { return d.id === x.dataset.sd; }); }).filter(Boolean);
       if (!pick.length) { toast('Pilih minimal satu Sequence Diagram.'); return; }
       var into = $('#cl-into', s).checked, n = 0;
       try { localStorage.setItem('alir-cls-data', $('#cl-dst', s).value); } catch (e2) { /* tanpa penyimpanan */ }
@@ -17733,7 +17813,7 @@ function clsFromSeqModal() {
       mutate(function () {
         var D = into && clsOn(cur()) ? cur() : newDiagram('class');
         if (!into) D.name = pick.length === 1 ? 'Class ' + pick[0].name.replace(/^(Sequence( Diagram)?|SD)\s*/i, '') : 'Class Diagram';
-        n = clsFromSeq(pick, D); active = D.id; sel.clear(); views[D.id] = { x: 0, y: 0, k: 1, fresh: true };
+        n = clsFromSeq(pick, D, clsAliasFrom(s)); active = D.id; sel.clear(); views[D.id] = { x: 0, y: 0, k: 1, fresh: true };
       });
       umlToolbox(); setTool('select'); fit();
       toast(n + ' class dibuat dari ' + pick.length + ' Sequence Diagram. Periksa tipe data & garisnya, lalu sesuaikan bila perlu.');
@@ -17937,6 +18017,345 @@ function clsPanelFlow(D, f) {
   var a = elOf(D, f.from) || {}, b = elOf(D, f.to) || {};
   return '<div class="sec"><h2>Multiplicity</h2><div class="row tight"><div class="field" style="flex:1"><label for="p-cs">Di ' + esc(a.name || 'sumber') + '</label><input class="in" id="p-cs" data-f="cs" list="cls-mult" value="' + esc(f.cs || '') + '" placeholder="mis. 1"></div><div class="field" style="flex:1"><label for="p-ct">Di ' + esc(b.name || 'tujuan') + '</label><input class="in" id="p-ct" data-f="ct" list="cls-mult" value="' + esc(f.ct || '') + '" placeholder="mis. 0..*"></div></div><datalist id="cls-mult"><option value="1"><option value="0..1"><option value="*"><option value="0..*"><option value="1..*"></datalist><p class="hint">Opsional. Kosongkan kalau tidak dipakai.</p></div>';
 }
+
+/* ============================================================================
+   v75: buka / gabungkan BANYAK berkas sekaligus.
+   - Berkas dibaca semua dulu; proyek baru berubah setelah tombol Gabungkan ditekan.
+   - Tiap berkas diarahkan ke modenya: UML (.xml/.xmi EA, .eap, .alir/.json UML), DFD (.pam, .json DFD, .zip),
+     Flowchart (.drawio, .alir flowchart).
+   - UML: tiap berkas jadi paket sendiri (nama berkas) atau semua masuk satu paket.
+   - Semua id internal diberi nomor baru (termasuk rujukannya), GUID EA yang bentrok dibuat baru,
+     diagram yang isinya sama persis bisa dilewati, nama diagram dobel di satu paket diberi akhiran nama berkas.
+   - Setelah digabung, Simpan pertama selalu menanyakan nama berkas baru (tidak menimpa berkas asal).
+   ========================================================================== */
+var MG_SKIP_KEYS = { name: 1, type: 1, kind: 1, args: 1, ret: 1, cond: 1, stereo: 1, guid: 1, text: 1, notes: 1, note: 1, desc: 1, alias: 1, label: 1, num: 1, vis: 1, cs: 1, ct: 1, style: 1, font: 1, fill: 1, stroke: 1, op: 1, ops: 0, attrs: 0 };
+function mgBase(name) { return cleanBase(String(name || 'berkas').replace(/\.(xml|xmi|eap|alir|json|pam|drawio|zip)$/i, '')) || 'berkas'; }
+function mgModeOf(d) { return !d || d.kind !== 'ea' ? 'dfd' : d.fc ? 'fc' : 'uml'; }
+function mgModeName(m) { return m === 'dfd' ? 'DFD' : m === 'fc' ? 'Flowchart' : 'UML'; }
+function mgHasContent(d) { return !!(d && d.diagrams && d.diagrams.some(function (x) { return (x.elements || []).length; })); }
+function mgCurMode() { return isDfd() ? 'dfd' : isFcDoc() ? 'fc' : 'uml'; }
+function mgTargetDoc(m) {
+  if (mgCurMode() === m) return doc;
+  var s = storedDoc(m === 'dfd' ? LS : m === 'fc' ? LS_FC : LS_EA); return s ? s.doc : null;
+}
+function mgDecode(buf) { return new TextDecoder('windows-1252').decode(buf); }
+
+/* ---------- membaca satu berkas jadi satu atau beberapa proyek ---------- */
+async function mgReadFile(file) {
+  var name = file.name, base = mgBase(name), out = [];
+  try {
+    if (/\.docx$/i.test(name)) return [{ name: name, err: 'Berkas skenario (.docx) tidak bisa digabung. Buka sendiri lewat "Buat diagram dari skenario".' }];
+    if (/\.zip$/i.test(name)) {
+      var ents = (await unzip(await file.arrayBuffer())).filter(function (x) { return /\.(pam|json|alir|xml|xmi|drawio)$/i.test(x.name); });
+      if (!ents.length) return [{ name: name, err: 'ZIP tidak berisi berkas yang bisa dibuka.' }];
+      for (var i = 0; i < ents.length; i++) {
+        var en = ents[i].name.split('/').pop();
+        var sub = await mgReadFile(new File([ents[i].data], en));
+        sub.forEach(function (r) { r.name = name + ' › ' + r.name; out.push(r); });
+      }
+      return out;
+    }
+    if (/\.eap$/i.test(name)) {
+      var res = buildEaDoc(eapToModel(new Uint8Array(await file.arrayBuffer())), base);
+      return [{ name: name, base: base, doc: res.doc, note: res.skipped && res.skipped.diagrams && res.skipped.diagrams.length ? 'Dilewati: ' + res.skipped.diagrams.join(', ') : '' }];
+    }
+    var t = mgDecode(await file.arrayBuffer());
+    if (/\.drawio$/i.test(name) || /<mxfile|<mxGraphModel/.test(t.slice(0, 600))) {
+      var list = fcDrawioToDiagrams(t); if (!list.length) return [{ name: name, err: 'Tidak ada halaman flowchart.' }];
+      var d = blankFc(base); d.diagrams = []; list.forEach(function (D) { D.pkg = d.packages[0].id; d.diagrams.push(D); });
+      return [{ name: name, base: base, doc: d }];
+    }
+    if (/\.(xml|xmi)$/i.test(name) || /^\s*<\?xml|<XMI/.test(t.slice(0, 400))) {
+      var r2 = buildEaDoc(xmiToModel(t), base);
+      return [{ name: name, base: base, doc: r2.doc }];
+    }
+    var d2 = parseAny(t);
+    if (d2.kind !== 'ea' && (!d2.diagrams || !d2.diagrams.length)) throw new Error('kosong');
+    return [{ name: name, base: base, doc: d2 }];
+  } catch (err) {
+    return [{ name: name, err: 'Tidak bisa dibaca (' + (err && err.message ? String(err.message).slice(0, 80) : 'berkas rusak') + ').' }];
+  }
+}
+
+/* ---------- sidik diagram: untuk mengenali diagram yang isinya sama persis ---------- */
+function mgFp(D) {
+  var nm = {}; (D.elements || []).forEach(function (e) { nm[e.id] = e.type + ':' + (e.name || ''); });
+  var els = (D.elements || []).map(function (e) { return [e.type, e.name || '', Math.round(e.x || 0), Math.round(e.y || 0), Math.round(e.w || 0), Math.round(e.h || 0), (e.attrs || []).map(function (a) { return a.vis + a.name + ':' + a.type; }).join(','), (e.ops || []).map(function (o) { return o.vis + o.name + '(' + (o.params || []).map(function (p) { return p.name + ':' + p.type; }).join(',') + ')' + (o.ret || ''); }).join(',')].join('|'); }).sort();
+  var fls = (D.flows || []).map(function (f) { return [f.kind, f.name || '', nm[f.from] || '', nm[f.to] || '', f.args || '', f.ret || '', f.isRet ? 1 : 0, Math.round(f.y || 0)].join('|'); }).sort();
+  return (D.kind || 'dfd') + '#' + (D.name || '') + '#' + els.join(';') + '#' + fls.join(';');
+}
+
+/* ---------- semua id & GUID ---------- */
+function mgWalk(o, fn, key) {
+  if (Array.isArray(o)) { for (var i = 0; i < o.length; i++) { var r = fn(o[i], key, o, i); if (r !== undefined) o[i] = r; else mgWalk(o[i], fn, key); } return; }
+  if (!o || typeof o !== 'object') return;
+  Object.keys(o).forEach(function (k) { var r = fn(o[k], k, o, k); if (r !== undefined) o[k] = r; else mgWalk(o[k], fn, k); });
+}
+function mgMaxSeq(d) {
+  var m = 0;
+  mgWalk(d, function (v, k) { if (k === 'id' && typeof v === 'string') { var n = parseInt(v.replace(/^[a-zA-Z_]+/, ''), 10); if (n > m && /^[a-zA-Z_]+\d+$/.test(v)) m = n; } });
+  return m;
+}
+function mgGuids(d) { var s = new Set(); mgWalk(d, function (v, k) { if (k === 'guid' && typeof v === 'string' && v) s.add(v.toUpperCase()); }); return s; }
+/* nomor baru untuk setiap objek ber-id, lalu semua rujukan ke id lama ikut diganti */
+function mgRemapIds(d, extra) {
+  var map = Object.assign({}, extra || {});
+  mgWalk(d, function (v, k, parent) {
+    if (k === 'id' && typeof v === 'string' && /^[a-zA-Z_]+\d+$/.test(v) && parent && typeof parent === 'object' && !Array.isArray(parent)) {
+      if (!map.hasOwnProperty(v)) map[v] = uid(v.replace(/\d+$/, ''));
+    }
+  });
+  function sub(v) { return typeof v === 'string' && map.hasOwnProperty(v) ? map[v] : undefined; }
+  mgWalk(d, function (v, k) {
+    if (typeof k === 'string' && MG_SKIP_KEYS[k] === 1) return null === v ? undefined : (typeof v === 'object' ? undefined : v);
+    if (typeof v === 'string') return sub(v);
+    return undefined;
+  });
+  /* kunci "abaikan" Tinjauan berbentuk "jenis|d3|e5": petakan bagian-bagiannya, buang bila tidak bisa */
+  if (d.review && d.review.ign) {
+    var ign = {}; Object.keys(d.review.ign).forEach(function (key) { var ok = true; var nk = key.split('|').map(function (p) { if (/^[a-z]+\d+$/.test(p)) { if (map.hasOwnProperty(p)) return map[p]; ok = false; } return p; }).join('|'); if (ok) ign[nk] = d.review.ign[key]; });
+    d.review.ign = ign;
+  }
+  return map;
+}
+function mgRegenGuids(d, taken) {
+  var gm = {}, n = 0;
+  mgWalk(d, function (v, k) {
+    if (k !== 'guid' || typeof v !== 'string' || !v) return undefined;
+    var U = v.toUpperCase();
+    if (gm[U]) return gm[U];
+    if (taken.has(U)) { gm[U] = newGuid(); n++; return gm[U]; }
+    return undefined;
+  });
+  mgGuids(d).forEach(function (g) { taken.add(g); });
+  return n;
+}
+
+/* ---------- gabung proyek UML / Flowchart (berpaket) ---------- */
+function mgUniqName(name, taken) { var n = name, i = 2; while (taken.indexOf(n.toLowerCase()) >= 0) n = name + ' (' + (i++) + ')'; return n; }
+function mgMergeEa(base, items, opt) {
+  var st = { added: 0, dup: 0, renamed: [], guid: 0, files: [] };
+  var fps = new Set(base.diagrams.map(mgFp));
+  var taken = mgGuids(base);
+  seq = Math.max(seq, mgMaxSeq(base));
+  var target = null;
+  if (opt.pack === 'one') {
+    if (opt.pkgId && base.packages.some(function (p) { return p.id === opt.pkgId; })) target = opt.pkgId;
+    else { var tp = { id: uid('p'), name: mgUniqName(opt.pkgName || 'Gabungan', base.packages.filter(function (p) { return !p.parent; }).map(function (p) { return p.name.toLowerCase(); })), parent: null, guid: newGuid() }; base.packages.push(tp); target = tp.id; taken.add(tp.guid.toUpperCase()); }
+  }
+  items.forEach(function (it) {
+    var inc = clone(it.doc); inc = normEa(inc);
+    var dupMap = {}, keep = [], fst = { name: it.name, added: 0, dup: 0, note: it.note || '' };
+    inc.diagrams.forEach(function (D) {
+      var fp = mgFp(D);
+      if (opt.skipDup && fps.has(fp)) { var ex = base.diagrams.find(function (x) { return mgFp(x) === fp; }); if (ex) dupMap[D.id] = ex.id; st.dup++; fst.dup++; return; }
+      fps.add(fp); keep.push(D);
+    });
+    inc.diagrams = keep;
+    if (!keep.length) { st.files.push(fst); return; }
+    /* paket yang benar-benar dipakai diagram (beserta induknya) */
+    var used = {}; keep.forEach(function (D) { var p = D.pkg; while (p && !used[p]) { used[p] = 1; var P = inc.packages.find(function (x) { return x.id === p; }); p = P ? P.parent : null; } });
+    inc.packages = inc.packages.filter(function (p) { return used[p.id]; });
+    mgRemapIds(inc, dupMap);
+    st.guid += mgRegenGuids(inc, taken);
+    var roots = inc.packages.filter(function (p) { return !p.parent || !inc.packages.some(function (q) { return q.id === p.parent; }); });
+    var pmap = {};
+    function childNames(pid) { return base.packages.filter(function (p) { return (p.parent || null) === (pid || null); }); }
+    /* sub-paket bernama sama di tempat tujuan dipakai bersama (isinya digabung) */
+    function place(P, dest) {
+      var same = childNames(dest).find(function (q) { return q.name.toLowerCase() === String(P.name || '').toLowerCase(); });
+      if (same) pmap[P.id] = same.id;
+      else { var np = Object.assign({}, P, { parent: dest }); base.packages.push(np); pmap[P.id] = np.id; }
+      inc.packages.filter(function (c) { return c.parent === P.id; }).forEach(function (c) { place(c, pmap[P.id]); });
+    }
+    if (opt.pack === 'one') {
+      roots.forEach(function (R) { pmap[R.id] = target; inc.packages.filter(function (c) { return c.parent === R.id; }).forEach(function (c) { place(c, target); }); });
+    } else {
+      var rootNames = base.packages.filter(function (p) { return !p.parent; }).map(function (p) { return p.name.toLowerCase(); });
+      var wrapName = mgUniqName(it.base, rootNames), W;
+      if (roots.length === 1) {
+        W = Object.assign({}, roots[0], { name: wrapName, parent: null }); base.packages.push(W); pmap[roots[0].id] = W.id;
+        inc.packages.filter(function (c) { return c.parent === roots[0].id; }).forEach(function (c) { place(c, W.id); });
+      } else {
+        W = { id: uid('p'), name: wrapName, parent: null, guid: newGuid() }; base.packages.push(W); taken.add(W.guid.toUpperCase());
+        roots.forEach(function (R) { place(R, W.id); });
+      }
+    }
+    keep.forEach(function (D) {
+      D.pkg = pmap[D.pkg] || target || base.packages[0].id;
+      var names = base.diagrams.filter(function (x) { return x.pkg === D.pkg; }).map(function (x) { return String(x.name || '').toLowerCase(); });
+      if (names.indexOf(String(D.name || '').toLowerCase()) >= 0) {
+        var old = D.name, nn = old + ' (' + it.base + ')', i = 2; while (names.indexOf(nn.toLowerCase()) >= 0) nn = old + ' (' + it.base + ' ' + (i++) + ')';
+        D.name = nn; st.renamed.push(old + ' jadi ' + nn);
+      }
+      base.diagrams.push(D); st.added++; fst.added++;
+    });
+    st.files.push(fst);
+  });
+  return st;
+}
+/* ---------- gabung proyek DFD: tiap berkas jadi diagram utama sendiri ---------- */
+function mgMergeDfd(base, items, opt) {
+  var st = { added: 0, dup: 0, renamed: [], guid: 0, files: [] };
+  var fps = new Set(base.diagrams.map(mgFp));
+  seq = Math.max(seq, mgMaxSeq(base));
+  items.forEach(function (it) {
+    var inc = normDoc(clone(it.doc)), fst = { name: it.name, added: 0, dup: 0, note: it.note || '' };
+    /* satu berkas = satu pohon DFD; lewati bila diagram utamanya sama persis */
+    var roots = inc.diagrams.filter(function (x) { return !x.parent; });
+    if (opt.skipDup && roots.length && roots.every(function (R) { return fps.has(mgFp(R)); })) { st.dup += inc.diagrams.length; fst.dup = inc.diagrams.length; st.files.push(fst); return; }
+    inc.diagrams.forEach(function (x) { fps.add(mgFp(x)); });
+    mgRemapIds(inc);
+    var rn = base.diagrams.filter(function (x) { return !x.parent; }).map(function (x) { return String(x.name || '').toLowerCase(); });
+    inc.diagrams.forEach(function (x) {
+      x.elements.forEach(function (e) { delete e.oid; }); x.flows.forEach(function (f) { delete f.oid; });
+      if (!x.parent) { var nm = (roots.length === 1 ? it.base : x.name) || it.base; var u = mgUniqName(nm, rn); if (u !== nm) st.renamed.push(nm + ' jadi ' + u); x.name = u; rn.push(u.toLowerCase()); }
+      base.diagrams.push(x); st.added++; fst.added++;
+    });
+    st.files.push(fst);
+  });
+  return st;
+}
+
+/* ---------- rencana: dihitung di salinan, jadi bisa ditampilkan sebelum menggabung ---------- */
+function mgPlan(groups, opt) {
+  var seq0 = seq, plan = {};
+  try {
+    Object.keys(groups).forEach(function (m) {
+      var g = groups[m]; if (!g.length) return;
+      var tgt = opt.how === 'merge' ? mgTargetDoc(m) : null, into = tgt && mgHasContent(tgt);
+      var base;
+      if (into) base = clone(tgt);
+      else if (m === 'dfd') { base = normDoc(blankDoc(g[0].base)); base.diagrams = []; }
+      else { base = { kind: 'ea', name: g[0].base, prefs: {}, defaults: {}, packages: [], diagrams: [] }; if (m === 'fc') { var bf = blankFc(g[0].base); base = Object.assign(bf, { diagrams: [] }); } }
+      if (m !== 'dfd' && base.kind === 'ea') base = into ? base : base;
+      var single = !into && g.length === 1;
+      var st;
+      if (single) { base = clone(g[0].doc); st = { added: base.diagrams.length, dup: 0, renamed: [], guid: 0, files: [{ name: g[0].name, added: base.diagrams.length, dup: 0, note: g[0].note || '' }] }; }
+      else if (m === 'dfd') st = mgMergeDfd(base, g, opt);
+      else st = mgMergeEa(base, g, m === 'fc' ? Object.assign({}, opt, { pack: 'one', pkgId: base.packages[0] && base.packages[0].id }) : opt);
+      plan[m] = { into: into, single: single, base: base, st: st, files: g, name: into ? tgt.name : g[0].base };
+    });
+  } finally { if (!opt.commit) seq = seq0; }
+  return plan;
+}
+
+/* ---------- jendela gabung ---------- */
+async function openFiles(files, force) {
+  files = Array.prototype.slice.call(files || []).filter(Boolean);
+  if (!files.length) return;
+  /* satu berkas .docx / .zip DFD lama: jalur biasa */
+  if (files.length === 1 && !force && /\.docx$/i.test(files[0].name)) { openFile(files[0]); return; }
+  if (files.length > 1) toast('Membaca ' + files.length + ' berkas…');
+  var read = [];
+  for (var i = 0; i < files.length; i++) read = read.concat(await mgReadFile(files[i]));
+  var ok = read.filter(function (r) { return r.doc; }), bad = read.filter(function (r) { return !r.doc; });
+  if (!ok.length) { toast(bad.length ? bad[0].name + ': ' + bad[0].err : 'Tidak ada berkas yang bisa dibuka.'); return; }
+  /* satu berkas & proyek tujuan masih kosong: buka seperti biasa (Ctrl+S tetap menimpa berkas itu) */
+  if (!force && files.length === 1 && ok.length === 1 && !bad.length && !mgHasContent(mgTargetDoc(mgModeOf(ok[0].doc)))) { openFile(files[0]); return; }
+  fhPendingMg = fhPending; fhPending = null;
+  mgModal(ok, bad);
+}
+function mgModal(ok, bad) {
+  var groups = { uml: [], dfd: [], fc: [] };
+  ok.forEach(function (r) { groups[mgModeOf(r.doc)].push(r); });
+  var anyInto = Object.keys(groups).some(function (m) { return groups[m].length && mgHasContent(mgTargetDoc(m)); });
+  var umlT = mgTargetDoc('uml'), umlInto = groups.uml.length && mgHasContent(umlT);
+  var pkgOpts = umlInto ? umlT.packages.map(function (p) { var dep = 0, q = p; while (q && q.parent && dep < 6) { dep++; q = umlT.packages.find(function (x) { return x.id === q.parent; }); } return '<option value="' + esc(p.id) + '">' + '  '.repeat(dep) + esc(p.name) + '</option>'; }).join('') : '';
+  var body = '<div class="mgopts">' +
+    (anyInto ? '<fieldset class="mgf"><legend>Tujuan</legend><label class="cbx"><input type="radio" name="mg-how" value="merge" checked> Gabungkan ke proyek yang sudah ada</label><label class="cbx"><input type="radio" name="mg-how" value="new"> Buka sebagai proyek baru (proyek lama tetap ada di Riwayat versi)</label></fieldset>' : '') +
+    (groups.uml.length > 1 || umlInto ? '<fieldset class="mgf" id="mg-pk"><legend>Paket UML</legend><label class="cbx"><input type="radio" name="mg-pack" value="own" checked> Tiap berkas jadi paket sendiri (nama paket = nama berkas)</label><label class="cbx"><input type="radio" name="mg-pack" value="one"> Masukkan semua ke satu paket:</label>' +
+      '<div class="mgpk"><select class="in" id="mg-pkid" disabled><option value="">Paket baru…</option>' + pkgOpts + '</select><input class="in" id="mg-pkname" placeholder="Nama paket baru" value="Sequence Diagram" disabled></div></fieldset>' : '') +
+    '<label class="cbx"><input type="checkbox" id="mg-dup" checked> Lewati diagram yang isinya sama persis dengan yang sudah ada</label></div>' +
+    '<div id="mg-sum" class="mgsum"></div>';
+  modal('Buka ' + (ok.length + bad.length) + ' berkas', body, '<button class="btn" data-close>Batal</button><button class="btn pri" data-ok>Gabungkan</button>', function (s, close) {
+    s.querySelector('.modal').classList.add('mgmodal');
+    function opts() {
+      var how = (s.querySelector('[name="mg-how"]:checked') || { value: 'new' }).value, pack = (s.querySelector('[name="mg-pack"]:checked') || { value: 'own' }).value;
+      var sel = $('#mg-pkid', s), nm = $('#mg-pkname', s);
+      return { how: how, pack: pack, pkgId: sel && how === 'merge' ? sel.value : '', pkgName: nm ? nm.value.trim() || 'Gabungan' : 'Gabungan', skipDup: $('#mg-dup', s).checked };
+    }
+    function render() {
+      var o = opts(), sel = $('#mg-pkid', s), nm = $('#mg-pkname', s);
+      if (sel) { sel.disabled = o.pack !== 'one' || o.how !== 'merge' || !umlInto; if (o.how !== 'merge' || !umlInto) sel.value = ''; }
+      if (nm) nm.disabled = o.pack !== 'one' || (sel && !sel.disabled && sel.value !== '');
+      var P = mgPlan(groups, o), h = '';
+      Object.keys(P).forEach(function (m) {
+        var p = P[m], st = p.st;
+        h += '<div class="mgm"><b>' + mgModeName(m) + '</b> · ' + (p.into ? 'digabung ke "' + esc(p.name) + '"' : 'proyek baru "' + esc(p.name) + '"') + ' · ' + st.added + ' diagram ditambahkan' + (st.dup ? ', ' + st.dup + ' sama persis dilewati' : '') + '</div><ul class="mgl">' +
+          st.files.map(function (f) { return '<li>' + esc(f.name) + ': ' + f.added + ' diagram' + (f.dup ? ' (' + f.dup + ' dilewati karena sama)' : '') + (f.note ? ' <span class="hint">' + esc(f.note) + '</span>' : '') + '</li>'; }).join('') + '</ul>';
+        if (st.renamed.length) h += '<p class="hint">Nama diagram dobel diberi akhiran: ' + esc(st.renamed.slice(0, 6).join('; ')) + (st.renamed.length > 6 ? '; dan ' + (st.renamed.length - 6) + ' lainnya' : '') + '.</p>';
+        if (st.guid) h += '<p class="hint">' + st.guid + ' ID EA yang bentrok dibuatkan ID baru supaya tidak saling menimpa di EA.</p>';
+      });
+      if (bad.length) h += '<div class="mgm bad"><b>Tidak dibuka</b></div><ul class="mgl">' + bad.map(function (r) { return '<li>' + esc(r.name) + ': ' + esc(r.err) + '</li>'; }).join('') + '</ul>';
+      var tot = Object.keys(P).reduce(function (n, m) { return n + P[m].st.added; }, 0);
+      if (!tot) h = '<p class="mgnone"><b>Tidak ada yang perlu ditambahkan.</b> Semua diagram di berkas ini sudah ada di proyek.</p>' + h;
+      $('#mg-sum', s).innerHTML = h;
+      var b = $('[data-ok]', s); b.disabled = !tot; b.textContent = Object.keys(P).some(function (m) { return P[m].into; }) ? 'Gabungkan' : 'Buka';
+    }
+    s.addEventListener('change', render); s.addEventListener('input', function (e) { if (e.target.id === 'mg-pkname') render(); });
+    render();
+    $('[data-ok]', s).addEventListener('click', function () { var o = opts(); close(); mgCommit(groups, o); });
+  });
+}
+function mgCommit(groups, o) {
+  var P = mgPlan(groups, Object.assign({}, o, { commit: true }));
+  var modes = Object.keys(P), cm = mgCurMode();
+  var counts = modes.map(function (m) { return { m: m, n: P[m].files.length }; }).sort(function (a, b) { return b.n - a.n || (a.m === cm ? -1 : b.m === cm ? 1 : 0); });
+  var show = modes.indexOf(cm) >= 0 && counts[0].n === (counts.find(function (c) { return c.m === cm; }) || {}).n ? cm : counts[0].m;
+  var msg = [];
+  modes.forEach(function (m) {
+    var p = P[m], st = p.st;
+    msg.push(mgModeName(m) + ': ' + st.added + ' diagram' + (st.dup ? ' (' + st.dup + ' sama dilewati)' : ''));
+    if (m === show) return;
+    /* mode lain: simpan langsung ke draf mode itu (yang lama masuk Riwayat versi) */
+    var key = m === 'dfd' ? LS : m === 'fc' ? LS_FC : LS_EA, old = storedDoc(key);
+    if (old) histSnap('Sebelum digabung', old.doc);
+    var nd = m === 'dfd' ? normDoc(p.base) : normEa(p.base);
+    try { localStorage.setItem(key, JSON.stringify({ doc: nd, active: nd.diagrams[0] && nd.diagrams[0].id, t: Date.now() })); } catch (e) { toast('Draf ' + mgModeName(m) + ' terlalu besar untuk disimpan otomatis di browser. Buka mode itu lalu simpan ke berkas.'); }
+  });
+  var p = P[show];
+  if (p.into && show === cm) {
+    histSnap('Sebelum menggabung berkas');
+    var add = p.base;
+    mutate(function () {
+      if (show === 'dfd') { doc.diagrams = add.diagrams; }
+      else { doc.packages = add.packages; doc.diagrams = add.diagrams; }
+    });
+    bumpSeq(); buildRail && buildRail(); tabs(); panel();
+  } else {
+    useDoc(p.base, null, '');
+  }
+  /* hasil gabungan bukan berkas asal: Simpan pertama menanyakan nama baru */
+  var nm = (p.into ? doc.name : p.name) || 'Proyek';
+  FH = { h: null, name: (p.single ? p.files[0].name : nm + (p.into || p.files.length > 1 ? ' - Gabungan' : '') + (show === 'dfd' ? '.pam' : show === 'fc' ? '.drawio' : '.xml')), kind: '', dirty: false }; fhTitle();
+  if (p.single && fhPendingMg && fhPendingMg.h) { FH = { h: fhPendingMg.h, name: fhPendingMg.name, kind: fhKindOf(fhPendingMg.name), dirty: false }; fhTitle(); }
+  fhPendingMg = null;
+  var D0 = p.st.added && doc.diagrams[doc.diagrams.length - p.st.added]; if (D0 && p.into) switchTo(D0.id);
+  persist();
+  setTimeout(function () {
+    toast('Selesai. ' + msg.join(' · ') + (modes.length > 1 ? '. Mode lain bisa dibuka lewat sakelar DFD | UML | FLOW.' : '.'));
+    try { if (JSON.stringify(doc).length > 4500000) setTimeout(function () { toast('Proyek ini besar: penyimpanan otomatis di browser bisa gagal. Simpan ke berkas (Ctrl+S) supaya aman.'); }, 3500); } catch (e) { /* abaikan */ }
+  }, 50);
+}
+var fhPendingMg = null;
+/* label tab: bila ada diagram lain bernama sama, tampilkan juga nama paketnya */
+function mgTabLabel(d) {
+  if (isDfd() || !doc.packages) return d.name;
+  var n = String(d.name || '').toLowerCase();
+  if (!doc.diagrams.some(function (x) { return x !== d && String(x.name || '').toLowerCase() === n; })) return d.name;
+  var P = doc.packages.find(function (p) { return p.id === d.pkg; }); return d.name + (P ? ' · ' + P.name : '');
+}
+
+/* menu Berkas → Gabungkan berkas…: selalu lewat jendela gabung, walau hanya satu berkas */
+function mgPick() {
+  var i = document.createElement('input'); i.type = 'file'; i.multiple = true; i.accept = '.eap,.xml,.xmi,.alir,.json,.pam,.zip,.drawio'; i.hidden = true;
+  i.addEventListener('change', function () { var f = Array.prototype.slice.call(i.files); i.remove(); if (f.length) openFiles(f, true); });
+  document.body.appendChild(i); i.click();
+}
+run = (function (orig) {
+  return function (a, btn) { if (a === 'mergefiles') { mgPick(); return; } return orig.apply(this, arguments); };
+})(run);
 
 (function init() {
   var mode = 'dfd'; try { mode = localStorage.getItem('alir-mode') || 'dfd'; } catch (x) { mode = 'dfd'; }
