@@ -132,6 +132,12 @@
 @media (max-width: 860px) { .kdwrap { grid-template-columns: 1fr; } .kdside { max-height: 160px; } }
 .kdA { display: inline-flex; flex-direction: column; align-items: center; line-height: 1; }
 .kdA i { display: block; width: 14px; height: 3px; background: #000; margin-top: 2px; }
+.kdcp { margin-left: 10px; font: 500 11.5px var(--f-body); padding: 2px 8px; border: 1px solid #c9c4ba; border-radius: 999px; background: #f6f3ee; color: #333; cursor: pointer; vertical-align: middle; user-select: none; }
+.kdcp:hover { background: #ffe9df; border-color: #ff8a5c; }
+.kdchg { margin-left: 8px; font: 500 11px var(--f-body); color: #b35a00; background: #fff1d6; border-radius: 999px; padding: 1px 7px; vertical-align: middle; user-select: none; }
+.kdpk { display: inline-flex; margin-right: 6px; vertical-align: middle; }
+.kdpk input { margin: 0; }
+.kdddot, .kddot { color: #e07a00; font-size: 10px; }
 
 </style></head><body><title>Alir DFD</title>
 <script>try{var t=localStorage.getItem('alir-theme');if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
@@ -18603,13 +18609,17 @@ function kdArus(en) {
 
 /* ---------- HTML dokumen (gaya inline supaya tersalin utuh ke Word) ---------- */
 function kdCss(M) { return 'font-family:\'' + M.style.font + '\',serif;font-size:' + M.style.size + 'pt;color:#000'; }
-function kdDocHtml(M, forWord) {
+function kdDocHtml(M, forWord, opt) {
+  opt = opt || {};
   var B = 'border:1px solid #000;padding:3pt 5pt;vertical-align:top;', lab = M.style.bold ? 'font-weight:bold;' : '';
-  var h = '<p style="text-align:center;font-weight:bold;margin:0 0 10pt;' + kdCss(M) + '" data-kdf="title">' + (M.titleHtml || 'KAMUS DATA') + '</p>';
+  var all = !opt.only, h = '';
+  if (!forWord || (all && !opt.noTitle)) h += '<p style="text-align:center;font-weight:bold;margin:0 0 10pt;' + kdCss(M) + '" data-kdf="title">' + (M.titleHtml || 'KAMUS DATA') + '</p>';
   M.entries.forEach(function (en, i) {
-    var arus = kdArus(en);
+    if (opt.only && opt.only.indexOf(i) < 0) return;
+    var arus = kdArus(en), ch = !forWord && en.copiedHash && en.copiedHash !== kdEntryHash(M, i);
     h += '<div class="kde" data-kde="' + i + '">';
-    h += '<p style="margin:10pt 0 4pt;' + kdCss(M) + '"' + (forWord ? '' : ' contenteditable="false"') + '>' + (i + 1) + '. <span data-kdf="title" data-kdi="' + i + '"' + (forWord ? '' : ' contenteditable="true"') + '>' + kdEsc(en.title) + '</span></p>';
+    if (!(forWord && opt.noTitle)) h += '<p style="margin:' + (forWord && h === '' ? '0' : '10pt') + ' 0 4pt;' + kdCss(M) + '"' + (forWord ? '' : ' contenteditable="false"') + '>' + (i + 1) + '. <span data-kdf="title" data-kdi="' + i + '"' + (forWord ? '' : ' contenteditable="true"') + '>' + kdEsc(en.title) + '</span>' +
+      (forWord ? '' : '<button class="kdcp" data-kdcp="' + i + '" contenteditable="false" title="Salin tabel ini saja (untuk mengganti satu tabel di laporan)">Salin tabel ini</button>' + (ch ? '<span class="kdchg" title="Isinya berubah sejak terakhir disalin">berubah sejak disalin</span>' : '')) + '</p>';
     h += '<table style="border-collapse:collapse;width:100%;' + kdCss(M) + '" data-kdt="' + i + '">';
     function row(label, f, html) { return '<tr><td style="' + B + 'width:24%;' + lab + '"' + (forWord ? '' : ' contenteditable="false"') + '>' + label + '</td><td style="' + B + '" data-kdf="' + f + '" data-kdi="' + i + '">' + html + '</td></tr>'; }
     h += row('Nama Arus', 'title2', kdEsc(en.title));
@@ -18675,12 +18685,21 @@ function kdOpen() {
     var page = $('#kd-page', s), saveT = 0, savedRange = null;
     function save(now) {
       clearTimeout(saveT);
-      var go = function () { kdReadBack(M, page); persist(); };
+      var go = function () { kdReadBack(M, page); persist(); side(); };
       if (now) go(); else saveT = setTimeout(go, 400);
     }
-    function render() { page.innerHTML = kdDocHtml(M); side(); }
+    var picked = [];
+    function render() { page.innerHTML = kdDocHtml(M); side(); foot(); }
+    function foot() {
+      var n = picked.length, c = s.querySelector('[data-kdact="copy"]'), d = s.querySelector('[data-kdact="doc"]');
+      if (c) c.textContent = n ? 'Salin ' + n + ' tabel terpilih' : 'Salin ke Word';
+      if (d) d.textContent = n ? 'Unduh ' + n + ' tabel terpilih (.docx)' : 'Unduh Word (.docx)';
+    }
+    function opts(only) { return { only: only || (picked.length ? picked.slice().sort(function (a, b) { return a - b; }) : null), noTitle: !!M.noTitle }; }
+    function afterCopy() { page.querySelectorAll('.kdchg').forEach(function (x) { x.remove(); }); side(); }
     function side() {
-      var h = '<b>Entri</b><ol class="kdlist">' + M.entries.map(function (en, i) { return '<li><a href="#" data-kdgo="' + i + '">' + kdEsc(en.title) + '</a> <span class="hint">' + kdArus(en).length + ' arus</span></li>'; }).join('') + '</ol>';
+      var h = '<b>Entri</b><p class="hint">Centang untuk menyalin atau mengunduh tabel tertentu saja.</p><ol class="kdlist">' + M.entries.map(function (en, i) { var ch = en.copiedHash && en.copiedHash !== kdEntryHash(M, i); return '<li><label class="kdpk"><input type="checkbox" data-kdpick="' + i + '"' + (picked.indexOf(i) >= 0 ? ' checked' : '') + '></label><a href="#" data-kdgo="' + i + '">' + kdEsc(en.title) + '</a> <span class="hint">' + kdArus(en).length + ' arus</span>' + (ch ? ' <span class="kddot" title="Berubah sejak terakhir disalin">●</span>' : '') + '</li>'; }).join('') + '</ol>';
+      h += '<label class="cbx"><input type="checkbox" data-kdc="notitle"' + (M.noTitle ? ' checked' : '') + '> Salin tanpa judul (tabelnya saja)</label>';
       h += '<button class="btn sm" data-kdact="add">+ Entri baru</button>';
       if (M.unassigned && M.unassigned.length) {
         h += '<div class="kdun"><b>Alur belum masuk kamus</b><p class="hint">Nama alur ini tidak sama dengan data store mana pun. Pilih masuk ke entri mana.</p>' + M.unassigned.map(function (u) {
@@ -18710,6 +18729,7 @@ function kdOpen() {
     }
     s.addEventListener('mousedown', function (ev) { if (ev.target.closest('.kdbar button, .kdbar label')) ev.preventDefault(); });
     s.addEventListener('click', function (ev) {
+      var cp = ev.target.closest('[data-kdcp]'); if (cp) { ev.preventDefault(); save(true); kdCopy(M, opts([+cp.dataset.kdcp]), function () { var b2 = page.querySelector('[data-kde="' + cp.dataset.kdcp + '"] .kdchg'); if (b2) b2.remove(); side(); }); return; }
       var x = ev.target.closest('[data-kdx]'); if (x) { exec(x.dataset.kdx); return; }
       var r = ev.target.closest('[data-kdr]'); if (r) { rowOp(r.dataset.kdr); return; }
       var g = ev.target.closest('[data-kdgo]'); if (g) { ev.preventDefault(); var el = page.querySelector('[data-kde="' + g.dataset.kdgo + '"]'); if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' }); return; }
@@ -18717,8 +18737,8 @@ function kdOpen() {
       var act = a.dataset.kdact;
       if (act === 'sync') { save(true); mutate(function () { kdSync(); }); render(); toast('Arus Data diperbarui dari DFD.'); }
       if (act === 'add') { save(true); var nm = 'Data Baru'; mutate(function () { M.entries.push({ key: 'custom-' + uid('k'), title: nm, custom: true, edited: true }); kdSync(); }); render(); var last = page.querySelector('[data-kde="' + (M.entries.length - 1) + '"]'); if (last) last.scrollIntoView({ block: 'start' }); }
-      if (act === 'copy') { save(true); kdCopy(M); }
-      if (act === 'doc') { save(true); kdDownload(M); }
+      if (act === 'copy') { save(true); kdCopy(M, opts(), afterCopy); }
+      if (act === 'doc') { save(true); kdDownload(M, opts()); }
     });
     s.addEventListener('change', function (ev) {
       var c = ev.target.dataset.kdc, as = ev.target.dataset.kdas;
@@ -18727,6 +18747,8 @@ function kdOpen() {
       if (c === 'color') { exec('foreColor', ev.target.value); var ci = $('#kd-cA', s); if (ci) ci.style.background = ev.target.value; }
       if (c === 'hilite') exec('hiliteColor', ev.target.value);
       if (c === 'bold') { save(true); M.style.bold = ev.target.checked; render(); persist(); }
+      if (c === 'notitle') { M.noTitle = ev.target.checked; persist(); }
+      if (ev.target.dataset.kdpick !== undefined) { var k = +ev.target.dataset.kdpick; picked = picked.filter(function (q) { return q !== k; }); if (ev.target.checked) picked.push(k); foot(); }
       if (as !== undefined) {
         var v = ev.target.value; if (!v) return; save(true);
         mutate(function () { if (v === '+') { var u = M.unassigned.find(function (q) { return kdNorm(q.name) === as; }); var key = 'custom-' + as; M.entries.push({ key: key, title: u ? u.name : as, custom: true }); M.assign[as] = key; } else M.assign[as] = v; kdSync(); });
@@ -18762,8 +18784,9 @@ function kdOpen() {
 /* salinan untuk Word / Google Docs: tiap isi sel dibungkus paragraf berindentasi & spasi nol,
    supaya tidak ikut gaya paragraf di dokumen tujuan (mis. indentasi baris pertama 1,27 cm) */
 var KD_P = 'margin:0;padding:0;text-indent:0;margin-left:0;line-height:1.15;mso-para-margin:0;';
-function kdCleanHtml(M) {
-  var d = document.createElement('div'); d.innerHTML = kdDocHtml(M, true);
+function kdEntryHash(M, i) { var en = M.entries[i]; if (!en) return ''; return strHash(JSON.stringify([en.title, en.alias, en.bentuk, kdArus(en), en.penjelasan, en.periode, en.volume, en.struct, M.style])); }
+function kdCleanHtml(M, opt) {
+  var d = document.createElement('div'); d.innerHTML = kdDocHtml(M, true, opt);
   d.querySelectorAll('[data-kdf],[data-kdi],[data-kde],[data-kdt],[data-kds],[data-kdsr]').forEach(function (el) { ['data-kdf', 'data-kdi', 'data-kde', 'data-kdt', 'data-kds', 'data-kdsr'].forEach(function (a) { el.removeAttribute(a); }); });
   d.querySelectorAll('td').forEach(function (td) {
     var kids = Array.prototype.slice.call(td.childNodes), cur = null;
@@ -18780,27 +18803,31 @@ function kdCleanHtml(M) {
   d.querySelectorAll('div').forEach(function (x) { x.setAttribute('style', 'margin:0;padding:0;'); });
   return d.innerHTML;
 }
-function kdWordHtml(M) {
+function kdWordHtml(M, opt) {
   return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>Kamus Data</title>' +
-    '<style>body{' + kdCss(M) + '} table{border-collapse:collapse} td{border:1px solid #000;vertical-align:top} p{margin:0}</style></head><body>' + kdCleanHtml(M) + '</body></html>';
+    '<style>body{' + kdCss(M) + '} table{border-collapse:collapse} td{border:1px solid #000;vertical-align:top} p{margin:0}</style></head><body>' + kdCleanHtml(M, opt) + '</body></html>';
 }
-function kdPlain(M) {
-  return 'KAMUS DATA\n\n' + M.entries.map(function (en, i) {
-    return (i + 1) + '. ' + en.title + '\nNama Arus\t' + en.title + '\nAlias\t' + en.alias + '\nBentuk\t' + en.bentuk + '\nArus Data\t' + kdArus(en).join('\n\t') + '\nPenjelasan\t' + String(en.penjelasan || '').replace(/<[^>]+>/g, '') + '\nPeriode\t' + String(en.periode || '').replace(/<[^>]+>/g, '') + '\nVolume\t' + String(en.volume || '').replace(/<[^>]+>/g, '') + '\nStruktur Data\tNama Atribut\tTipe Data\n' + (en.struct || []).map(function (a) { return '\t' + a.n + '\t' + a.t; }).join('\n');
-  }).join('\n\n');
+function kdPlain(M, opt) {
+  opt = opt || {};
+  return (opt.only || opt.noTitle ? '' : 'KAMUS DATA\n\n') + M.entries.map(function (en, i) {
+    if (opt.only && opt.only.indexOf(i) < 0) return null;
+    return (opt.noTitle ? '' : (i + 1) + '. ' + en.title + '\n') + 'Nama Arus\t' + en.title + '\nAlias\t' + en.alias + '\nBentuk\t' + en.bentuk + '\nArus Data\t' + kdArus(en).join('\n\t') + '\nPenjelasan\t' + String(en.penjelasan || '').replace(/<[^>]+>/g, '') + '\nPeriode\t' + String(en.periode || '').replace(/<[^>]+>/g, '') + '\nVolume\t' + String(en.volume || '').replace(/<[^>]+>/g, '') + '\nStruktur Data\tNama Atribut\tTipe Data\n' + (en.struct || []).map(function (a) { return '\t' + a.n + '\t' + a.t; }).join('\n');
+  }).filter(function (x) { return x !== null; }).join('\n\n');
 }
-function kdCopy(M) {
-  var html = kdWordHtml(M), txt = kdPlain(M);
+function kdCopy(M, opt, done) {
+  opt = opt || {};
+  var html = kdWordHtml(M, opt), txt = kdPlain(M, opt), what = opt.only ? (opt.only.length === 1 ? 'Tabel "' + M.entries[opt.only[0]].title + '"' : opt.only.length + ' tabel') : 'Kamus Data';
+  function ok2() { (opt.only || M.entries.map(function (x, i) { return i; })).forEach(function (i) { M.entries[i].copiedHash = kdEntryHash(M, i); }); persist(); if (done) done(); toast(what + ' disalin' + (opt.noTitle ? ' (tanpa judul)' : '') + '. Tempel di Word / Google Docs dengan Ctrl+V' + (opt.only ? ', di tempat tabel lama yang sudah dihapus.' : ', hasilnya tabel biasa.')); }
   function fallback() {
-    var d = document.createElement('div'); d.contentEditable = 'true'; d.style.cssText = 'position:fixed;left:-9999px;top:0'; d.innerHTML = kdCleanHtml(M); document.body.appendChild(d);
+    var d = document.createElement('div'); d.contentEditable = 'true'; d.style.cssText = 'position:fixed;left:-9999px;top:0'; d.innerHTML = kdCleanHtml(M, opt); document.body.appendChild(d);
     var r = document.createRange(); r.selectNodeContents(d); var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
     var ok = false; try { ok = document.execCommand('copy'); } catch (e) { ok = false; } sel.removeAllRanges(); d.remove();
-    toast(ok ? 'Kamus Data disalin. Tempel di Word dengan Ctrl+V, hasilnya tabel biasa.' : 'Browser menolak menyalin. Pakai Unduh Word (.docx).');
+    if (ok) ok2(); else toast('Browser menolak menyalin. Pakai Unduh Word (.docx).');
   }
   try {
     if (navigator.clipboard && window.ClipboardItem) {
       navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([txt], { type: 'text/plain' }) })])
-        .then(function () { toast('Kamus Data disalin. Tempel di Word dengan Ctrl+V, hasilnya tabel biasa.'); }, fallback);
+        .then(ok2, fallback);
     } else fallback();
   } catch (e) { fallback(); }
 }
@@ -18821,8 +18848,8 @@ function kdRgbHex(c) {
   m = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?/i.exec(c); if (m) { if (m[4] !== undefined && +m[4] === 0) return ''; return [m[1], m[2], m[3]].map(function (x) { return ('0' + (+x).toString(16)).slice(-2); }).join('').toUpperCase(); }
   return '';
 }
-function kdDocxBlob(M) {
-  var host = document.createElement('div'); host.style.cssText = 'position:fixed;left:-99999px;top:0;width:800px'; host.innerHTML = kdDocHtml(M, true); document.body.appendChild(host);
+function kdDocxBlob(M, opt) {
+  var host = document.createElement('div'); host.style.cssText = 'position:fixed;left:-99999px;top:0;width:800px'; host.innerHTML = kdDocHtml(M, true, opt); document.body.appendChild(host);
   var baseSz = M.style.size, baseFont = M.style.font;
   function runProps(el) {
     var cs = getComputedStyle(el), p = '';
@@ -18889,12 +18916,27 @@ function kdDocxBlob(M) {
   var te = new TextEncoder();
   return new Blob([zipN([{ name: '[Content_Types].xml', data: te.encode(ct) }, { name: '_rels/.rels', data: te.encode(rels) }, { name: 'word/document.xml', data: te.encode(docXml) }, { name: 'word/styles.xml', data: te.encode(styles) }, { name: 'word/numbering.xml', data: te.encode(numbering) }, { name: 'word/_rels/document.xml.rels', data: te.encode(drels) }])], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
 }
-kdDownload = function (M) {
-  var name = safeName((doc.name || 'Proyek') + ' - Kamus Data') + '.docx', blob;
-  try { blob = kdDocxBlob(M); } catch (e) { toast('Gagal membuat .docx: ' + (e && e.message)); return; }
+kdDownload = function (M, opt) {
+  var name = safeName((doc.name || 'Proyek') + ' - Kamus Data' + (opt && opt.only ? (opt.only.length === 1 ? ' - ' + M.entries[opt.only[0]].title : ' (' + opt.only.length + ' tabel)') : '')) + '.docx', blob;
+  try { blob = kdDocxBlob(M, opt); } catch (e) { toast('Gagal membuat .docx: ' + (e && e.message)); return; }
   var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
   toast('Tersimpan: ' + name + '. Buka di Word untuk diedit atau disalin ke laporan.');
 };
+
+/* tombol "Kamus Data" paling bawah panel kanan, hanya di mode DFD */
+panel = (function (orig) {
+  return function () {
+    var r = orig.apply(this, arguments);
+    try {
+      if (isDfd() && panelEl && !panelEl.querySelector('[data-act="kamus"]')) {
+        var d = document.createElement('div'); d.className = 'sec kdpanel';
+        d.innerHTML = '<button class="btn block" data-act="kamus">Kamus Data</button>';
+        panelEl.appendChild(d);
+      }
+    } catch (e) { /* abaikan */ }
+    return r;
+  };
+})(panel);
 
 (function init() {
   var mode = 'dfd'; try { mode = localStorage.getItem('alir-mode') || 'dfd'; } catch (x) { mode = 'dfd'; }
