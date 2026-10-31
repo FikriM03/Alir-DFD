@@ -119,7 +119,7 @@
 .kdcol input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .kdhl { color: #e0b100; }
 .kdbl { margin-left: 4px; font-size: 12.5px; }
-.kdwrap { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 260px; gap: 10px; }
+.kdwrap { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 300px; gap: 10px; }
 .kdpage { overflow: auto; background: #fff; color: #000; border: 1px solid var(--bd); border-radius: var(--r-md); padding: 28px 36px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.02); outline: none; }
 .kdpage mark { background: #fff59d; color: inherit; }
 .kdpage td:focus-within { outline: 2px solid rgba(255,90,31,.35); outline-offset: -2px; }
@@ -138,6 +138,15 @@
 .kdpk { display: inline-flex; margin-right: 6px; vertical-align: middle; }
 .kdpk input { margin: 0; }
 .kdddot, .kddot { color: #e07a00; font-size: 10px; }
+.kdlist li { margin-bottom: 4px; }
+.kdli { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 4px; }
+.kdops { display: flex; flex-wrap: nowrap; gap: 1px; margin: 2px 0 2px 20px; opacity: .55; }
+.kdlist li:hover .kdops, .kdops:focus-within { opacity: 1; }
+.kdops .tb { height: 22px; min-width: 20px; padding: 0 5px; font-size: 11px; }
+.kdops .tb:disabled { opacity: .35; }
+.kdops .kddel:hover { color: var(--bad); }
+.kdrm { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin: 4px 0; }
+.kdrm .tb { height: 24px; padding: 0 8px; font-size: 12px; }
 
 </style></head><body><title>Alir DFD</title>
 <script>try{var t=localStorage.getItem('alir-theme');if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
@@ -18566,6 +18575,7 @@ function kdDefaults(title, arus) {
 /* ---------- model tersimpan di proyek DFD: doc.kd ---------- */
 function kdModel() {
   var M = doc.kd = doc.kd || { entries: [], assign: {}, style: { font: 'Times New Roman', size: 12, bold: false } };
+  M.removed = M.removed || {};
   M.entries = M.entries || []; M.assign = M.assign || {}; M.style = M.style || { font: 'Times New Roman', size: 12, bold: false };
   return M;
 }
@@ -18575,7 +18585,7 @@ function kdSync() {
   M.entries.forEach(function (en) { if (en.alias) used[en.alias] = 1; });
   stores.forEach(function (st) {
     var k = kdNorm(st.name);
-    if (!M.entries.some(function (en) { return en.key === k; })) M.entries.push({ key: k, title: st.name, auto: true });
+    if (!M.entries.some(function (en) { return en.key === k; }) && !(M.removed && M.removed[k])) M.entries.push({ key: k, title: st.name, auto: true });
   });
   /* entri otomatis yang store-nya sudah tidak ada dibuang bila belum diubah pengguna */
   M.entries = M.entries.filter(function (en) { return !en.auto || en.edited || stores.some(function (st) { return kdNorm(st.name) === en.key; }) || en.custom; });
@@ -18585,6 +18595,7 @@ function kdSync() {
     var ak = kdNorm(fl.name), k = M.assign[ak];
     if (k === '-') return;
     if (!k || !groups[k]) k = kdAutoAssign(fl, stores);
+    if (k && M.removed[k]) return;
     if (k && groups[k]) groups[k].push(fl); else un.push(fl);
   });
   M.entries.forEach(function (en) {
@@ -18698,7 +18709,13 @@ function kdOpen() {
     function opts(only) { return { only: only || (picked.length ? picked.slice().sort(function (a, b) { return a - b; }) : null), noTitle: !!M.noTitle }; }
     function afterCopy() { page.querySelectorAll('.kdchg').forEach(function (x) { x.remove(); }); side(); }
     function side() {
-      var h = '<b>Entri</b><p class="hint">Centang untuk menyalin atau mengunduh tabel tertentu saja.</p><ol class="kdlist">' + M.entries.map(function (en, i) { var ch = en.copiedHash && en.copiedHash !== kdEntryHash(M, i); return '<li><label class="kdpk"><input type="checkbox" data-kdpick="' + i + '"' + (picked.indexOf(i) >= 0 ? ' checked' : '') + '></label><a href="#" data-kdgo="' + i + '">' + kdEsc(en.title) + '</a> <span class="hint">' + kdArus(en).length + ' arus</span>' + (ch ? ' <span class="kddot" title="Berubah sejak terakhir disalin">●</span>' : '') + '</li>'; }).join('') + '</ol>';
+      var h = '<b>Entri</b><p class="hint">Centang untuk menyalin atau mengunduh tabel tertentu saja.</p><ol class="kdlist">' + M.entries.map(function (en, i) {
+        var ch = en.copiedHash && en.copiedHash !== kdEntryHash(M, i);
+        return '<li><div class="kdli"><label class="kdpk"><input type="checkbox" data-kdpick="' + i + '"' + (picked.indexOf(i) >= 0 ? ' checked' : '') + '></label><a href="#" data-kdgo="' + i + '">' + kdEsc(en.title) + '</a> <span class="hint">' + kdArus(en).length + ' arus</span>' + (ch ? ' <span class="kddot" title="Berubah sejak terakhir disalin">●</span>' : '') + '</div>' +
+          '<div class="kdops"><button class="tb" data-kdop="up" data-i="' + i + '" title="Pindah ke atas"' + (i ? '' : ' disabled') + '>↑</button><button class="tb" data-kdop="down" data-i="' + i + '" title="Pindah ke bawah"' + (i < M.entries.length - 1 ? '' : ' disabled') + '>↓</button><button class="tb" data-kdop="dup" data-i="' + i + '" title="Duplikat entri">Duplikat</button><button class="tb" data-kdop="reset" data-i="' + i + '" title="Buang teks yang kamu ketik di entri ini, kembali ke isi otomatis dari DFD">Isi ulang</button><button class="tb kddel" data-kdop="del" data-i="' + i + '" title="Hapus entri ini dari Kamus Data">Hapus</button></div></li>';
+      }).join('') + '</ol>';
+      var rm = Object.keys(M.removed || {});
+      if (rm.length) h += '<div class="kdun"><b>Entri dihapus</b><p class="hint">Masih bisa dikembalikan. Entri dari data store tidak muncul lagi saat Perbarui dari DFD sampai dikembalikan.</p>' + rm.map(function (k) { return '<div class="kdrm"><span>' + kdEsc(M.removed[k].title) + '</span><button class="tb" data-kdop="restore" data-k="' + kdEsc(k) + '">Kembalikan</button></div>'; }).join('') + '</div>';
       h += '<label class="cbx"><input type="checkbox" data-kdc="notitle"' + (M.noTitle ? ' checked' : '') + '> Salin tanpa judul (tabelnya saja)</label>';
       h += '<button class="btn sm" data-kdact="add">+ Entri baru</button>';
       if (M.unassigned && M.unassigned.length) {
@@ -18733,6 +18750,24 @@ function kdOpen() {
       var x = ev.target.closest('[data-kdx]'); if (x) { exec(x.dataset.kdx); return; }
       var r = ev.target.closest('[data-kdr]'); if (r) { rowOp(r.dataset.kdr); return; }
       var g = ev.target.closest('[data-kdgo]'); if (g) { ev.preventDefault(); var el = page.querySelector('[data-kde="' + g.dataset.kdgo + '"]'); if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' }); return; }
+      var op = ev.target.closest('[data-kdop]');
+      if (op) {
+        ev.preventDefault(); save(true);
+        var i = +op.dataset.i, o = op.dataset.kdop, en = M.entries[i];
+        mutate(function () {
+          if (o === 'up' && i > 0) { M.entries.splice(i - 1, 0, M.entries.splice(i, 1)[0]); }
+          if (o === 'down' && i < M.entries.length - 1) { M.entries.splice(i + 1, 0, M.entries.splice(i, 1)[0]); }
+          if (o === 'del' && en) { M.removed[en.key] = { title: en.title, entry: clone(en) }; M.entries.splice(i, 1); }
+          if (o === 'restore') { var r = M.removed[op.dataset.k]; if (r) { M.entries.push(r.entry || { key: op.dataset.k, title: r.title, auto: true }); delete M.removed[op.dataset.k]; } }
+          if (o === 'dup' && en) { var c = clone(en); c.key = 'custom-' + uid('k'); c.custom = true; c.edited = true; c.auto = false; c.title = en.title + ' (salinan)'; delete c.copiedHash; delete c.alias; delete c.aliasHtml; c.structEdited = true; ['penjelasan', 'periode', 'volume'].forEach(function (k) { c[k + 'Edited'] = true; }); c.extra = kdArus(en); c.hide = []; c.arusAuto = []; M.entries.splice(i + 1, 0, c); }
+          if (o === 'reset' && en) { ['penjelasanEdited', 'periodeEdited', 'volumeEdited', 'structEdited', 'aliasHtml', 'bentukHtml', 'bentuk', 'hide', 'extra', 'copiedHash'].forEach(function (k) { delete en[k]; }); if (en.auto) { var st = kdStores().find(function (q) { return kdNorm(q.name) === en.key; }); if (st) en.title = st.name; en.edited = false; } }
+          kdSync();
+        });
+        picked = []; render();
+        if (o === 'del') toast('Entri "' + en.title + '" dihapus. Bisa dikembalikan dari daftar "Entri dihapus" di samping.');
+        if (o === 'reset') toast('Entri "' + M.entries[i].title + '" kembali ke isi otomatis dari DFD.');
+        return;
+      }
       var a = ev.target.closest('[data-kdact]'); if (!a) return;
       var act = a.dataset.kdact;
       if (act === 'sync') { save(true); mutate(function () { kdSync(); }); render(); toast('Arus Data diperbarui dari DFD.'); }
