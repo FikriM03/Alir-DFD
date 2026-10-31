@@ -7931,7 +7931,15 @@ function pasteAlirClip(c) {
 function pasteLocal() {
   var L = localClip(), m = clipb;
   var c = L && (!m || (L.t || 0) > (m.t || 0)) ? L : m ? { a: 'alir-clip', k: 'obj', t: m.t, mode: m.mode || clipMode(), dk: m.dk, els: m.els, flows: m.flows } : null;
+  /* salinan diagram (klik kanan → Salin diagram) yang lebih baru dari salinan objek */
+  var dc = readDclip(); if (dc && dc.at && (!c || dc.at > (c.t || 0))) c = { a: 'alir-clip', k: 'diag', t: dc.at, mode: dc.mode, d: dc };
   return c ? pasteAlirClip(c) : false;
+}
+function clipNewest(c) {
+  if (!c) return c;
+  var t = c.t || 0, L = localClip(), dc = readDclip();
+  if ((L && (L.t || 0) > t) || (clipb && (clipb.t || 0) > t) || (dc && (dc.at || 0) > t)) return null;
+  return c;
 }
 function pasteSmart() {
   if (pasteLocal()) return;
@@ -10564,14 +10572,14 @@ function dupDiagram(id) {
 }
 function copyDiagram(id) {
   var list = subtreeOf(id); if (!list.length) return;
-  dclip = { t: 'alir-diagram', mode: isDfd() ? 'dfd' : 'uml', diagrams: list.map(clone), packages: [] };
+  dclip = { t: 'alir-diagram', at: Date.now(), mode: isDfd() ? 'dfd' : 'uml', diagrams: list.map(clone), packages: [] };
   try { localStorage.setItem(DCLIP_KEY, JSON.stringify(dclip)); } catch (x) { /* abaikan */ }
   var msg = 'Diagram "' + diagLabel(list[0]) + '" disalin. Klik kanan diagram/paket lalu Tempel diagram, atau tekan ' + pasteKey() + ' di kanvas (bisa di tab atau browser lain).';
   toast(msg); dclipSys(list[0], msg);
 }
 function copyPackage(pid) {
   var ids = pkgDescendants(pid), pk = doc.packages.filter(function (p) { return ids.indexOf(p.id) >= 0; });
-  dclip = { t: 'alir-diagram', mode: 'uml', root: pid, packages: pk.map(clone), diagrams: doc.diagrams.filter(function (d) { return ids.indexOf(d.pkg) >= 0; }).map(clone) };
+  dclip = { t: 'alir-diagram', at: Date.now(), mode: 'uml', root: pid, packages: pk.map(clone), diagrams: doc.diagrams.filter(function (d) { return ids.indexOf(d.pkg) >= 0; }).map(clone) };
   try { localStorage.setItem(DCLIP_KEY, JSON.stringify(dclip)); } catch (x) { /* abaikan */ }
   var msg = 'Paket "' + (pk[0] && pk.find(function (p) { return p.id === pid; }).name) + '" beserta ' + dclip.diagrams.length + ' diagram disalin. Tempel lewat klik kanan paket, atau ' + pasteKey() + ' di kanvas (bisa di tab atau browser lain).';
   toast(msg); if (!copyPackage.quiet) dclipSys(dclip.diagrams[0], msg);
@@ -10579,7 +10587,7 @@ function copyPackage(pid) {
 /* salinan diagram juga ke clipboard sistem: gambar diagram + data tersembunyi (lihat clipWrite di features2.js) */
 function dclipSys(D, msg) {
   var x = D && exportSVG(D); if (!x) return;
-  clipWrite(x, { a: 'alir-clip', v: 1, k: 'diag', t: Date.now(), mode: dclip.mode, d: dclip }, null, true);
+  clipWrite(x, { a: 'alir-clip', v: 1, k: 'diag', t: dclip.at || Date.now(), mode: dclip.mode, d: dclip }, null, true);
 }
 function readDclip() {
   var c = dclip;
@@ -16696,7 +16704,7 @@ document.addEventListener('paste', function (e) {
   var f = clipImageFile(e.clipboardData);
   if (f) {
     e.preventDefault(); clearTimeout(pasteT); pasteT = 0;
-    readAlirImage(f).then(function (c) { if (!(c && pasteAlirClip(c))) pasteLocal(); });
+    readAlirImage(f).then(function (c) { c = clipNewest(c); if (!(c && pasteAlirClip(c))) pasteLocal(); });
   }
 });
 window.addEventListener('keydown', function (e) {
@@ -17615,6 +17623,7 @@ function clsCheck(D, items) {
     (e.ops || []).forEach(function (o) {
       if ((o.vis || '+') !== '+' && (role === 'C' || role === 'M')) items.push({ s: 'warn', t: 'Operation ' + o.name + '() di ' + nm(e) + ' sebaiknya public (+).', ids: [e.id] });
       var k = clsOpText(o).toLowerCase(); if (seenO[k]) items.push({ s: 'warn', t: 'Operation ' + clsOpText(o) + ' ditulis dua kali di ' + nm(e) + '.', ids: [e.id] }); seenO[k] = 1;
+      if (!/^[A-Za-z_$][\w$]*$/.test(String(o.name || ''))) items.push({ s: 'warn', t: 'Nama operation "' + o.name + '" di ' + nm(e) + ' berisi tanda baca atau teks pesan. Tulis nama method-nya saja, misalnya ' + (String(o.name || '').replace(/[^\w$].*$/, '') || 'namaMethod') + '(); teks pesan cukup di Sequence Diagram.', ids: [e.id] });
     });
     if (role === 'V' && (e.ops || []).length) items.push({ s: 'warn', t: nm(e) + ' (View) punya operation. Pesan dari dan ke View dijadikan operation di Controller, jadi View cukup berisi attribute.', ids: [e.id] });
     if (/^(boundary|control|entity)$/i.test(e.stereo || '')) items.push({ s: 'warn', t: 'Class ' + nm(e) + ' memakai stereotype «' + e.stereo + '». Di EA, class dengan stereotype ini digambar sebagai ikon lingkaran, bukan kotak. Kosongkan stereotype kalau ingin tampil kotak.', ids: [e.id] });
@@ -17645,52 +17654,97 @@ umlCheck = (function (orig) {
 function clsLayout(D) {
   var E = D.elements.filter(isCls); if (!E.length) return;
   clsFitAll(D);
-  var GAPX = 100, GAPY = 36, BGX = 120, BGY = 80, x0 = 40, y0 = 40;
-  var Cs = E.filter(function (e) { return clsRole(e) === 'C'; }), placed = new Set(), blocks = [];
-  function nb(e, role) { var out = []; D.flows.forEach(function (f) { var o = f.from === e.id ? elOf(D, f.to) : f.to === e.id ? elOf(D, f.from) : null; if (isCls(o) && clsRole(o) === role && out.indexOf(o) < 0) out.push(o); }); return out; }
-  /* urutan controller mengikuti posisi sekarang (atas ke bawah, kiri ke kanan) supaya hasilnya bisa ditebak */
-  Cs.sort(function (a, b) { return (a.y - b.y) || (a.x - b.x); });
-  Cs.forEach(function (c) {
-    var vs = nb(c, 'V').filter(function (v) { return !placed.has(v.id); }), ms = nb(c, 'M').filter(function (m) { return !placed.has(m.id); });
-    vs.forEach(function (v) { placed.add(v.id); }); ms.forEach(function (m) { placed.add(m.id); }); placed.add(c.id);
-    blocks.push({ c: [c], v: vs, m: ms });
-  });
-  var rest = E.filter(function (e) { return !placed.has(e.id); });
-  if (rest.length) {
-    var B0 = { c: [], v: [], m: [] }; rest.forEach(function (e) { var r = clsRole(e); (r === 'V' ? B0.v : r === 'M' ? B0.m : B0.c).push(e); });
-    blocks.push(B0);
-  }
+  var GAPX = 110, GAPY = 40, BGX = 150, BGY = 110, x0 = 40, y0 = 40;
+  var role = {}, adj = {};
+  E.forEach(function (e) { role[e.id] = clsRole(e) || '?'; adj[e.id] = []; });
+  D.flows.forEach(function (f) { if (adj[f.from] && adj[f.to] && f.from !== f.to) { if (adj[f.from].indexOf(f.to) < 0) adj[f.from].push(f.to); if (adj[f.to].indexOf(f.from) < 0) adj[f.to].push(f.from); } });
+  var byId = {}; E.forEach(function (e) { byId[e.id] = e; });
+  function nbr(e, r) { return adj[e.id].filter(function (k) { return role[k] === r; }).map(function (k) { return byId[k]; }); }
+  function ord(a, b) { return (a.y - b.y) || (a.x - b.x); }
+  var Cs = E.filter(function (e) { return role[e.id] === 'C'; }).sort(ord);
+  /* View "penghubung" (halaman utama yang menuju banyak Controller) ditaruh tersendiri di atas */
+  var hubs = E.filter(function (e) { return role[e.id] === 'V' && nbr(e, 'C').length >= 3; }).sort(ord);
+  var isHub = {}; hubs.forEach(function (h) { isHub[h.id] = 1; });
+  /* Controller yang berbagi Model / View / saling terhubung jadi satu kelompok */
+  var par = {}; Cs.forEach(function (c) { par[c.id] = c.id; });
+  function fd(x) { while (par[x] !== x) x = par[x] = par[par[x]]; return x; }
+  function un(a, b) { a = fd(a); b = fd(b); if (a !== b) par[b] = a; }
+  E.forEach(function (e) { if (isHub[e.id] || role[e.id] === 'C') return; var cs = nbr(e, 'C'); for (var k = 1; k < cs.length; k++) un(cs[0].id, cs[k].id); });
+  Cs.forEach(function (c) { nbr(c, 'C').forEach(function (o) { un(c.id, o.id); }); });
+  var groups = {}, order = [];
+  Cs.forEach(function (c) { var r = fd(c.id); if (!groups[r]) { groups[r] = []; order.push(r); } groups[r].push(c); });
+  var placed = {}; hubs.forEach(function (h) { placed[h.id] = 1; }); Cs.forEach(function (c) { placed[c.id] = 1; });
   function stackH(L) { return L.reduce(function (s, e, i) { return s + e.h + (i ? GAPY : 0); }, 0); }
   function maxW(L) { return L.reduce(function (s, e) { return Math.max(s, e.w); }, 0); }
-  /* ukuran tiap kelompok: kolom V | C | M */
-  blocks.forEach(function (B) {
-    B.wv = maxW(B.v); B.wc = maxW(B.c); B.wm = maxW(B.m);
-    B.w = B.wv + (B.wv && (B.wc || B.wm) ? GAPX : 0) + B.wc + (B.wm && (B.wc || B.wv) ? GAPX : 0) + B.wm;
-    B.h = Math.max(stackH(B.v), stackH(B.c), stackH(B.m));
-  });
-  /* kelompok disusun dalam kisi supaya hasilnya melebar (seperti contoh laporan), bukan satu kolom panjang */
-  var n = blocks.length, best = 1, bestScore = 1e18;
-  for (var cols = 1; cols <= Math.min(n, 5); cols++) {
-    var rows = Math.ceil(n / cols), W = 0, H = 0;
-    for (var r = 0; r < rows; r++) { var rw = 0, rh = 0; blocks.slice(r * cols, r * cols + cols).forEach(function (B, i) { rw += B.w + (i ? BGX : 0); rh = Math.max(rh, B.h); }); W = Math.max(W, rw); H += rh + (r ? BGY : 0); }
-    var score = Math.abs(Math.log((W || 1) / (H || 1) / 1.5));
-    if (score < bestScore - 1e-9) { bestScore = score; best = cols; }
-  }
-  /* lebar kolom kisi disamakan supaya kolom V/C/M antarkelompok sejajar */
-  var colW = [];
-  blocks.forEach(function (B, i) { var c = i % best, cw = colW[c] || { v: 0, c: 0, m: 0 }; cw.v = Math.max(cw.v, B.wv); cw.c = Math.max(cw.c, B.wc); cw.m = Math.max(cw.m, B.wm); colW[c] = cw; });
-  var colX = [], xx = x0; colW.forEach(function (cw, c) { colX[c] = xx; xx += cw.v + GAPX + cw.c + GAPX + cw.m + BGX; });
-  var y = y0;
-  for (var r2 = 0; r2 * best < n; r2++) {
-    var row = blocks.slice(r2 * best, r2 * best + best), rh2 = Math.max.apply(null, row.map(function (B) { return B.h; }));
-    row.forEach(function (B, i) {
-      var cw = colW[i], bx = colX[i], xV = bx, xC = bx + cw.v + GAPX, xM = xC + cw.c + GAPX;
-      var yy = y + (rh2 - stackH(B.v)) / 2; B.v.forEach(function (v) { v.x = Math.round(xV + cw.v - v.w); v.y = Math.round(yy); yy += v.h + GAPY; });
-      yy = y + (rh2 - stackH(B.c)) / 2; B.c.forEach(function (c) { c.x = Math.round(xC + (cw.c - c.w) / 2); c.y = Math.round(yy); yy += c.h + GAPY; });
-      yy = y + (rh2 - stackH(B.m)) / 2; B.m.forEach(function (m) { m.x = Math.round(xM); m.y = Math.round(yy); yy += m.h + GAPY; });
+  /* susun satu kelompok: kolom View | Controller | Model (posisi relatif) */
+  function cluster(cs) {
+    var rows = [];
+    cs.forEach(function (c) {
+      var vs = nbr(c, 'V').filter(function (v) { return !placed[v.id]; }).sort(ord); vs.forEach(function (v) { placed[v.id] = 1; });
+      var ms = nbr(c, 'M').filter(function (m) { return !placed[m.id] && nbr(m, 'C').length <= 1; }).sort(ord); ms.forEach(function (m) { placed[m.id] = 1; });
+      rows.push({ c: c, v: vs, m: ms, h: Math.max(c.h, stackH(vs), stackH(ms)) });
     });
-    y += rh2 + BGY;
+    var shared = [];
+    cs.forEach(function (c) { nbr(c, 'M').forEach(function (m) { if (!placed[m.id]) { placed[m.id] = 1; shared.push(m); } }); });
+    /* kelompok besar dengan Model bersama: Controller dibagi kiri & kanan Model (V | C | M | C | V) supaya tidak terlalu tinggi */
+    var two = shared.length && rows.length >= 4, L = two ? rows.slice(0, Math.ceil(rows.length / 2)) : rows, R = two ? rows.slice(L.length) : [];
+    function allOf(rs, k) { return rs.reduce(function (a, r) { return a.concat(r[k]); }, []); }
+    var wvL = maxW(allOf(L, 'v')), wcL = maxW(L.map(function (r) { return r.c; })), wm = maxW(allOf(rows, 'm').concat(shared));
+    var wcR = maxW(R.map(function (r) { return r.c; })), wvR = maxW(allOf(R, 'v'));
+    var xC = wvL ? wvL + GAPX : 0, xM = xC + wcL + GAPX, xC2 = xM + wm + GAPX, xV2 = xC2 + wcR + GAPX, pos = [], cyOf = {};
+    function side(rs, right) {
+      var y = 0;
+      rs.forEach(function (r, i) {
+        if (i) y += GAPY * 1.5;
+        var yy = y + (r.h - stackH(r.v)) / 2;
+        r.v.forEach(function (v) { pos.push([v, right ? xV2 : wvL - v.w, yy]); yy += v.h + GAPY; });
+        var wc = right ? wcR : wcL; pos.push([r.c, (right ? xC2 : xC) + (wc - r.c.w) / 2, y + (r.h - r.c.h) / 2]); cyOf[r.c.id] = y + r.h / 2;
+        yy = y + (r.h - stackH(r.m)) / 2; r.m.forEach(function (m) { pos.push([m, xM, yy, 1]); yy += m.h + GAPY; });
+        y += r.h;
+      });
+    }
+    side(L, false); side(R, true);
+    /* Model bersama: di kolom Model, setinggi rata-rata Controller-nya; yang bertumpuk didorong ke bawah */
+    shared.forEach(function (m) { var ys = nbr(m, 'C').map(function (c) { return cyOf[c.id]; }).filter(function (v) { return v != null; }); var t = ys.reduce(function (a, b) { return a + b; }, 0) / (ys.length || 1); pos.push([m, xM, t - m.h / 2, 1]); });
+    var mcol = pos.filter(function (p) { return p[3]; }).sort(function (a, b) { return a[2] - b[2]; }), last = -1e9;
+    mcol.forEach(function (p) { if (p[2] < last + GAPY) p[2] = last + GAPY; last = p[2] + p[0].h; });
+    var left = Math.min.apply(null, pos.map(function (p) { return p[1]; })), top = Math.min.apply(null, pos.map(function (p) { return p[2]; }));
+    var right = Math.max.apply(null, pos.map(function (p) { return p[1] + p[0].w; })), bot = Math.max.apply(null, pos.map(function (p) { return p[2] + p[0].h; }));
+    pos.forEach(function (p) { p[1] -= left; p[2] -= top; });
+    return { pos: pos, w: right - left, h: bot - top };
   }
+  var blocks = order.map(function (r) { return cluster(groups[r]); });
+  /* sisa class (tanpa Controller): satu kelompok kisi biasa */
+  var rest = E.filter(function (e) { return !placed[e.id]; }).sort(ord);
+  if (rest.length) {
+    var pos = [], cx = 0, cy = 0, rh = 0, lim = Math.max(600, Math.sqrt(rest.reduce(function (s, e) { return s + (e.w + GAPX) * (e.h + GAPY); }, 0)) * 1.4), mw = 0;
+    rest.forEach(function (e) { if (cx && cx + e.w > lim) { cx = 0; cy += rh + GAPY; rh = 0; } pos.push([e, cx, cy]); cx += e.w + GAPX; rh = Math.max(rh, e.h); mw = Math.max(mw, cx - GAPX); });
+    blocks.push({ pos: pos, w: mw, h: cy + rh });
+  }
+  /* kelompok dibagi ke beberapa kolom (yang paling tinggi dulu ke kolom terpendek), dipilih susunan yang hasilnya melebar
+     seperti gambar di laporan (lebar : tinggi sekitar 1,4) dan tidak banyak ruang kosong */
+  var idx = blocks.map(function (B, i) { return i; }).sort(function (a, b) { return blocks[b].h - blocks[a].h || a - b; });
+  var best = null;
+  for (var k = 1; k <= Math.min(blocks.length, 6); k++) {
+    var cols = []; for (var c = 0; c < k; c++) cols.push({ list: [], h: 0, w: 0 });
+    idx.forEach(function (i) { var B = blocks[i], t = cols.reduce(function (m, c2) { return c2.h < m.h ? c2 : m; }, cols[0]); t.list.push(i); t.h += (t.list.length > 1 ? BGY : 0) + B.h; t.w = Math.max(t.w, B.w); });
+    var W = cols.reduce(function (sum, c2, i) { return sum + c2.w + (i ? BGX : 0); }, 0), H = Math.max.apply(null, cols.map(function (c2) { return c2.h; }));
+    var used = blocks.reduce(function (sum, B) { return sum + B.w * B.h; }, 0), score = Math.abs(Math.log(W / H / 1.4)) * 2 + (1 - used / (W * H));
+    if (!best || score < best.score) best = { score: score, cols: cols, W: W };
+  }
+  best.cols.forEach(function (c2) { c2.list.sort(function (a, b) { return a - b; }); });
+  var y = y0;
+  if (hubs.length) {
+    var hw = hubs.reduce(function (sum, h, i) { return sum + h.w + (i ? GAPX : 0); }, 0), hx = x0 + Math.max(0, (best.W - hw) / 2), hh = Math.max.apply(null, hubs.map(function (h) { return h.h; }));
+    hubs.forEach(function (h) { h.x = Math.round(hx); h.y = Math.round(y); hx += h.w + GAPX; });
+    y += hh + BGY;
+  }
+  var x = x0;
+  best.cols.forEach(function (c2) {
+    var yy = y;
+    c2.list.forEach(function (i) { var B = blocks[i]; B.pos.forEach(function (p) { p[0].x = Math.round(x + (c2.w - B.w) / 2 + p[1]); p[0].y = Math.round(yy + p[2]); }); yy += B.h + BGY; });
+    x += c2.w + BGX;
+  });
   D.flows.forEach(function (f) { f.bends = []; delete f.sa; delete f.ta; delete f.manual; delete f.eaSE; });
   try { autoRoute(D, {}); } catch (x) { /* abaikan */ }
 }
@@ -17714,7 +17768,12 @@ function clsGuessType(n) {
 function clsMsgParts(f) {
   var n = String(f.name || '').replace(/\s*\r?\n\s*/g, ' ').trim(), args = String(f.args || '').trim(), ret = String(f.ret || '').trim();
   var m = /^([^(]*)\((.*)\)\s*(?::\s*(.*))?$/.exec(n); if (m) { n = m[1].trim(); if (!args) args = m[2].trim(); if (!ret && m[3]) ret = m[3].trim(); }
+  else if (n.indexOf('(') > 0) { var po = n.indexOf('('); if (!args) args = n.slice(po + 1).replace(/\)\s*$/, '').trim(); n = n.slice(0, po).trim(); }
   n = n.replace(/^[*\s]*(\[[^\]]*\])?\s*:?\s*/, '').trim();
+  /* nama method saja: buang tanda baca yang tertinggal (mis. "showMessage?") */
+  n = n.replace(/[^\w$]+$/, '').replace(/^[^\w$]+/, '');
+  /* teks pesan dalam tanda petik (showMessage("Berhasil")) bukan parameter */
+  if (/^["'“]/.test(args)) args = '';
   return { name: n, args: args, ret: ret };
 }
 function clsSdRole(e) {
