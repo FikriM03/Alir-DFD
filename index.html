@@ -18604,7 +18604,7 @@ function kdArus(en) {
 /* ---------- HTML dokumen (gaya inline supaya tersalin utuh ke Word) ---------- */
 function kdCss(M) { return 'font-family:\'' + M.style.font + '\',serif;font-size:' + M.style.size + 'pt;color:#000'; }
 function kdDocHtml(M, forWord) {
-  var B = 'border:1px solid #000;padding:4pt 6pt;vertical-align:top;', lab = M.style.bold ? 'font-weight:bold;' : '';
+  var B = 'border:1px solid #000;padding:3pt 5pt;vertical-align:top;', lab = M.style.bold ? 'font-weight:bold;' : '';
   var h = '<p style="text-align:center;font-weight:bold;margin:0 0 10pt;' + kdCss(M) + '" data-kdf="title">' + (M.titleHtml || 'KAMUS DATA') + '</p>';
   M.entries.forEach(function (en, i) {
     var arus = kdArus(en);
@@ -18759,9 +18759,30 @@ function kdOpen() {
     void close;
   });
 }
+/* salinan untuk Word / Google Docs: tiap isi sel dibungkus paragraf berindentasi & spasi nol,
+   supaya tidak ikut gaya paragraf di dokumen tujuan (mis. indentasi baris pertama 1,27 cm) */
+var KD_P = 'margin:0;padding:0;text-indent:0;margin-left:0;line-height:1.15;mso-para-margin:0;';
+function kdCleanHtml(M) {
+  var d = document.createElement('div'); d.innerHTML = kdDocHtml(M, true);
+  d.querySelectorAll('[data-kdf],[data-kdi],[data-kde],[data-kdt],[data-kds],[data-kdsr]').forEach(function (el) { ['data-kdf', 'data-kdi', 'data-kde', 'data-kdt', 'data-kds', 'data-kdsr'].forEach(function (a) { el.removeAttribute(a); }); });
+  d.querySelectorAll('td').forEach(function (td) {
+    var kids = Array.prototype.slice.call(td.childNodes), cur = null;
+    kids.forEach(function (n) {
+      var block = n.nodeType === 1 && /^(TABLE|UL|OL|P|DIV)$/.test(n.tagName);
+      if (block) { cur = null; return; }
+      if (!cur) { cur = document.createElement('p'); td.insertBefore(cur, n); }
+      cur.appendChild(n);
+    });
+  });
+  d.querySelectorAll('p').forEach(function (p) { p.setAttribute('style', KD_P + (p.getAttribute('style') || '')); });
+  d.querySelectorAll('ul').forEach(function (u) { u.setAttribute('style', 'margin:0;padding-left:18pt;'); });
+  d.querySelectorAll('li').forEach(function (li) { li.setAttribute('style', KD_P + 'margin-left:0;'); });
+  d.querySelectorAll('div').forEach(function (x) { x.setAttribute('style', 'margin:0;padding:0;'); });
+  return d.innerHTML;
+}
 function kdWordHtml(M) {
   return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>Kamus Data</title>' +
-    '<style>body{' + kdCss(M) + '} table{border-collapse:collapse} td{border:1px solid #000;vertical-align:top} p{margin:0}</style></head><body>' + kdDocHtml(M, true) + '</body></html>';
+    '<style>body{' + kdCss(M) + '} table{border-collapse:collapse} td{border:1px solid #000;vertical-align:top} p{margin:0}</style></head><body>' + kdCleanHtml(M) + '</body></html>';
 }
 function kdPlain(M) {
   return 'KAMUS DATA\n\n' + M.entries.map(function (en, i) {
@@ -18771,7 +18792,7 @@ function kdPlain(M) {
 function kdCopy(M) {
   var html = kdWordHtml(M), txt = kdPlain(M);
   function fallback() {
-    var d = document.createElement('div'); d.contentEditable = 'true'; d.style.cssText = 'position:fixed;left:-9999px;top:0'; d.innerHTML = kdDocHtml(M, true); document.body.appendChild(d);
+    var d = document.createElement('div'); d.contentEditable = 'true'; d.style.cssText = 'position:fixed;left:-9999px;top:0'; d.innerHTML = kdCleanHtml(M); document.body.appendChild(d);
     var r = document.createRange(); r.selectNodeContents(d); var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
     var ok = false; try { ok = document.execCommand('copy'); } catch (e) { ok = false; } sel.removeAllRanges(); d.remove();
     toast(ok ? 'Kamus Data disalin. Tempel di Word dengan Ctrl+V, hasilnya tabel biasa.' : 'Browser menolak menyalin. Pakai Unduh Word (.docx).');
@@ -18827,7 +18848,7 @@ function kdDocxBlob(M) {
   function para(el, extra) {
     var al = getComputedStyle(el).textAlign, jc = al === 'center' ? 'center' : al === 'right' ? 'right' : al === 'justify' ? 'both' : '';
     var cs2 = getComputedStyle(el), mb = Math.round((parseFloat(cs2.marginTop) || 0) * 15), ma = Math.round((parseFloat(cs2.marginBottom) || 0) * 15);
-    return '<w:p><w:pPr>' + (extra || '') + '<w:spacing w:before="' + (extra ? 0 : mb) + '" w:after="' + (extra ? 0 : ma) + '"/>' + (jc ? '<w:jc w:val="' + jc + '"/>' : '') + '</w:pPr>' + runs(el) + '</w:p>';
+    return '<w:p><w:pPr>' + (extra || '') + (extra ? '' : '<w:ind w:left="0" w:firstLine="0"/>') + '<w:spacing w:before="' + (extra ? 0 : mb) + '" w:after="' + (extra ? 0 : ma) + '"/>' + (jc ? '<w:jc w:val="' + jc + '"/>' : '') + '</w:pPr>' + runs(el) + '</w:p>';
   }
   /* isi blok: paragraf, daftar poin, tabel (bisa bersarang di sel) */
   function blocks(node) {
