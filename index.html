@@ -107,6 +107,31 @@
 .clsimto { white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--mut); }
 .clsimto select { height: 28px; padding: 2px 6px; font: 400 12.5px var(--f-mono); }
 .mgsum .mgnone { margin: 0 0 6px; }
+/* v77: Kamus Data */
+.modal.kdmodal { width: min(1180px, calc(100vw - 24px)); max-width: none; height: calc(100vh - 24px); max-height: none; display: flex; flex-direction: column; }
+.kdmodal .body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding-bottom: 8px; }
+.kdbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 6px; border: 1px solid var(--bd); border-radius: var(--r-md); background: var(--panel2); }
+.kdbar select.in { height: 30px; padding: 2px 6px; font-size: 12.5px; width: auto; }
+.kdbar .kdsz { width: 64px; }
+.kdbar .tb { min-width: 30px; height: 30px; padding: 0 8px; font-size: 13px; }
+.kdsep { width: 1px; height: 22px; background: var(--bd); margin: 0 4px; }
+.kdcol { position: relative; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; cursor: pointer; }
+.kdcol input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.kdhl { color: #e0b100; }
+.kdbl { margin-left: 4px; font-size: 12.5px; }
+.kdwrap { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 260px; gap: 10px; }
+.kdpage { overflow: auto; background: #fff; color: #000; border: 1px solid var(--bd); border-radius: var(--r-md); padding: 28px 36px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.02); outline: none; }
+.kdpage mark { background: #fff59d; color: inherit; }
+.kdpage td:focus-within { outline: 2px solid rgba(255,90,31,.35); outline-offset: -2px; }
+.kdside { overflow: auto; border: 1px solid var(--bd); border-radius: var(--r-md); padding: 10px; font-size: 12.5px; display: flex; flex-direction: column; gap: 8px; }
+.kdlist { margin: 4px 0; padding-left: 20px; line-height: 1.6; }
+.kdlist a { color: var(--fg); text-decoration: none; } .kdlist a:hover { text-decoration: underline; }
+.kdun { border-top: 1px solid var(--bd); padding-top: 8px; }
+.kdunr { display: grid; gap: 3px; margin: 6px 0; }
+.kdunr select { height: 28px; padding: 2px 6px; font-size: 12.5px; }
+@media (max-width: 860px) { .kdwrap { grid-template-columns: 1fr; } .kdside { max-height: 160px; } }
+.kdA { display: inline-flex; flex-direction: column; align-items: center; line-height: 1; }
+.kdA i { display: block; width: 14px; height: 3px; background: #000; margin-top: 2px; }
 
 </style></head><body><title>Alir DFD</title>
 <script>try{var t=localStorage.getItem('alir-theme');if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
@@ -16002,7 +16027,7 @@ function menuItems(name) {
   if (name === 'file' && !isDfd()) return [item('Halaman mulai…', 'start'), item('Proyek UML baru (kosong)…', 'newuml'), item('Flowchart baru (kosong)…', 'newfc'), item('DFD baru (kosong)…', 'new'), item('Buka .eap / .xml / .alir / .json…', 'open', 'Ctrl+O'), item('Gabungkan berkas…', 'mergefiles')].concat([item('Simpan' + (FH.h ? ' ke ' + FH.name : ' (.xml untuk EA)'), 'save', 'Ctrl+S'), item('Simpan sebagai…', 'saveas', 'Ctrl+Shift+S')]).concat([ item('Buat diagram dari skenario (.docx / tabel)…', 'scen'), HR, item('Jelaskan diagram ini (tanya jawab)…', 'explain', 'F3'), item('Teks untuk laporan (narasi & tabel)…', 'report'), item('Bagikan lewat link…', 'share'), item('Riwayat versi…', 'hist'), HR, item('Ekspor ke Enterprise Architect…', 'exportea', 'Ctrl+E'), item('Simpan proyek Alir (.json)', 'saveproj'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Gambar untuk laporan (pas lebar A4 / tabel)…', 'repimg'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar JPG', 'jpg'), item('Ekspor gambar SVG', 'svg'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Preferensi tampilan…', 'dispref')]);
   if (name === 'dict' && isFcDoc()) return [{ hd: 'Flowchart baru' }, item('Flowchart kosong', 'newdiag:flowchart'), item('Dari Activity Diagram (proyek UML)…', 'fcbatch'), item('Dari skenario use case (tabel / .docx)…', 'scen'), HR, item('Jelaskan diagram ini…', 'explain', 'F3'), item('Teks untuk laporan…', 'report'), HR, item('Ganti nama diagram…', 'renamediag'), item('Hapus diagram ini', 'deldiag', '', { dis: doc.diagrams.length < 2 }), item('Paket (folder) baru', 'newpkg'), HR, item('Periksa diagram', 'check', 'F4')];
   if (name === 'dict' && !isDfd()) return [{ hd: 'Diagram baru' }, item('Activity Diagram', 'newdiag:activity'), item('Use Case Diagram', 'newdiag:usecase'), item('BPMN (Business Process)', 'newdiag:bpmn'), item('Sequence Diagram', 'newdiag:sequence'), item('Class Diagram', 'newdiag:class'), item('Dari skenario use case (tabel / .docx)…', 'scen'), item('Collaboration dari Sequence (Transform)…', 'cmbatch'), HR, item('Jalankan alur ▶', 'sim', '', { dis: !(D.kind === 'activity' || D.kind === 'bpmn') }), item('Jelaskan diagram ini…', 'explain', 'F3'), item('Teks untuk laporan…', 'report'), HR, item('Ganti nama diagram…', 'renamediag'), item('Hapus diagram ini', 'deldiag', '', { dis: doc.diagrams.length < 2 }), item('Paket (folder) baru', 'newpkg'), HR, item('Periksa diagram', 'check', 'F4')];
-  if (name === 'file') return [item('Halaman mulai…', 'start'), item('DFD baru (kosong)…', 'new'), item('Proyek UML baru (kosong)…', 'newuml'), item('Buka .pam / .alir / .json / .zip…', 'open', 'Ctrl+O'), item('Gabungkan berkas…', 'mergefiles'), item('Buat DFD dari skenario (.docx / tabel)…', 'dfdscen')].concat([item('Simpan' + (FH.h ? ' ke ' + FH.name : ' (.pam)'), 'save', 'Ctrl+S'), item('Simpan sebagai…', 'saveas', 'Ctrl+Shift+S')]).concat([HR, item('Jelaskan diagram ini (tanya jawab)…', 'explain', 'F3'), item('Teks untuk laporan (tabel alur data)…', 'report'), item('Bagikan lewat link…', 'share'), item('Riwayat versi…', 'hist'), HR, item('Unduh salinan .pam', 'savepam'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Gambar untuk laporan (pas lebar A4 / tabel)…', 'repimg'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar JPG', 'jpg'), item('Ekspor gambar SVG', 'svg'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Opsi model…', 'modelopt'), item('Preferensi tampilan…', 'dispref')]);
+  if (name === 'file') return [item('Halaman mulai…', 'start'), item('DFD baru (kosong)…', 'new'), item('Proyek UML baru (kosong)…', 'newuml'), item('Buka .pam / .alir / .json / .zip…', 'open', 'Ctrl+O'), item('Gabungkan berkas…', 'mergefiles'), item('Buat DFD dari skenario (.docx / tabel)…', 'dfdscen')].concat([item('Simpan' + (FH.h ? ' ke ' + FH.name : ' (.pam)'), 'save', 'Ctrl+S'), item('Simpan sebagai…', 'saveas', 'Ctrl+Shift+S')]).concat([HR, item('Jelaskan diagram ini (tanya jawab)…', 'explain', 'F3'), item('Teks untuk laporan (tabel alur data)…', 'report'), item('Kamus Data (bisa diedit, salin ke Word)…', 'kamus'), item('Bagikan lewat link…', 'share'), item('Riwayat versi…', 'hist'), HR, item('Unduh salinan .pam', 'savepam'), { hd: 'Diagram ini' }, item('Salin gambar HD (untuk Google Docs / Word)', 'copyimg', 'Ctrl+Alt+C'), item('Gambar untuk laporan (pas lebar A4 / tabel)…', 'repimg'), item('Ekspor gambar PNG', 'png'), item('Ekspor gambar JPG', 'jpg'), item('Ekspor gambar SVG', 'svg'), { hd: 'Semua diagram (untuk laporan)' }, item('Ekspor semua ke PDF', 'pdf'), item('Ekspor semua ke PNG (ZIP)', 'allpng'), HR, item('Opsi model…', 'modelopt'), item('Preferensi tampilan…', 'dispref')]);
   if (name === 'edit') return [item('Urungkan', 'undo', 'Ctrl+Z', { dis: !undoS.length }), item('Ulangi', 'redo', 'Ctrl+Y', { dis: !redoS.length }), HR, item('Potong', 'cut', 'Ctrl+X', { dis: !has }), item('Salin', 'copy', 'Ctrl+C', { dis: !has }), item('Tempel', 'paste', 'Ctrl+V', { dis: !canPaste() }), item('Hapus', 'del', 'Del', { dis: !has }), HR, item('Pilih simbol terhubung', 'selconn', '', { dis: !has }), item('Pilih semua', 'selall', 'Ctrl+A'), item('Pilih beberapa (klik satu per satu)', 'multipick', '', { ck: multiPick }), item('Pilih semua yang sejenis', 'selsame', '', { dis: !has }), item('Cari elemen…', 'find', 'Ctrl+F'), HR, item('Kunci / buka kunci posisi', 'lock', '', { dis: !nE }), item('Kelompokkan', 'group', 'Ctrl+G', { dis: nE < 2 }), item('Pisahkan kelompok', 'ungroup', 'Ctrl+Shift+G', { dis: !nE }), HR, item('Duplikat', 'dup', 'Ctrl+D', { dis: !has }), item('Ubah nama', 'rename', 'F2', { dis: sel.size !== 1 })];
   if (name === 'dict') return [item('Properti model…', 'modelopt'), { hd: 'Sub-proses' }, item(proc && childOf(D, proc) ? 'Buka diagram turunan' : 'Dekomposisi proses terpilih', 'decomp', 'Alt+↓', { dis: !proc }), item('Naik satu level', 'up', 'Alt+↑', { dis: !D.parent }), item('Hapus dekomposisi', 'undecomp', '', { dis: !(proc && childOf(D, proc)) }), item('Pohon proses…', 'tree'), HR, item('Daftar objek…', 'objlist'), item('Urutkan ulang nomor objek', 'renum'), item('Auto-balance alur', 'autobal', '', { dis: !D.parent }), item('Tambah konektor off-page', 'offadd'), item('Buat DFD dari skenario use case…', 'dfdscen'), item('Migrasikan alur terpilih ke induk', 'migrate', '', { dis: !D.parent || !f }), HR, item('Periksa model…', 'check', 'F4')];
   if (name === 'arrange') return [item('Sesuaikan dengan teks', 'adjust', 'Ctrl+J', { dis: !nE }), item('Ukuran normal', 'normsize', '', { dis: !nE }), HR, { hd: 'Ratakan' }, item('Kiri', 'alL', '', { dis: nE < 2 }), item('Tengah (sumbu vertikal)', 'alC', '', { dis: nE < 2 }), item('Kanan', 'alR', '', { dis: nE < 2 }), item('Atas', 'alT', '', { dis: nE < 2 }), item('Tengah (sumbu horizontal)', 'alM', '', { dis: nE < 2 }), item('Bawah', 'alB', '', { dis: nE < 2 }), item('Samakan lebar', 'sameW', '', { dis: nE < 2 }), item('Samakan tinggi', 'sameH', '', { dis: nE < 2 }), item('Samakan lebar & tinggi', 'sameS', '', { dis: nE < 2 }), HR, item('Sebar horizontal', 'distH', '', { dis: nE < 3 }), item('Sebar vertikal', 'distV', '', { dis: nE < 3 }), HR, { hd: 'Alur' }, item('Rapikan alur terpilih', 'tidy', 'Ctrl+L', { dis: !selFlows().length }), item('Rapikan semua alur… (pilih tampilan)', 'tidyall', 'Ctrl+Shift+L'), item('Rapikan tata letak (pindahkan objek, proporsional)', 'relayout', 'Ctrl+Shift+K', { dis: !(isDfd() || D.kind === 'activity' || D.kind === 'usecase' || D.kind === 'bpmn') }), item('Pengaturan & pilihan perapian…', 'tidyset', '', { dis: !(isDfd() || D.kind === 'activity' || D.kind === 'usecase') }), item('Rapikan yang terpilih saja (objek lain tetap)', 'tidysel', '', { dis: nE < 2 }), item('Pilih alur objek terpilih', 'selflows', '', { dis: !nE }), item('Rapikan letak nama (Mulai, Selesai, gateway)', 'labfix', '', { dis: isDfd() || !(D.kind === 'activity' || D.kind === 'bpmn') }), item('Rapikan bus aktor (use case)', 'bustidy', '', { dis: D.kind !== 'usecase' }), item('Urutan use case (UC01, UC02, …)', 'ucorder', '', { dis: D.kind !== 'usecase' }), item('Rapikan otomatis setiap ada perubahan', 'autotidy', '', { ck: autoTidyOn() }), HR, { hd: 'Urutan' }, item('Bawa ke depan', 'front', 'Ctrl+]', { dis: !has }), item('Kirim ke belakang', 'back', 'Ctrl+[', { dis: !has }), item('Maju satu', 'fwd', '', { dis: !has }), item('Mundur satu', 'bwd', '', { dis: !has })];
@@ -18415,6 +18440,440 @@ function mgPick() {
 run = (function (orig) {
   return function (a, btn) { if (a === 'mergefiles') { mgPick(); return; } return orig.apply(this, arguments); };
 })(run);
+
+/* ============================================================================
+   v77: KAMUS DATA dari DFD (mode DFD → Berkas → Kamus Data…)
+   - Satu entri per data store. Arus Data otomatis dari semua alur di level 1 dan level 2
+     (diagram konteks tidak ikut), ditulis "Sumber - Tujuan" (Proses 1.2.3 Nama, Storage Nama, nama entitas).
+   - Alur yang tidak cocok dengan data store mana pun ada di "belum masuk kamus": pilih masuk entri mana.
+   - Struktur Data dari class Model di Class Diagram proyek UML (bila ada), tipe diubah ke gaya basis data.
+   - Halaman bisa diedit seperti Word (teks, font, ukuran, warna, tebal/miring, baris tabel) dan disalin ke Word
+     sebagai tabel biasa (Times New Roman 12, hitam). Teks yang diketik sendiri tidak ditimpa saat DFD berubah;
+     baris Arus Data ikut diperbarui.
+   ========================================================================== */
+var KD_LABELS = ['Nama Arus', 'Alias', 'Bentuk', 'Arus Data', 'Penjelasan', 'Periode', 'Volume', 'Struktur Data'];
+function kdNorm(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+function kdWords(s) { return kdNorm(s).split(' ').filter(function (w) { return w && ['data', 'database', 'db', 'storage', 'tabel', 'table', 'the', 'dan'].indexOf(w) < 0; }); }
+function kdEsc(s) { return esc(String(s == null ? '' : s)); }
+
+/* ---------- membaca DFD ---------- */
+function kdDiagrams() {
+  /* diagram konteks (akar dengan satu proses) tidak ikut; level di bawahnya ikut */
+  var out = [];
+  doc.diagrams.forEach(function (D) {
+    var root = !D.parent, procs = D.elements.filter(function (e) { return e.type === 'process'; });
+    if (root && procs.length <= 1 && doc.diagrams.some(function (x) { return x.parent && x.parent.d === D.id; })) return;
+    out.push(D);
+  });
+  function key(D) { var e = D.parent ? elOf(diag(D.parent.d), D.parent.e) : null; return [depth(D), e && e.num ? String(e.num).split('.').map(function (n) { return ('000' + n).slice(-4); }).join('.') : '']; }
+  return out.sort(function (a, b) { var ka = key(a), kb = key(b); return ka[0] - kb[0] || (ka[1] < kb[1] ? -1 : ka[1] > kb[1] ? 1 : doc.diagrams.indexOf(a) - doc.diagrams.indexOf(b)); });
+}
+function kdNodeLabel(e) {
+  if (!e) return '';
+  if (e.type === 'process') return 'Proses ' + (e.num ? e.num + ' ' : '') + (e.name || '');
+  if (e.type === 'offpage') { var p = offRef(e); return p ? kdNodeLabel(p) : (e.name || ''); }
+  if (e.type === 'store') return /^storage\b/i.test(e.name || '') ? e.name : 'Storage ' + (e.name || '');
+  return e.name || '';
+}
+/* semua arus: { from, to, name, fromEl, toEl, D } — melewati simbol split/merge */
+function kdFlows() {
+  var out = [];
+  kdDiagrams().forEach(function (D) {
+    var by = {}; D.elements.forEach(function (e) { by[e.id] = e; });
+    function ends(id, dirIn, seen) {
+      var e = by[id]; if (!e) return [];
+      if (e.type !== 'spmg') return [e];
+      seen = seen || {}; if (seen[id]) return []; seen[id] = 1;
+      var r = []; D.flows.forEach(function (f) { if (dirIn && f.to === id) r = r.concat(ends(f.from, true, seen)); if (!dirIn && f.from === id) r = r.concat(ends(f.to, false, seen)); });
+      return r;
+    }
+    D.flows.forEach(function (f) {
+      var A = by[f.from], B = by[f.to]; if (!A || !B) return;
+      if (A.type === 'spmg' && B.type === 'spmg') return;
+      var nm = String(f.name || '').trim();
+      if (!nm && (A.type === 'spmg' || B.type === 'spmg')) { var g = D.flows.find(function (x) { return (x.to === (A.type === 'spmg' ? A.id : B.id) || x.from === (A.type === 'spmg' ? A.id : B.id)) && String(x.name || '').trim(); }); nm = g ? String(g.name).trim() : ''; }
+      var As = A.type === 'spmg' ? ends(A.id, true) : [A], Bs = B.type === 'spmg' ? ends(B.id, false) : [B];
+      As.forEach(function (a) { Bs.forEach(function (b) { if (a !== b && nm) out.push({ name: nm, fromEl: a, toEl: b, text: kdNodeLabel(a) + ' - ' + kdNodeLabel(b), D: D }); }); });
+    });
+  });
+  return out;
+}
+function kdStores() {
+  var seen = {}, out = [];
+  kdDiagrams().concat(doc.diagrams).forEach(function (D) { D.elements.forEach(function (e) { if (e.type !== 'store') return; var k = kdNorm(e.name); if (!k || seen[k]) return; seen[k] = 1; out.push(e); }); });
+  return out.sort(function (a, b) { var na = parseInt(String(a.num || '').replace(/\D/g, ''), 10) || 999, nb = parseInt(String(b.num || '').replace(/\D/g, ''), 10) || 999; return na - nb; });
+}
+/* entri tempat sebuah alur masuk: nama sama dengan store, menyentuh store itu, atau semua kata store ada di nama alur */
+function kdAutoAssign(fl, stores) {
+  var n = kdNorm(fl.name), ws = kdWords(fl.name);
+  var s = stores.find(function (st) { return kdNorm(st.name) === n || kdNorm(st.name).replace(/^data /, '') === n.replace(/^data /, ''); });
+  if (s) return kdNorm(s.name);
+  var touch = [fl.fromEl, fl.toEl].filter(function (e) { return e.type === 'store'; });
+  if (touch.length) return kdNorm(touch[0].name);
+  s = stores.find(function (st) { var sw = kdWords(st.name); return sw.length && sw.every(function (w) { return ws.indexOf(w) >= 0; }); });
+  return s ? kdNorm(s.name) : null;
+}
+
+/* ---------- isi bawaan ---------- */
+function kdAlias(title, used) {
+  var w = String(title || '').split(/\s+/).filter(Boolean), a = w.map(function (x) { return x.charAt(0).toUpperCase(); }).join('');
+  if (used[a] && w.length) { var last = w[w.length - 1]; a = w.slice(0, -1).map(function (x) { return x.charAt(0).toUpperCase(); }).join('') + last.charAt(0).toUpperCase() + last.charAt(1).toLowerCase(); var i = 2; while (used[a]) a = a.replace(/\d*$/, '') + (i++); }
+  used[a] = 1; return a;
+}
+function kdUmlDoc() { if (!isDfd() && doc && doc.kind === 'ea') return doc; var s = storedDoc(LS_EA); return s ? s.doc : null; }
+function kdSqlType(n, t) {
+  var x = String(t || '').trim(), l = x.toLowerCase(), nm = String(n || '').toLowerCase();
+  if (/^id(_|$)/.test(nm) && (!x || /^(int|integer|serial)$/.test(l))) return 'SERIAL';
+  if (!x) return 'VARCHAR(50)';
+  if (/^(int|integer|number|long|short|bigint|smallint|tinyint)$/.test(l)) return 'INTEGER';
+  if (/^(string|str|varchar|char)$/.test(l)) return /email|alamat|deskripsi|foto|gambar/.test(nm) ? 'VARCHAR(100)' : /password|kata_sandi/.test(nm) ? 'VARCHAR(50)' : /no_|telp|hp|phone/.test(nm) ? 'VARCHAR(15)' : 'VARCHAR(50)';
+  if (/^(text|longtext)$/.test(l)) return 'TEXT';
+  if (/^date$/.test(l)) return 'DATE';
+  if (/^(datetime|date ?time|timestamp)$/.test(l)) return 'DATETIME';
+  if (/^time$/.test(l)) return 'TIME';
+  if (/^(float|double|decimal|real|currency)$/.test(l)) return 'DECIMAL';
+  if (/^(bool|boolean)$/.test(l)) return 'BOOLEAN';
+  if (/^enum$/.test(l)) return 'ENUM';
+  return x.toUpperCase();
+}
+function kdStruct(title) {
+  var U = kdUmlDoc(); if (!U) return null;
+  var ws = kdWords(title), best = null;
+  U.diagrams.forEach(function (D) { if (D.kind !== 'class') return; D.elements.forEach(function (e) { if (e.type !== 'class' || !/^\s*M[_\s]/i.test(e.name || '')) return; var ew = kdWords(String(e.name).replace(/^\s*M[_\s]*/i, '').replace(/([a-z])([A-Z])/g, '$1 $2')); if (ws.length && ws.every(function (w) { return ew.indexOf(w) >= 0; }) && (!best || (e.attrs || []).length > (best.attrs || []).length)) best = e; }); });
+  return best && (best.attrs || []).length ? best.attrs.map(function (a) { return { n: a.name, t: kdSqlType(a.name, a.type) }; }) : null;
+}
+function kdVerbs(list) {
+  var vs = []; list.forEach(function (p) { var v = String(p.name || '').trim().split(/\s+/)[0]; if (v && /^(me|di|ber|ter|men|mem|meng|meny)/i.test(v)) { v = v.toLowerCase(); if (vs.indexOf(v) < 0) vs.push(v); } }); return vs;
+}
+function kdJoin(a) { return a.length <= 1 ? (a[0] || '') : a.slice(0, -1).join(', ') + (a.length > 2 ? ',' : '') + ' dan ' + a[a.length - 1]; }
+function kdDefaults(title, arus) {
+  var ents = [], procs = [];
+  arus.forEach(function (f) { [f.fromEl, f.toEl].forEach(function (e) { if (e.type === 'entity' && ents.indexOf(e.name) < 0) ents.push(e.name); if (e.type === 'process' && procs.indexOf(e) < 0) procs.push(e); }); });
+  var sub = procs.filter(function (p) { return String(p.num || '').split('.').length >= 3; }), vs = kdVerbs(sub.length ? sub : procs); if (vs.length > 1) vs = vs.filter(function (v) { return v !== 'mengelola' && v !== 'mengolah'; });
+  var low = String(title).toLowerCase();
+  return {
+    penjelasan: title + ' merupakan data yang digunakan ' + (ents.length ? kdJoin(ents) : 'pengguna') + (vs.length ? ' untuk ' + kdJoin(vs) + ' ' + low : ' dalam sistem') + '.',
+    periode: 'Setiap ' + (ents.length ? kdJoin(ents) : 'pengguna') + ' mengakses fitur ' + low.replace(/^data /, '') + '.',
+    volume: 'Volume rata-rata pengguna mengakses fitur ' + low.replace(/^data /, '') + ' sebanyak <mark>…</mark> kali per minggu dan volume puncak sebanyak <mark>…</mark> kali per minggu.'
+  };
+}
+/* ---------- model tersimpan di proyek DFD: doc.kd ---------- */
+function kdModel() {
+  var M = doc.kd = doc.kd || { entries: [], assign: {}, style: { font: 'Times New Roman', size: 12, bold: false } };
+  M.entries = M.entries || []; M.assign = M.assign || {}; M.style = M.style || { font: 'Times New Roman', size: 12, bold: false };
+  return M;
+}
+/* susun ulang entri dari DFD; isian yang sudah diketik pengguna tetap */
+function kdSync() {
+  var M = kdModel(), stores = kdStores(), flows = kdFlows(), used = {};
+  M.entries.forEach(function (en) { if (en.alias) used[en.alias] = 1; });
+  stores.forEach(function (st) {
+    var k = kdNorm(st.name);
+    if (!M.entries.some(function (en) { return en.key === k; })) M.entries.push({ key: k, title: st.name, auto: true });
+  });
+  /* entri otomatis yang store-nya sudah tidak ada dibuang bila belum diubah pengguna */
+  M.entries = M.entries.filter(function (en) { return !en.auto || en.edited || stores.some(function (st) { return kdNorm(st.name) === en.key; }) || en.custom; });
+  var keys = M.entries.map(function (en) { return en.key; }), groups = {}, un = [];
+  keys.forEach(function (k) { groups[k] = []; });
+  flows.forEach(function (fl) {
+    var ak = kdNorm(fl.name), k = M.assign[ak];
+    if (k === '-') return;
+    if (!k || !groups[k]) k = kdAutoAssign(fl, stores);
+    if (k && groups[k]) groups[k].push(fl); else un.push(fl);
+  });
+  M.entries.forEach(function (en) {
+    var seen = {}, list = [];
+    (groups[en.key] || []).forEach(function (f) { if (!seen[f.text]) { seen[f.text] = 1; list.push(f); } });
+    en.arusAuto = list.map(function (f) { return f.text; });
+    en.hide = en.hide || []; en.extra = en.extra || [];
+    if (!en.alias) en.alias = kdAlias(en.title, used);
+    if (!en.bentuk) en.bentuk = 'Tampilan Layar';
+    var d = kdDefaults(en.title, list);
+    ['penjelasan', 'periode', 'volume'].forEach(function (k) { if (!en[k + 'Edited']) en[k] = d[k]; });
+    if (!en.structEdited) { var s = kdStruct(en.title); en.struct = s || en.struct || [{ n: '', t: '' }]; en.structSrc = s ? 'class' : ''; }
+  });
+  var unNames = {}; un.forEach(function (f) { (unNames[kdNorm(f.name)] = unNames[kdNorm(f.name)] || { name: f.name, n: 0 }).n++; });
+  M.unassigned = Object.keys(unNames).map(function (k) { return unNames[k]; });
+  return M;
+}
+function kdArus(en) {
+  var hide = en.hide || [], out = (en.arusAuto || []).filter(function (t) { return hide.indexOf(t) < 0; });
+  return out.concat((en.extra || []).filter(function (t) { return out.indexOf(t) < 0; }));
+}
+
+/* ---------- HTML dokumen (gaya inline supaya tersalin utuh ke Word) ---------- */
+function kdCss(M) { return 'font-family:\'' + M.style.font + '\',serif;font-size:' + M.style.size + 'pt;color:#000'; }
+function kdDocHtml(M, forWord) {
+  var B = 'border:1px solid #000;padding:4pt 6pt;vertical-align:top;', lab = M.style.bold ? 'font-weight:bold;' : '';
+  var h = '<p style="text-align:center;font-weight:bold;margin:0 0 10pt;' + kdCss(M) + '" data-kdf="title">' + (M.titleHtml || 'KAMUS DATA') + '</p>';
+  M.entries.forEach(function (en, i) {
+    var arus = kdArus(en);
+    h += '<div class="kde" data-kde="' + i + '">';
+    h += '<p style="margin:10pt 0 4pt;' + kdCss(M) + '"' + (forWord ? '' : ' contenteditable="false"') + '>' + (i + 1) + '. <span data-kdf="title" data-kdi="' + i + '"' + (forWord ? '' : ' contenteditable="true"') + '>' + kdEsc(en.title) + '</span></p>';
+    h += '<table style="border-collapse:collapse;width:100%;' + kdCss(M) + '" data-kdt="' + i + '">';
+    function row(label, f, html) { return '<tr><td style="' + B + 'width:24%;' + lab + '"' + (forWord ? '' : ' contenteditable="false"') + '>' + label + '</td><td style="' + B + '" data-kdf="' + f + '" data-kdi="' + i + '">' + html + '</td></tr>'; }
+    h += row('Nama Arus', 'title2', kdEsc(en.title));
+    h += row('Alias', 'alias', en.aliasHtml || kdEsc(en.alias));
+    h += row('Bentuk', 'bentuk', en.bentukHtml || kdEsc(en.bentuk));
+    h += row('Arus Data', 'arus', arus.length ? '<ul style="margin:0;padding-left:16pt">' + arus.map(function (t) { return '<li>' + kdEsc(t) + '</li>'; }).join('') + '</ul>' : '<i>Belum ada alur bernama ' + kdEsc(en.title) + '.</i>');
+    h += row('Penjelasan', 'penjelasan', en.penjelasan || '');
+    h += row('Periode', 'periode', en.periode || '');
+    h += row('Volume', 'volume', forWord ? String(en.volume || '').replace(/<\/?mark>/g, '') : (en.volume || ''));
+    var st = '<table style="border-collapse:collapse;width:100%;margin:2pt 0;' + kdCss(M) + '" data-kds="' + i + '"><tr><td style="' + B + 'text-align:center"' + (forWord ? '' : ' contenteditable="false"') + '>Nama Atribut</td><td style="' + B + 'text-align:center"' + (forWord ? '' : ' contenteditable="false"') + '>Tipe Data</td></tr>' +
+      (en.struct || []).map(function (a) { return '<tr data-kdsr="1"><td style="' + B + '">' + (a.nh || kdEsc(a.n)) + '</td><td style="' + B + '">' + (a.th || kdEsc(a.t)) + '</td></tr>'; }).join('') + '</table>';
+    h += '<tr><td style="' + B + 'width:24%;' + lab + '"' + (forWord ? '' : ' contenteditable="false"') + '>Struktur Data</td><td style="' + B + '" data-kdf="struct" data-kdi="' + i + '">' + st + '</td></tr>';
+    h += '</table></div>';
+  });
+  return h;
+}
+/* membaca kembali isi yang diedit ke model */
+function kdReadBack(M, root) {
+  var t = root.querySelector('p[data-kdf="title"]:not([data-kdi])'); if (t) M.titleHtml = t.innerHTML;
+  M.entries.forEach(function (en, i) {
+    function cell(f) { return root.querySelector('[data-kdf="' + f + '"][data-kdi="' + i + '"]'); }
+    var c;
+    c = root.querySelector('span[data-kdf="title"][data-kdi="' + i + '"]'); if (c) { var tt = c.textContent.trim(); if (tt && tt !== en.title) { en.title = tt; en.edited = true; } }
+    c = cell('title2'); if (c) { var t2 = c.textContent.trim(); if (t2 && t2 !== en.title) { en.title = t2; en.edited = true; } }
+    c = cell('alias'); if (c) { en.alias = c.textContent.trim(); en.aliasHtml = c.innerHTML; }
+    c = cell('bentuk'); if (c) { en.bentuk = c.textContent.trim(); en.bentukHtml = c.innerHTML; }
+    ['penjelasan', 'periode', 'volume'].forEach(function (k) { c = cell(k); if (c && c.innerHTML !== en[k]) { en[k] = c.innerHTML; en[k + 'Edited'] = true; } });
+    c = cell('arus');
+    if (c) {
+      var items = Array.prototype.map.call(c.querySelectorAll('li'), function (li) { return li.textContent.replace(/\s+/g, ' ').trim(); }).filter(Boolean);
+      if (!c.querySelector('li') && c.textContent.trim() && !c.querySelector('i')) items = c.innerText.split(/\n+/).map(function (s) { return s.replace(/^[•\-\s]+/, '').trim(); }).filter(Boolean);
+      var auto = en.arusAuto || [];
+      en.hide = auto.filter(function (a) { return items.indexOf(a) < 0; });
+      en.extra = items.filter(function (x) { return auto.indexOf(x) < 0; });
+    }
+    var tb = root.querySelector('[data-kds="' + i + '"]');
+    if (tb) {
+      var rows = Array.prototype.map.call(tb.querySelectorAll('tr[data-kdsr]'), function (tr) { var td = tr.querySelectorAll('td'); return { n: (td[0] || {}).textContent ? td[0].textContent.trim() : '', t: (td[1] || {}).textContent ? td[1].textContent.trim() : '', nh: td[0] ? td[0].innerHTML : '', th: td[1] ? td[1].innerHTML : '' }; });
+      var a = JSON.stringify((en.struct || []).map(function (r) { return [r.n, r.t]; })), b = JSON.stringify(rows.map(function (r) { return [r.n, r.t]; }));
+      if (a !== b || rows.some(function (r, j) { return en.struct[j] && (r.nh !== (en.struct[j].nh || kdEsc(en.struct[j].n))); })) { en.struct = rows; en.structEdited = true; }
+    }
+  });
+}
+
+/* ---------- halaman Kamus Data ---------- */
+function kdOpen() {
+  if (!isDfd()) { toast('Kamus Data dibuat dari DFD. Buka mode DFD dulu.'); return; }
+  if (!doc.diagrams.some(function (D) { return D.flows.length; })) { toast('DFD masih kosong.'); return; }
+  var M; mutate(function () { M = kdSync(); });
+  var FONTS = ['Times New Roman', 'Arial', 'Calibri', 'Cambria', 'Georgia', 'Tahoma', 'Verdana'], SIZES = [8, 9, 10, 10.5, 11, 12, 14, 16, 18];
+  var bar = '<div class="kdbar" role="toolbar" aria-label="Format">' +
+    '<select class="in" data-kdc="font" title="Jenis huruf">' + FONTS.map(function (f) { return '<option' + (f === M.style.font ? ' selected' : '') + '>' + f + '</option>'; }).join('') + '</select>' +
+    '<select class="in kdsz" data-kdc="size" title="Ukuran huruf (pt)">' + SIZES.map(function (z) { return '<option value="' + z + '"' + (z === M.style.size ? ' selected' : '') + '>' + z + '</option>'; }).join('') + '</select>' +
+    '<span class="kdsep"></span><button class="tb" data-kdx="bold" title="Tebal (Ctrl+B)"><b>B</b></button><button class="tb" data-kdx="italic" title="Miring (Ctrl+I)"><i>I</i></button><button class="tb" data-kdx="underline" title="Garis bawah (Ctrl+U)"><u>U</u></button>' +
+    '<label class="tb kdcol" title="Warna huruf"><span class="kdA">A<i id="kd-cA"></i></span><input type="color" data-kdc="color" value="#000000"></label><label class="tb kdcol kdhl" title="Stabilo">▌<input type="color" data-kdc="hilite" value="#fff59d"></label>' +
+    '<span class="kdsep"></span><button class="tb" data-kdx="justifyLeft" title="Rata kiri"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 4h12M2 7h8M2 10h12M2 13h8"/></svg></button><button class="tb" data-kdx="justifyCenter" title="Rata tengah"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 4h12M4 7h8M2 10h12M4 13h8"/></svg></button><button class="tb" data-kdx="justifyFull" title="Rata kiri-kanan"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 4h12M2 7h12M2 10h12M2 13h12"/></svg></button>' +
+    '<button class="tb" data-kdx="insertUnorderedList" title="Poin"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 4h8M6 8h8M6 12h8M2.5 4h.01M2.5 8h.01M2.5 12h.01"/></svg></button>' +
+    '<span class="kdsep"></span><button class="tb" data-kdr="above" title="Sisipkan baris di atas">+ Baris atas</button><button class="tb" data-kdr="below" title="Sisipkan baris di bawah">+ Baris bawah</button><button class="tb" data-kdr="del" title="Hapus baris tabel">Hapus baris</button>' +
+    '<span class="kdsep"></span><label class="cbx kdbl"><input type="checkbox" data-kdc="bold"' + (M.style.bold ? ' checked' : '') + '> Label tebal</label></div>';
+  var body = bar + '<div class="kdwrap"><div class="kdpage" id="kd-page" contenteditable="true" spellcheck="false">' + kdDocHtml(M) + '</div><aside class="kdside" id="kd-side"></aside></div>';
+  modal('Kamus Data', body, '<button class="btn" data-kdact="sync" title="Perbarui Arus Data dari DFD (teks yang kamu ketik tetap)">Perbarui dari DFD</button><button class="btn" data-kdact="doc">Unduh Word (.docx)</button><button class="btn pri" data-kdact="copy">Salin ke Word</button>', function (s, close) {
+    s.querySelector('.modal').classList.add('kdmodal');
+    var page = $('#kd-page', s), saveT = 0, savedRange = null;
+    function save(now) {
+      clearTimeout(saveT);
+      var go = function () { kdReadBack(M, page); persist(); };
+      if (now) go(); else saveT = setTimeout(go, 400);
+    }
+    function render() { page.innerHTML = kdDocHtml(M); side(); }
+    function side() {
+      var h = '<b>Entri</b><ol class="kdlist">' + M.entries.map(function (en, i) { return '<li><a href="#" data-kdgo="' + i + '">' + kdEsc(en.title) + '</a> <span class="hint">' + kdArus(en).length + ' arus</span></li>'; }).join('') + '</ol>';
+      h += '<button class="btn sm" data-kdact="add">+ Entri baru</button>';
+      if (M.unassigned && M.unassigned.length) {
+        h += '<div class="kdun"><b>Alur belum masuk kamus</b><p class="hint">Nama alur ini tidak sama dengan data store mana pun. Pilih masuk ke entri mana.</p>' + M.unassigned.map(function (u) {
+          return '<div class="kdunr"><span>' + kdEsc(u.name) + ' <span class="hint">(' + u.n + ')</span></span><select class="in" data-kdas="' + kdEsc(kdNorm(u.name)) + '"><option value="">pilih…</option>' + M.entries.map(function (en) { return '<option value="' + kdEsc(en.key) + '">' + kdEsc(en.title) + '</option>'; }).join('') + '<option value="+">Jadi entri sendiri</option><option value="-">Abaikan</option></select></div>';
+        }).join('') + '</div>';
+      }
+      h += '<p class="hint">Isi Volume yang bertanda kuning. Teks yang kamu ketik tidak berubah saat Perbarui dari DFD; baris Arus Data ikut diperbarui.</p>';
+      $('#kd-side', s).innerHTML = h;
+    }
+    side();
+    document.execCommand && (function () { try { document.execCommand('styleWithCSS', false, true); } catch (e) { /* abaikan */ } })();
+    page.addEventListener('input', function () { save(); });
+    page.addEventListener('keyup', rememberSel); page.addEventListener('mouseup', rememberSel);
+    function rememberSel() { var sel = window.getSelection(); if (sel.rangeCount && page.contains(sel.anchorNode)) savedRange = sel.getRangeAt(0).cloneRange(); }
+    function restoreSel() { if (!savedRange) return false; page.focus(); var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(savedRange); return true; }
+    function exec(cmd, val) { restoreSel(); try { document.execCommand(cmd, false, val); } catch (e) { /* abaikan */ } rememberSel(); save(); }
+    function sizeSel(pt) {
+      if (!restoreSel() || window.getSelection().isCollapsed) { M.style.size = +pt; render(); persist(); return; }
+      exec('fontSize', '7');
+      page.querySelectorAll('font[size="7"]').forEach(function (f) { var sp = document.createElement('span'); sp.style.fontSize = pt + 'pt'; sp.innerHTML = f.innerHTML; f.replaceWith(sp); });
+      page.querySelectorAll('span').forEach(function (sp) { if (sp.style.fontSize === 'xxx-large' || sp.style.fontSize === '-webkit-xxx-large') sp.style.fontSize = pt + 'pt'; });
+      save();
+    }
+    function fontSel(f) {
+      if (!restoreSel() || window.getSelection().isCollapsed) { M.style.font = f; render(); persist(); return; }
+      exec('fontName', f);
+    }
+    s.addEventListener('mousedown', function (ev) { if (ev.target.closest('.kdbar button, .kdbar label')) ev.preventDefault(); });
+    s.addEventListener('click', function (ev) {
+      var x = ev.target.closest('[data-kdx]'); if (x) { exec(x.dataset.kdx); return; }
+      var r = ev.target.closest('[data-kdr]'); if (r) { rowOp(r.dataset.kdr); return; }
+      var g = ev.target.closest('[data-kdgo]'); if (g) { ev.preventDefault(); var el = page.querySelector('[data-kde="' + g.dataset.kdgo + '"]'); if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' }); return; }
+      var a = ev.target.closest('[data-kdact]'); if (!a) return;
+      var act = a.dataset.kdact;
+      if (act === 'sync') { save(true); mutate(function () { kdSync(); }); render(); toast('Arus Data diperbarui dari DFD.'); }
+      if (act === 'add') { save(true); var nm = 'Data Baru'; mutate(function () { M.entries.push({ key: 'custom-' + uid('k'), title: nm, custom: true, edited: true }); kdSync(); }); render(); var last = page.querySelector('[data-kde="' + (M.entries.length - 1) + '"]'); if (last) last.scrollIntoView({ block: 'start' }); }
+      if (act === 'copy') { save(true); kdCopy(M); }
+      if (act === 'doc') { save(true); kdDownload(M); }
+    });
+    s.addEventListener('change', function (ev) {
+      var c = ev.target.dataset.kdc, as = ev.target.dataset.kdas;
+      if (c === 'font') fontSel(ev.target.value);
+      if (c === 'size') sizeSel(ev.target.value);
+      if (c === 'color') { exec('foreColor', ev.target.value); var ci = $('#kd-cA', s); if (ci) ci.style.background = ev.target.value; }
+      if (c === 'hilite') exec('hiliteColor', ev.target.value);
+      if (c === 'bold') { save(true); M.style.bold = ev.target.checked; render(); persist(); }
+      if (as !== undefined) {
+        var v = ev.target.value; if (!v) return; save(true);
+        mutate(function () { if (v === '+') { var u = M.unassigned.find(function (q) { return kdNorm(q.name) === as; }); var key = 'custom-' + as; M.entries.push({ key: key, title: u ? u.name : as, custom: true }); M.assign[as] = key; } else M.assign[as] = v; kdSync(); });
+        render();
+      }
+    });
+    /* baris tabel: Struktur Data (atribut) dan baris poin Arus Data */
+    function rowOp(op) {
+      restoreSel(); var sel = window.getSelection(), n = sel.anchorNode; if (!n) return;
+      var el = n.nodeType === 1 ? n : n.parentNode, li = el.closest('li'), tr = el.closest('tr[data-kdsr]');
+      if (tr) {
+        if (op === 'del') { var tb = tr.parentNode; if (tb.querySelectorAll('tr[data-kdsr]').length > 1) tr.remove(); else tr.querySelectorAll('td').forEach(function (td) { td.innerHTML = ''; }); }
+        else { var nt = tr.cloneNode(true); nt.querySelectorAll('td').forEach(function (td) { td.innerHTML = '<br>'; }); tr.parentNode.insertBefore(nt, op === 'above' ? tr : tr.nextSibling); placeCaret(nt.querySelector('td')); }
+        save(true); return;
+      }
+      if (li) {
+        if (op === 'del') li.remove(); else { var nl = document.createElement('li'); nl.innerHTML = '<br>'; li.parentNode.insertBefore(nl, op === 'above' ? li : li.nextSibling); placeCaret(nl); }
+        save(true); return;
+      }
+      toast('Taruh kursor di baris atribut (Struktur Data) atau di salah satu poin Arus Data dulu.');
+    }
+    function placeCaret(node) { var r = document.createRange(); r.selectNodeContents(node); r.collapse(true); var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r); rememberSel(); }
+    /* menghapus seluruh tabel / label kiri tidak boleh lewat Backspace */
+    page.addEventListener('keydown', function (ev) {
+      if ((ev.key === 'Backspace' || ev.key === 'Delete')) { var sel = window.getSelection(); if (!sel.isCollapsed) { var r = sel.getRangeAt(0); if (r.cloneContents().querySelector && r.cloneContents().querySelector('table, [data-kde]')) { ev.preventDefault(); toast('Untuk menghapus isi, pilih teks di dalam satu kotak saja.'); } } }
+      if (ev.key === 'Tab') { ev.preventDefault(); var sel2 = window.getSelection(), el2 = sel2.anchorNode && (sel2.anchorNode.nodeType === 1 ? sel2.anchorNode : sel2.anchorNode.parentNode), td = el2 && el2.closest('td'); if (td) { var all = Array.prototype.filter.call(page.querySelectorAll('td'), function (x) { return x.getAttribute('contenteditable') !== 'false' && !x.querySelector('table'); }), k = all.indexOf(td); var nx = all[k + (ev.shiftKey ? -1 : 1)]; if (nx) placeCaret(nx); } }
+    });
+    var mo = new MutationObserver(function () { if (!document.body.contains(s)) { mo.disconnect(); kdReadBack(M, page); persist(); } });
+    mo.observe(document.body, { childList: true });
+    void close;
+  });
+}
+function kdWordHtml(M) {
+  return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>Kamus Data</title>' +
+    '<style>body{' + kdCss(M) + '} table{border-collapse:collapse} td{border:1px solid #000;vertical-align:top} p{margin:0}</style></head><body>' + kdDocHtml(M, true) + '</body></html>';
+}
+function kdPlain(M) {
+  return 'KAMUS DATA\n\n' + M.entries.map(function (en, i) {
+    return (i + 1) + '. ' + en.title + '\nNama Arus\t' + en.title + '\nAlias\t' + en.alias + '\nBentuk\t' + en.bentuk + '\nArus Data\t' + kdArus(en).join('\n\t') + '\nPenjelasan\t' + String(en.penjelasan || '').replace(/<[^>]+>/g, '') + '\nPeriode\t' + String(en.periode || '').replace(/<[^>]+>/g, '') + '\nVolume\t' + String(en.volume || '').replace(/<[^>]+>/g, '') + '\nStruktur Data\tNama Atribut\tTipe Data\n' + (en.struct || []).map(function (a) { return '\t' + a.n + '\t' + a.t; }).join('\n');
+  }).join('\n\n');
+}
+function kdCopy(M) {
+  var html = kdWordHtml(M), txt = kdPlain(M);
+  function fallback() {
+    var d = document.createElement('div'); d.contentEditable = 'true'; d.style.cssText = 'position:fixed;left:-9999px;top:0'; d.innerHTML = kdDocHtml(M, true); document.body.appendChild(d);
+    var r = document.createRange(); r.selectNodeContents(d); var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+    var ok = false; try { ok = document.execCommand('copy'); } catch (e) { ok = false; } sel.removeAllRanges(); d.remove();
+    toast(ok ? 'Kamus Data disalin. Tempel di Word dengan Ctrl+V, hasilnya tabel biasa.' : 'Browser menolak menyalin. Pakai Unduh Word (.docx).');
+  }
+  try {
+    if (navigator.clipboard && window.ClipboardItem) {
+      navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([txt], { type: 'text/plain' }) })])
+        .then(function () { toast('Kamus Data disalin. Tempel di Word dengan Ctrl+V, hasilnya tabel biasa.'); }, fallback);
+    } else fallback();
+  } catch (e) { fallback(); }
+}
+function kdDownload(M) {
+  var name = safeName((doc.name || 'Proyek') + ' - Kamus Data') + '.doc';
+  var blob = new Blob(['﻿' + kdWordHtml(M)], { type: 'application/msword' }), a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  toast('Tersimpan: ' + name + '. Bisa dibuka dan diedit di Word.');
+}
+run = (function (orig) {
+  return function (a, btn) { if (a === 'kamus') { kdOpen(); return; } return orig.apply(this, arguments); };
+})(run);
+/* ---------- .docx asli (Word, LibreOffice, Google Docs) dari isi halaman ---------- */
+function kdX(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function kdRgbHex(c) {
+  c = String(c || '').trim(); if (!c) return '';
+  var m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(c); if (m) { var h = m[1]; return (h.length === 3 ? h.split('').map(function (x) { return x + x; }).join('') : h).toUpperCase(); }
+  m = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?/i.exec(c); if (m) { if (m[4] !== undefined && +m[4] === 0) return ''; return [m[1], m[2], m[3]].map(function (x) { return ('0' + (+x).toString(16)).slice(-2); }).join('').toUpperCase(); }
+  return '';
+}
+function kdDocxBlob(M) {
+  var host = document.createElement('div'); host.style.cssText = 'position:fixed;left:-99999px;top:0;width:800px'; host.innerHTML = kdDocHtml(M, true); document.body.appendChild(host);
+  var baseSz = M.style.size, baseFont = M.style.font;
+  function runProps(el) {
+    var cs = getComputedStyle(el), p = '';
+    var f = String(cs.fontFamily || baseFont).split(',')[0].replace(/["']/g, '').trim() || baseFont;
+    p += '<w:rFonts w:ascii="' + kdX(f) + '" w:hAnsi="' + kdX(f) + '" w:cs="' + kdX(f) + '"/>';
+    if (+cs.fontWeight >= 600 || cs.fontWeight === 'bold') p += '<w:b/>';
+    if (cs.fontStyle === 'italic') p += '<w:i/>';
+    if (/underline/.test(cs.textDecorationLine || cs.textDecoration || '')) p += '<w:u w:val="single"/>';
+    var col = kdRgbHex(cs.color); if (col && col !== '000000') p += '<w:color w:val="' + col + '"/>';
+    var bg = '', q = el; while (q && q !== host && !bg) { if (q.tagName === 'TD' || q.tagName === 'TABLE') break; bg = kdRgbHex(getComputedStyle(q).backgroundColor); q = q.parentElement; }
+    if (bg && bg !== 'FFFFFF') p += '<w:shd w:val="clear" w:color="auto" w:fill="' + bg + '"/>';
+    var pt = parseFloat(cs.fontSize) * 0.75; if (!pt) pt = baseSz; p += '<w:sz w:val="' + Math.round(pt * 2) + '"/><w:szCs w:val="' + Math.round(pt * 2) + '"/>';
+    return '<w:rPr>' + p + '</w:rPr>';
+  }
+  function runs(node) {
+    var out = '';
+    node.childNodes.forEach(function (c) {
+      if (c.nodeType === 3) { var t = c.textContent.replace(/\s+/g, ' '); if (t) out += '<w:r>' + runProps(c.parentElement) + '<w:t xml:space="preserve">' + kdX(t) + '</w:t></w:r>'; }
+      else if (c.nodeType === 1) { if (c.tagName === 'BR') out += '<w:r><w:br/></w:r>'; else if (!/^(UL|OL|TABLE|P|DIV|LI)$/.test(c.tagName)) out += runs(c); }
+    });
+    return out;
+  }
+  function para(el, extra) {
+    var al = getComputedStyle(el).textAlign, jc = al === 'center' ? 'center' : al === 'right' ? 'right' : al === 'justify' ? 'both' : '';
+    var cs2 = getComputedStyle(el), mb = Math.round((parseFloat(cs2.marginTop) || 0) * 15), ma = Math.round((parseFloat(cs2.marginBottom) || 0) * 15);
+    return '<w:p><w:pPr>' + (extra || '') + '<w:spacing w:before="' + (extra ? 0 : mb) + '" w:after="' + (extra ? 0 : ma) + '"/>' + (jc ? '<w:jc w:val="' + jc + '"/>' : '') + '</w:pPr>' + runs(el) + '</w:p>';
+  }
+  /* isi blok: paragraf, daftar poin, tabel (bisa bersarang di sel) */
+  function blocks(node) {
+    var out = '', inline = [];
+    function flush() { if (!inline.length) return; var d = document.createElement('div'); inline.forEach(function (n) { d.appendChild(n.cloneNode(true)); }); node.appendChild(d); out += para(d); d.remove(); inline = []; }
+    Array.prototype.slice.call(node.childNodes).forEach(function (c) {
+      if (c.nodeType === 1 && c.tagName === 'TABLE') { flush(); out += table(c); }
+      else if (c.nodeType === 1 && (c.tagName === 'UL' || c.tagName === 'OL')) { flush(); c.querySelectorAll(':scope > li').forEach(function (li) { out += para(li, '<w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr>'); }); }
+      else if (c.nodeType === 1 && /^(P|DIV|LI)$/.test(c.tagName)) { flush(); out += c.querySelector('table, ul, ol') ? blocks(c) : para(c); }
+      else inline.push(c);
+    });
+    flush();
+    return out;
+  }
+  function table(t) {
+    var rows = Array.prototype.filter.call(t.rows, function (r) { return r.parentElement.closest('table') === t; });
+    var nc = Math.max.apply(null, rows.map(function (r) { return r.cells.length; })), widths = nc === 2 && !t.closest('td') ? [24, 76] : null;
+    var b = '<w:tblBorders>' + ['top', 'left', 'bottom', 'right', 'insideH', 'insideV'].map(function (s2) { return '<w:' + s2 + ' w:val="single" w:sz="4" w:space="0" w:color="000000"/>'; }).join('') + '</w:tblBorders>';
+    var x = '<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/>' + b + '<w:tblLayout w:type="autofit"/><w:tblCellMar><w:left w:w="100" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>' + Array.from({ length: nc }).map(function (_, i) { return '<w:gridCol w:w="' + Math.round(9000 * (widths ? widths[i] : 100 / nc) / 100) + '"/>'; }).join('') + '</w:tblGrid>';
+    rows.forEach(function (r) {
+      x += '<w:tr>';
+      Array.prototype.forEach.call(r.cells, function (td, i) {
+        var inner = blocks(td); if (!/<w:p>(?![\s\S]*<w:tbl>)[\s\S]*<\/w:p>$/.test(inner) || /<\/w:tbl>$/.test(inner)) inner += '<w:p/>';
+        x += '<w:tc><w:tcPr><w:tcW w:w="' + (widths ? widths[i] * 50 : Math.round(5000 / nc)) + '" w:type="pct"/></w:tcPr>' + inner + '</w:tc>';
+      });
+      x += '</w:tr>';
+    });
+    return x + '</w:tbl>';
+  }
+  var bodyXml = blocks(host); host.remove();
+  var W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
+  var docXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ' + W + '><w:body>' + bodyXml + '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1701" w:right="1701" w:bottom="1701" w:left="2268" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>';
+  var styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles ' + W + '><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="' + kdX(baseFont) + '" w:hAnsi="' + kdX(baseFont) + '" w:cs="' + kdX(baseFont) + '"/><w:sz w:val="' + baseSz * 2 + '"/><w:color w:val="000000"/><w:lang w:val="id-ID"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style></w:styles>';
+  var numbering = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:numbering ' + W + '><w:abstractNum w:abstractNumId="0"><w:multiLevelType w:val="hybridMultilevel"/><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="bullet"/><w:lvlText w:val="●"/><w:lvlJc w:val="left"/><w:pPr><w:ind w:left="360" w:hanging="270"/></w:pPr><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="14"/></w:rPr></w:lvl></w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num></w:numbering>';
+  var ct = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/></Types>';
+  var rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>';
+  var drels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/></Relationships>';
+  var te = new TextEncoder();
+  return new Blob([zipN([{ name: '[Content_Types].xml', data: te.encode(ct) }, { name: '_rels/.rels', data: te.encode(rels) }, { name: 'word/document.xml', data: te.encode(docXml) }, { name: 'word/styles.xml', data: te.encode(styles) }, { name: 'word/numbering.xml', data: te.encode(numbering) }, { name: 'word/_rels/document.xml.rels', data: te.encode(drels) }])], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+}
+kdDownload = function (M) {
+  var name = safeName((doc.name || 'Proyek') + ' - Kamus Data') + '.docx', blob;
+  try { blob = kdDocxBlob(M); } catch (e) { toast('Gagal membuat .docx: ' + (e && e.message)); return; }
+  var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  toast('Tersimpan: ' + name + '. Buka di Word untuk diedit atau disalin ke laporan.');
+};
 
 (function init() {
   var mode = 'dfd'; try { mode = localStorage.getItem('alir-mode') || 'dfd'; } catch (x) { mode = 'dfd'; }
